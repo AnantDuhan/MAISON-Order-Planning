@@ -1,13 +1,16 @@
-import React, { Fragment, useState, useEffect } from 'react';
-import './ResetPassword.css';
-import Loader from '../layout/Loader/Loader';
-import { useDispatch, useSelector } from 'react-redux';
-import { clearErrors, resetPassword } from '../../actions/userAction';
-import { toast } from 'react-toastify';
-import MetaData from '../layout/MetaData';
-import LockOpenIcon from '@material-ui/icons/LockOpen';
 import LockIcon from '@material-ui/icons/Lock';
+import LockOpenIcon from '@material-ui/icons/LockOpen';
+import React, { Fragment, useEffect, useState } from 'react';
+// import Loader from '../layout/Loader/Loader';
+import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router';
+import { toast } from 'react-toastify';
+import LoadingBar from 'react-top-loading-bar';
+
+import { clearErrors, resetPassword } from '../../actions/userAction';
+import MetaData from '../layout/MetaData';
+
+import './ResetPassword.css';
 
 const ResetPassword = ({ match }) => {
     const dispatch = useDispatch();
@@ -20,6 +23,10 @@ const ResetPassword = ({ match }) => {
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
 
+    const [progress, setProgress] = useState(0);
+
+    const onLoaderFinished = () => setProgress(0);
+
     const resetPasswordSubmit = e => {
         e.preventDefault();
 
@@ -29,6 +36,7 @@ const ResetPassword = ({ match }) => {
         myForm.set('confirmPassword', confirmPassword);
 
         dispatch(resetPassword(match.params.token, myForm));
+        setProgress(50);
     };
 
     useEffect(() => {
@@ -42,12 +50,18 @@ const ResetPassword = ({ match }) => {
 
             navigate('/login');
         }
+        setProgress(100);
+        setTimeout(() => setProgress(0), 5000);
     }, [dispatch, error, navigate, success]);
 
     return (
         <Fragment>
             {loading ? (
-                <Loader />
+                <LoadingBar
+                    color='red'
+                    progress={progress}
+                    onLoaderFinished={onLoaderFinished}
+                />
             ) : (
                 <Fragment>
                     <MetaData title='Change Password' />
@@ -89,6 +103,7 @@ const ResetPassword = ({ match }) => {
                                     type='submit'
                                     value='Update'
                                     className='resetPasswordBtn'
+                                    onClick={() => setProgress(progress + 80)}
                                 />
                             </form>
                         </div>

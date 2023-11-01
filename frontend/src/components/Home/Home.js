@@ -4,7 +4,8 @@ import { toast } from 'react-toastify';
 
 import { clearErrors, getProduct } from '../../actions/productAction';
 import { clearNewsletter, newsletter } from '../../actions/subscribeAction';
-import Loader from '../layout/Loader/Loader';
+// import Loader from '../layout/Loader/Loader';
+import LoadingBar from 'react-top-loading-bar';
 import MetaData from '../layout/MetaData';
 import ProductCard from './ProductCard';
 import ProductGridItem from './ProductGridItem';
@@ -15,7 +16,9 @@ const Home = () => {
     const dispatch = useDispatch();
 
     const [email, setEmail] = useState('');
+    const [progress, setProgress] = useState(0);
 
+    const onLoaderFinished = () => setProgress(0);
 
     const { loading, error, products } = useSelector(state => state.products);
     const { success: subscribeSuccess, error: subscribeError } = useSelector(state => state.subscribe);
@@ -24,6 +27,7 @@ const Home = () => {
         e.preventDefault();
         dispatch(newsletter(email));
         setEmail('');
+        setProgress(50);
     };
 
     useEffect(() => {
@@ -40,6 +44,8 @@ const Home = () => {
             toast.error(error);
             dispatch(clearErrors());
         }
+        setProgress(100);
+        setTimeout(() => setProgress(0), 5000);
 
         dispatch(getProduct());
     }, [dispatch, error, subscribeSuccess, subscribeError]);
@@ -47,7 +53,11 @@ const Home = () => {
     return (
         <Fragment>
             {loading ? (
-                <Loader />
+                <LoadingBar
+                    color='red'
+                    progress={progress}
+                    onLoaderFinished={onLoaderFinished}
+                />
             ) : (
                 <Fragment>
                     <MetaData title='Order Planning' />
@@ -56,9 +66,7 @@ const Home = () => {
                         <h1>
                             Welcome to <span>Order Planning!!</span>
                         </h1>
-                        <p>
-                            FIND OUR AMAZING RANGE OF PRODUCTS BELOW..
-                        </p>
+                        <p>FIND OUR AMAZING RANGE OF PRODUCTS BELOW..</p>
                     </div>
 
                     {/* <h2 className='homeHeading'>Featured Products</h2>
@@ -116,7 +124,7 @@ const Home = () => {
                             value={email}
                             onChange={e => setEmail(e.target.value)}
                         />
-                        <button className='subscribe-button' type='submit'>
+                        <button className='subscribe-button' type='submit' onClick={() => setProgress(progress + 60)}>
                             Subscribe
                         </button>
                     </form>

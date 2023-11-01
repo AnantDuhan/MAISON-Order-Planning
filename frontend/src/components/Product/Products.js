@@ -5,10 +5,11 @@ import Pagination from 'react-js-pagination';
 import { useDispatch, useSelector } from 'react-redux';
 import { useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
+// import Loader from '../layout/Loader/Loader';
+import LoadingBar from 'react-top-loading-bar';
 
 import { clearErrors, getProduct } from '../../actions/productAction';
 import ProductCard from '../Home/ProductCard';
-import Loader from '../layout/Loader/Loader';
 import MetaData from '../layout/MetaData';
 
 import './Products.css';
@@ -20,6 +21,9 @@ const Products = () => {
     const [price, setPrice] = useState([0, 40000]);
     const [category, setCategory] = useState("");
     const [ratings, setRatings] = useState(0);
+    const [progress, setProgress] = useState(0);
+
+    const onLoaderFinished = () => setProgress(0);
 
     const { keyword } = useParams();
     const { products, loading, error, productsCount, resultPerPage, filteredProductsCount } =
@@ -63,6 +67,8 @@ const Products = () => {
             dispatch(clearErrors());
         }
         dispatch(getProduct(keyword, currentPage, price, category, ratings));
+        setProgress(100);
+        setTimeout(() => setProgress(0), 5000);
     }, [dispatch, keyword, currentPage, price, category, ratings, error]);
 
     let count = filteredProductsCount;
@@ -70,7 +76,11 @@ const Products = () => {
     return (
         <Fragment>
             {loading ? (
-                <Loader />
+                <LoadingBar
+                    color='red'
+                    progress={progress}
+                    onLoaderFinished={onLoaderFinished}
+                />
             ) : (
                 <Fragment>
                     <MetaData title='PRODUCTS -- ECOMMERCE' />
@@ -102,8 +112,13 @@ const Products = () => {
                                                     ? 'active'
                                                     : ''
                                             }`}
-                                            onClick={() =>
-                                                priceHandler(null, range.value)
+                                            onClick={
+                                                (() =>
+                                                    priceHandler(
+                                                        null,
+                                                        range.value
+                                                    ),
+                                                setProgress(progress + 80))
                                             }
                                         >
                                             {range.label}

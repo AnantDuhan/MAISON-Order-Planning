@@ -1,11 +1,12 @@
-import React, { Fragment, useEffect } from 'react';
+import React, { Fragment, useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { DataGrid } from '@material-ui/data-grid';
 import LaunchIcon from '@material-ui/icons/Launch';
 import { clearErrors, allReturns } from '../../actions/orderAction';
-import Loader from '../layout/Loader/Loader';
+// import Loader from '../layout/Loader/Loader';
+import LoadingBar from 'react-top-loading-bar';
 import MetaData from '../layout/MetaData';
 
 import './ReturnList.css';
@@ -14,6 +15,10 @@ const ReturnList = () => {
     const dispatch = useDispatch();
 
     const { loading, error, returns } = useSelector(state => state.allReturns);
+
+    const [progress, setProgress] = useState(0);
+
+    const onLoaderFinished = () => setProgress(0);
 
     const columns = [
         { field: 'id', headerName: 'Return ID', minWidth: 150, flex: 0.4 },
@@ -134,13 +139,19 @@ const ReturnList = () => {
         }
 
         dispatch(allReturns());
+        setProgress(100);
+        setTimeout(() => setProgress(0), 5000);
     }, [dispatch, error]);
 
     return (
         <Fragment>
             <MetaData title='All Returns' />
             {loading ? (
-                <Loader />
+                <LoadingBar
+                    color='red'
+                    progress={progress}
+                    onLoaderFinished={onLoaderFinished}
+                />
             ) : (
                 <div className='allReturnsPage'>
                     <h1 id='returnsListHeading'>ALL RETURNS</h1>

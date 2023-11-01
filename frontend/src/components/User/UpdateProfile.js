@@ -1,14 +1,17 @@
-import React, { Fragment, useState, useEffect } from 'react';
-import './UpdateProfile.css';
-import Loader from '../layout/Loader/Loader';
-import MailOutlineIcon from '@material-ui/icons/MailOutline';
 import FaceIcon from '@material-ui/icons/Face';
+import MailOutlineIcon from '@material-ui/icons/MailOutline';
+import React, { Fragment, useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { clearErrors, updateProfile, loadUser } from '../../actions/userAction';
+import { useNavigate } from 'react-router';
 import { toast } from 'react-toastify';
+// import Loader from '../layout/Loader/Loader';
+import LoadingBar from 'react-top-loading-bar';
+
+import { clearErrors, loadUser, updateProfile } from '../../actions/userAction';
 import { UPDATE_PROFILE_RESET } from '../../constants/userConstants';
 import MetaData from '../layout/MetaData';
-import { useNavigate } from 'react-router';
+
+import './UpdateProfile.css';
 
 const UpdateProfile = () => {
     const dispatch = useDispatch();
@@ -21,6 +24,9 @@ const UpdateProfile = () => {
     const [email, setEmail] = useState('');
     const [avatar, setAvatar] = useState();
     const [avatarPreview, setAvatarPreview] = useState('/Profile.png');
+    const [progress, setProgress] = useState(0);
+
+    const onLoaderFinished = () => setProgress(0);
 
     const updateProfileSubmit = e => {
         e.preventDefault();
@@ -31,6 +37,7 @@ const UpdateProfile = () => {
         myForm.set('email', email);
         myForm.set('avatar', avatar);
         dispatch(updateProfile(myForm));
+        setProgress(50);
     };
 
     const updateProfileDataChange = e => {
@@ -68,11 +75,17 @@ const UpdateProfile = () => {
                 type: UPDATE_PROFILE_RESET
             });
         }
+        setProgress(100);
+        setTimeout(() => setProgress(0), 5000);
     }, [dispatch, error, navigate, user, isUpdated]);
     return (
         <Fragment>
             {loading ? (
-                <Loader />
+                <LoadingBar
+                    color='red'
+                    progress={progress}
+                    onLoaderFinished={onLoaderFinished}
+                />
             ) : (
                 <Fragment>
                     <MetaData title='Update Profile' />
@@ -126,6 +139,7 @@ const UpdateProfile = () => {
                                     type='submit'
                                     value='Update'
                                     className='updateProfileBtn'
+                                    onClick={() => setProgress(progress + 80)}
                                 />
                             </form>
                         </div>

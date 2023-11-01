@@ -1,25 +1,22 @@
 import { Button, Dialog, DialogActions, DialogContent, DialogTitle } from '@material-ui/core';
 import { Rating } from '@material-ui/lab';
 import React, { Fragment, useEffect, useState } from 'react';
+import Lightbox from 'react-images';
 import { useDispatch, useSelector } from 'react-redux';
+import { Carousel } from 'react-responsive-carousel';
 import { useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
-
-import FavoriteBorderOutlinedIcon from '@mui/icons-material/FavoriteBorderOutlined';
-import FavoriteIcon from '@mui/icons-material/Favorite';
-
-import { Carousel } from 'react-responsive-carousel';
-import 'react-responsive-carousel/lib/styles/carousel.min.css';
-import Lightbox from 'react-images';
+// import Loader from '../layout/Loader/Loader';
+import LoadingBar from 'react-top-loading-bar';
 
 import { addItemsToCart } from '../../actions/cartAction';
-import { addProductToWishlist, clearErrors, getProductDetails, newReview, removeProductFromWishlist } from '../../actions/productAction';
+import { addProductToWishlist, clearErrors, getProductDetails, newReview } from '../../actions/productAction';
 import { NEW_REVIEW_RESET } from '../../constants/productConstants';
-import Loader from '../layout/Loader/Loader';
 import MetaData from '../layout/MetaData';
 import ReviewCard from './ReviewCard';
 
 import './ProductDetails.css';
+import 'react-responsive-carousel/lib/styles/carousel.min.css';
 
 const ProductDetails = () => {
     const dispatch = useDispatch();
@@ -34,6 +31,10 @@ const ProductDetails = () => {
     const { success, error: reviewError } = useSelector(
         state => state.newReview
     );
+
+    const [progress, setProgress] = useState(0);
+
+    const onLoaderFinished = () => setProgress(0);
 
     const options = {
         size: 'large',
@@ -66,6 +67,7 @@ const ProductDetails = () => {
     const addToCartHandler = () => {
         dispatch(addItemsToCart(id, quantity));
         toast.success('Item Added To Cart');
+        setProgress(progress + 80);
     };
 
     const wishlistHandler = () => {
@@ -77,6 +79,7 @@ const ProductDetails = () => {
             dispatch(addProductToWishlist(id));
             toast.success('Item Added To Wishlist');
         }
+        setProgress(progress + 80);
     }
 
     const submitReviewToggle = () => {
@@ -92,6 +95,7 @@ const ProductDetails = () => {
 
         dispatch(newReview(reviewData));
         setOpen(false);
+        setProgress(progress + 80);
     };
 
     const openLightbox = index => {
@@ -115,12 +119,18 @@ const ProductDetails = () => {
             dispatch({ type: NEW_REVIEW_RESET });
         }
         dispatch(getProductDetails(id));
+        setProgress(100);
+        setTimeout(() => setProgress(0), 5000);
     }, [dispatch, id, error, reviewError, success]);
 
     return (
         <Fragment>
             {loading ? (
-                <Loader />
+                <LoadingBar
+                    color='red'
+                    progress={progress}
+                    onLoaderFinished={onLoaderFinished}
+                />
             ) : (
                 <Fragment>
                     <MetaData title={`${product.name} -- ECOMMERCE`} />

@@ -1,11 +1,12 @@
-import React, { Fragment, useEffect } from 'react';
+import React, { Fragment, useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { DataGrid } from '@material-ui/data-grid';
 import LaunchIcon from '@material-ui/icons/Launch';
 import { clearErrors, allRefunds } from '../../actions/orderAction';
-import Loader from '../layout/Loader/Loader';
+// import Loader from '../layout/Loader/Loader';
+import LoadingBar from 'react-top-loading-bar';
 import MetaData from '../layout/MetaData';
 
 import './RefundList.css';
@@ -14,6 +15,10 @@ const RefundList = () => {
     const dispatch = useDispatch();
 
     const { loading, error, refunds } = useSelector(state => state.allRefunds);
+
+    const [progress, setProgress] = useState(0);
+
+    const onLoaderFinished = () => setProgress(0);
 
     const columns = [
         { field: 'id', headerName: 'Refund ID', minWidth: 150, flex: 0.4 },
@@ -87,13 +92,19 @@ const RefundList = () => {
         }
 
         dispatch(allRefunds());
+        setProgress(100);
+        setTimeout(() => setProgress(0), 5000);
     }, [dispatch, error]);
 
     return (
         <Fragment>
             <MetaData title='All Refunds' />
             {loading ? (
-                <Loader />
+                <LoadingBar
+                    color='red'
+                    progress={progress}
+                    onLoaderFinished={onLoaderFinished}
+                />
             ) : (
                 <div className='allReturnsPage'>
                     <h1 id='returnsListHeading'>ALL REFUNDS</h1>

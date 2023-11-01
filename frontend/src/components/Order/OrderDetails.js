@@ -22,7 +22,8 @@ import {
     Select,
     Typography
 } from '@material-ui/core';
-import Loader from '../layout/Loader/Loader';
+// import Loader from '../layout/Loader/Loader';
+import LoadingBar from 'react-top-loading-bar';
 import MetaData from '../layout/MetaData';
 
 import './OrderDetails.css';
@@ -36,6 +37,9 @@ const OrderDetails = () => {
     const [openDialog, setOpenDialog] = useState(false);
     const [selectedOrder, setSelectedOrder] = useState(null);
     const [selectedReturnReason, setSelectedReturnReason] = useState('');
+    const [progress, setProgress] = useState(0);
+
+    const onLoaderFinished = () => setProgress(0);
 
     const returnReasons = [
         'Defective Product',
@@ -61,6 +65,7 @@ const OrderDetails = () => {
             toast.success('Return request submitted successfully');
             handleCloseDialog();
         }
+        setProgress(progress + 80);
     };
 
     const handleOpenDialog = order => {
@@ -80,12 +85,18 @@ const OrderDetails = () => {
         }
 
         dispatch(getOrderDetails(id));
+        setProgress(100);
+        setTimeout(() => setProgress(0), 5000);
     }, [dispatch, error, id]);
 
     return (
         <Fragment>
             {loading ? (
-                <Loader />
+                <LoadingBar
+                    color='red'
+                    progress={progress}
+                    onLoaderFinished={onLoaderFinished}
+                />
             ) : (
                 <Fragment>
                     <MetaData title='Order Details' />

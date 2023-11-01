@@ -22,12 +22,14 @@ import {
     Select,
     Typography
 } from '@material-ui/core';
-import Loader from '../layout/Loader/Loader';
+// import Loader from '../layout/Loader/Loader';
 import MetaData from '../layout/MetaData';
+import LoadingBar from 'react-top-loading-bar';
 
 import './ProcessOrder.css';
 
 const ProcessOrder = () => {
+
     const { order, error, loading } = useSelector(state => state.orderDetails);
     const { error: updateError, isUpdated } = useSelector(state => state.order);
 
@@ -37,9 +39,13 @@ const ProcessOrder = () => {
     const [openDialog, setOpenDialog] = useState(false);
     const [selectedRefundStatus, setSelectedRefundStatus] = useState('');
     const [status, setStatus] = useState('');
+    const [progress, setProgress] = useState(0);
+
+    const onLoaderFinished = () => setProgress(0);
 
     const submitRefundRequest_1 = id => {
         if (order) {
+            setProgress(50);
             dispatch(initiateRefund(id));
             toast.success('Refund request initiated successfully');
             handleCloseDialog_1();
@@ -67,10 +73,6 @@ const ProcessOrder = () => {
             handleCloseDialog_2();
         }
     };
-
-    // console.log('ORDER ID', order?._id);
-    // console.log('REFUND ID', order);
-    // console.log('ORDER STATUS', selectedRefundStatus);
 
     const handleOpenDialog_2 = () => {
         setOpenDialog(true);
@@ -111,12 +113,14 @@ const ProcessOrder = () => {
         }
 
         dispatch(getOrderDetails(id));
+        setProgress(100);
+        setTimeout(() => setProgress(0), 1000);
     }, [dispatch, error, id, updateError, isUpdated]);
 
     return (
         <Fragment>
             {loading ? (
-                <Loader />
+                <LoadingBar color='red' progress={progress} onLoaderFinished={onLoaderFinished} />
             ) : (
                 <Fragment>
                     <MetaData title='Update Order Status' />
@@ -539,6 +543,7 @@ const ProcessOrder = () => {
                                                 ? true
                                                 : false
                                         }
+                                        onClick={() => setProgress(progress + 60)}
                                     >
                                         Process
                                     </Button>

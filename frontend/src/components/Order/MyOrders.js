@@ -1,12 +1,14 @@
+import { Typography } from '@material-ui/core';
 import { DataGrid } from '@material-ui/data-grid';
 import LaunchIcon from '@material-ui/icons/Launch';
-import React, { Fragment, useEffect } from 'react';
+import React, { Fragment, useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { Typography } from '@material-ui/core';
+// import Loader from '../layout/Loader/Loader';
+import LoadingBar from 'react-top-loading-bar';
+
 import { clearErrors, myOrders } from '../../actions/orderAction';
-import Loader from '../layout/Loader/Loader';
 import MetaData from '../layout/MetaData';
 
 import './MyOrders.css';
@@ -16,6 +18,10 @@ const MyOrders = () => {
 
     const { loading, error, orders } = useSelector(state => state.myOrders);
     const { user } = useSelector(state => state.user);
+
+    const [progress, setProgress] = useState(0);
+
+    const onLoaderFinished = () => setProgress(0);
 
     const columns = [
         { field: 'id', headerName: 'Order ID', minWidth: 150, flex: 0.4 }, // Extra minWidth and flex for ID
@@ -69,7 +75,7 @@ const MyOrders = () => {
             renderCell: params => {
                 return (
                     <div className='actions-container'>
-                        <Link to={`/order/${params.getValue(params.id, 'id')}`}>
+                        <Link onClick={() => setProgress(progress + 80)} to={`/order/${params.getValue(params.id, 'id')}`}>
                             <LaunchIcon />
                         </Link>
                     </div>
@@ -77,8 +83,6 @@ const MyOrders = () => {
             }
         }
     ];
-
-
 
     const rows = [];
 
@@ -100,13 +104,19 @@ const MyOrders = () => {
         }
 
         dispatch(myOrders());
+        setProgress(100);
+        setTimeout(() => setProgress(0), 5000);
     }, [dispatch, error]);
 
     return (
         <Fragment>
             <MetaData title={`${user.name} - Orders`} />
             {loading ? (
-                <Loader />
+                <LoadingBar
+                    color='red'
+                    progress={progress}
+                    onLoaderFinished={onLoaderFinished}
+                />
             ) : (
                 <div className='myOrdersPage'>
                     <h1 id='orderListHeading'>MY ORDERS</h1>

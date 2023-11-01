@@ -9,7 +9,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 
 import { clearErrors, login, register } from '../../actions/userAction';
-import Loader from '../layout/Loader/Loader';
+// import Loader from '../layout/Loader/Loader';
+import LoadingBar from 'react-top-loading-bar';
 
 import './LoginAndRegister.css';
 
@@ -24,10 +25,14 @@ const LoginAndRegister = ({ history, location }) => {
     const loginTab = useRef(null);
     const registerTab = useRef(null);
     const switcherTab = useRef(null);
+    // const loadingBar = useRef(null);
 
     const [loginEmail, setLoginEmail] = useState('');
     const [loginPassword, setLoginPassword] = useState('');
     const [showLoginPassword, setShowLoginPassword] = useState(false);
+    const [progress, setProgress] = useState(0);
+
+    const onLoaderFinished = () => setProgress(0);
 
     const [user, setUser] = useState({
         name: '',
@@ -43,11 +48,13 @@ const LoginAndRegister = ({ history, location }) => {
 
     const loginSubmit = e => {
         e.preventDefault();
+        setProgress(50);
         dispatch(login(loginEmail, loginPassword));
     };
 
     const registerSubmit = e => {
         e.preventDefault();
+        setProgress(50);
 
         const myForm = new FormData();
 
@@ -84,6 +91,8 @@ const LoginAndRegister = ({ history, location }) => {
         if (isAuthenticated) {
             navigate('/');
         }
+        setProgress(100);
+        setTimeout(() => setProgress(0), 5000);
     }, [dispatch, error, navigate, isAuthenticated]);
 
     const switchTabs = (e, tab) => {
@@ -106,7 +115,11 @@ const LoginAndRegister = ({ history, location }) => {
     return (
         <Fragment>
             {loading ? (
-                <Loader />
+                <LoadingBar
+                    color='red'
+                    progress={progress}
+                    onLoaderFinished={onLoaderFinished}
+                />
             ) : (
                 <Fragment>
                     <div className='LoginSignUpContainer'>
@@ -176,6 +189,7 @@ const LoginAndRegister = ({ history, location }) => {
                                     type='submit'
                                     value='Login'
                                     className='loginBtn'
+                                    onClick={() => setProgress(progress + 50)}
                                 />
                             </form>
                             <form
@@ -252,6 +266,7 @@ const LoginAndRegister = ({ history, location }) => {
                                     type='submit'
                                     value='Register'
                                     className='signUpBtn'
+                                    onClick={() => setProgress(progress + 80)}
                                 />
                             </form>
                         </div>

@@ -1,15 +1,18 @@
-import React, { Fragment, useState, useEffect } from 'react';
-import './UpdatePassword.css';
-import Loader from '../layout/Loader/Loader';
+import LockIcon from '@material-ui/icons/Lock';
+import LockOpenIcon from '@material-ui/icons/LockOpen';
+import VpnKeyIcon from '@material-ui/icons/VpnKey';
+import React, { Fragment, useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { clearErrors, updatePassword } from '../../actions/userAction';
+import { useNavigate } from 'react-router';
 import { toast } from 'react-toastify';
+// import Loader from '../layout/Loader/Loader';
+import LoadingBar from 'react-top-loading-bar';
+
+import { clearErrors, updatePassword } from '../../actions/userAction';
 import { UPDATE_PASSWORD_RESET } from '../../constants/userConstants';
 import MetaData from '../layout/MetaData';
-import LockOpenIcon from '@material-ui/icons/LockOpen';
-import LockIcon from '@material-ui/icons/Lock';
-import VpnKeyIcon from '@material-ui/icons/VpnKey';
-import { useNavigate } from 'react-router';
+
+import './UpdatePassword.css';
 
 const UpdatePassword = () => {
     const dispatch = useDispatch();
@@ -20,6 +23,9 @@ const UpdatePassword = () => {
     const [oldPassword, setOldPassword] = useState('');
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    const [progress, setProgress] = useState(0);
+
+    const onLoaderFinished = () => setProgress(0);
 
     const updatePasswordSubmit = e => {
         e.preventDefault();
@@ -31,6 +37,7 @@ const UpdatePassword = () => {
         myForm.set('confirmPassword', confirmPassword);
 
         dispatch(updatePassword(myForm));
+        setProgress(50);
     };
 
     useEffect(() => {
@@ -48,12 +55,18 @@ const UpdatePassword = () => {
                 type: UPDATE_PASSWORD_RESET
             });
         }
+        setProgress(100);
+        setTimeout(() => setProgress(0), 5000);
     }, [dispatch, error, navigate, isUpdated]);
 
     return (
         <Fragment>
             {loading ? (
-                <Loader />
+                <LoadingBar
+                    color='red'
+                    progress={progress}
+                    onLoaderFinished={onLoaderFinished}
+                />
             ) : (
                 <Fragment>
                     <MetaData title='Change Password' />
@@ -108,6 +121,7 @@ const UpdatePassword = () => {
                                     type='submit'
                                     value='Change'
                                     className='updatePasswordBtn'
+                                    onClick={() => setProgress(progress + 80)}
                                 />
                             </form>
                         </div>
