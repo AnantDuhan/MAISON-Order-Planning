@@ -66,9 +66,9 @@ const Products = () => {
             toast.error(error);
             dispatch(clearErrors());
         }
-        dispatch(getProduct(keyword, currentPage, price, category, ratings));
         setProgress(100);
         setTimeout(() => setProgress(0), 5000);
+        dispatch(getProduct(keyword, currentPage, price, category, ratings));
     }, [dispatch, keyword, currentPage, price, category, ratings, error]);
 
     let count = filteredProductsCount;
@@ -112,13 +112,11 @@ const Products = () => {
                                                     ? 'active'
                                                     : ''
                                             }`}
-                                            onClick={
-                                                (() =>
+                                            onClick={() =>
                                                     priceHandler(
                                                         null,
                                                         range.value
-                                                    ),
-                                                setProgress(progress + 80))
+                                                    )
                                             }
                                         >
                                             {range.label}
