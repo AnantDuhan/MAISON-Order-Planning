@@ -1,14 +1,16 @@
 const Order = require('../models/order');
 const Product = require('../models/product');
 const sendEmail = require('../utils/sendEmail');
-const accountSid = process.env.ACCOUNT_SID;
-const authToken = process.env.AUTH_TOKEN;
-const client = require('twilio')(accountSid, authToken);
+// const accountSid = process.env.ACCOUNT_SID;
+// const authToken = process.env.AUTH_TOKEN;
+// const client = require('twilio')(accountSid, authToken);
 const User = require('../models/user');
 const Coupon = require('../models/Coupon');
 const stripe = require('stripe')(
     'sk_test_51K9RkSSDvITsgzEymgWGmrPCCP0Iu8b8j2AtRaZbnuXqwSLkQMSnTc6a6gQmRRzT60nP0KMhApPEpASMOPP3GgGh00rlK3KQm2'
 );
+const nodeCache = require('node-cache');
+const NodeCache = new nodeCache();
 
 // create new order
 exports.newOrder = async (req, res, next) => {
@@ -92,28 +94,28 @@ exports.newOrder = async (req, res, next) => {
     </html>`;
 
             // For WhatsApp, use the same message without HTML tags
-            const whatsappMessage = `Hello ${user.name}!\n
-   Your order📦 has been placed successfully. Your estimated Date of delivery is ${estimatedDeliveryDate.toDateString()}.\n
-   Your Order Details:
-   Order ID: ${order._id}
-   Items:
-      ${order.orderItems
-          .map(
-              item =>
-                  `${item.name} - Quantity: ${item.quantity} - Price: ₹${item.price}`
-          )
-          .join('\n')}
-   Total Price: ₹${order.totalPrice}
+//             const whatsappMessage = `Hello ${user.name}!\n
+//    Your order📦 has been placed successfully. Your estimated Date of delivery is ${estimatedDeliveryDate.toDateString()}.\n
+//    Your Order Details:
+//    Order ID: ${order._id}
+//    Items:
+//       ${order.orderItems
+//           .map(
+//               item =>
+//                   `${item.name} - Quantity: ${item.quantity} - Price: ₹${item.price}`
+//           )
+//           .join('\n')}
+//    Total Price: ₹${order.totalPrice}
 
-   Thank you for ordering. For more please visit our website http://www.orderplanning.com.\n
-   Happy Shopping.😊`;
+//    Thank you for ordering. For more please visit our website http://www.orderplanning.com.\n
+//    Happy Shopping.😊`;
 
-            await client.messages.create({
-                body: whatsappMessage,
-                from: 'whatsapp:+14155238886',
-                to: `whatsapp:+91${order.shippingInfo.phoneNumber}`,
-                mediaUrl: [imageUrl]
-            });
+//             await client.messages.create({
+//                 body: whatsappMessage,
+//                 from: 'whatsapp:+14155238886',
+//                 to: `whatsapp:+91${order.shippingInfo.phoneNumber}`,
+//                 mediaUrl: [imageUrl]
+//             });
 
             await sendEmail({
                 email: user.email,
@@ -135,10 +137,17 @@ exports.newOrder = async (req, res, next) => {
 
 // get single order
 exports.getSingleOrder = async (req, res, next) => {
-    const order = await Order.findById(req.params.id).populate(
-        'user',
-        'name email'
-    );
+    let order;
+    if (NodeCache.has('order')) {
+        order = JSON.parse(JSON.stringify(NodeCache.get('order')));
+    } else {
+        order = await Order.findById(req.params.id).populate(
+            'user',
+            'name email'
+        );
+        NodeCache.set('order', JSON.stringify(order));
+    }
+
     if (!order) {
         return res.status(404).json({
             success: false,
@@ -154,9 +163,16 @@ exports.getSingleOrder = async (req, res, next) => {
 
 // get logged in user order
 exports.myOrders = async (req, res, next) => {
-    const orders = await Order.find({
-        user: req.user._id
-    });
+    let orders;
+
+    if (NodeCache.has('orders')) {
+        orders = JSON.parse(JSON.stringify(NodeCache.get('orders')));
+    } else {
+        orders = await Order.find({
+            user: req.user._id
+        });;
+        NodeCache.set('orders', JSON.stringify(orders));
+    }
 
     res.status(200).json({
         success: true,
@@ -166,9 +182,15 @@ exports.myOrders = async (req, res, next) => {
 
 // get all orders --admin
 exports.getAllOrders = async (req, res, next) => {
-    const orders = await Order.find();
-
+    let orders;
     let totalAmount = 0;
+
+    if (NodeCache.has('orders')) {
+        orders = JSON.parse(JSON.stringify(NodeCache.get('orders')));
+    } else {
+        orders = await Order.find();
+        NodeCache.set('orders', JSON.stringify(orders));
+    }
 
     orders.forEach(order => {
         totalAmount += order.totalPrice;
@@ -183,54 +205,61 @@ exports.getAllOrders = async (req, res, next) => {
 
 // update order status --admin
 exports.updateOrder = async (req, res, next) => {
-    const order = await Order.findById(req.params.id);
-    const user = await User.findById(req.user._id);
+    try {
+        const orderId = req.params.id;
+        const order = await getOrderFromCache(orderId);
 
-    if (!order) {
-        return res.status(404).json({
-            success: false,
-            message: 'Order📦 not found with this Id'
-        });
-    }
+        const user = await User.findById(req.user._id);
 
-    if (order.orderStatus === 'Delivered') {
-        return res.status(400).json({
-            success: false,
-            message: 'You have already delivered this order'
-        });
-    }
+        if (!order) {
+            return res.status(404).json({
+                success: false,
+                message: 'Order📦 not found with this Id'
+            });
+        }
 
-    if (req.body.status === 'Shipped') {
-        order.orderItems.forEach(async o => {
-            await updateStock(o.product, o.quantity);
-        });
-    }
+        if (order.orderStatus === 'Delivered') {
+            return res.status(400).json({
+                success: false,
+                message: 'You have already delivered this order'
+            });
+        }
 
-    order.orderStatus = req.body.status;
+        if (req.body.status === 'Shipped') {
+            order.orderItems.forEach(async o => {
+                await updateStock(o.product, o.quantity);
+            });
+        }
 
-    if (req.body.status === 'Delivered') {
-        order.DeliveredAt = Date.now();
-        order.estimatedDeliveryDate = null;
-    }
+        order.orderStatus = req.body.status;
 
-    await order.save({ validateBeforeSave: false });
+        if (req.body.status === 'Delivered') {
+            order.DeliveredAt = Date.now();
+            order.estimatedDeliveryDate = null;
+        }
 
-    const randomDays = Math.floor(Math.random() * 8); // Generate random number between 0 and 7
-    const currentDate = new Date();
-    const estimatedDeliveryDate = new Date(
-        currentDate.getFullYear(),
-        currentDate.getMonth(),
-        currentDate.getDate() + randomDays
-    ); // Add random days
+        // Save the updated order
+        await order.save({ validateBeforeSave: false });
 
-    const imageUrl = order.orderItems.image;
+        // Clear the cache for the updated order
+        NodeCache.del(orderId);
 
-    const emailMessage = `<html>
+        const randomDays = Math.floor(Math.random() * 8); // Generate random number between 0 and 7
+        const currentDate = new Date();
+        const estimatedDeliveryDate = new Date(
+            currentDate.getFullYear(),
+            currentDate.getMonth(),
+            currentDate.getDate() + randomDays
+        ); // Add random days
+
+        const imageUrl = order.orderItems.image;
+
+        const emailMessage = `<html>
     <body>
         <p>Hello ${user.name}!</p>
         <p>Your order📦 ${order._id} has been ${
-        order.orderStatus
-    }. Your estimated Date of delivery is ${estimatedDeliveryDate.toDateString()}.</p>
+            order.orderStatus
+        }. Your estimated Date of delivery is ${estimatedDeliveryDate.toDateString()}.</p>
         <img src="${imageUrl}" alt="Ordered Items">
         <p>Thank you for ordering. For more please visit our website <a href="http://www.orderplanning.com">www.orderplanning.com</a>.</p>
         <p>Here's the image of your ordered items:</p>
@@ -238,43 +267,67 @@ exports.updateOrder = async (req, res, next) => {
     </body>
     </html>`;
 
-    // For WhatsApp, use the same message without HTML tags
-    const whatsappMessage = `Hello ${user.name}!\n
-Your order📦 ${order._id} has been ${
-        order.orderStatus
-    }. Your estimated Date of delivery is ${estimatedDeliveryDate.toDateString()}.\n
-Your Order Details:
-Order ID: ${order._id}
-Items:
-${order.orderItems
-    .map(
-        item =>
-            `${item.name} - Quantity: ${item.quantity} - Price: ₹${item.price}`
-    )
-    .join('\n')}
-Total Price: ₹${order.totalPrice}
-Thank you for ordering. For more please visit our website http://www.orderplanning.com.\n
-Happy Shopping.😊`;
+        // For WhatsApp, use the same message without HTML tags
+        //     const whatsappMessage = `Hello ${user.name}!\n
+        // Your order📦 ${order._id} has been ${
+        //         order.orderStatus
+        //     }. Your estimated Date of delivery is ${estimatedDeliveryDate.toDateString()}.\n
+        // Your Order Details:
+        // Order ID: ${order._id}
+        // Items:
+        // ${order.orderItems
+        //     .map(
+        //         item =>
+        //             `${item.name} - Quantity: ${item.quantity} - Price: ₹${item.price}`
+        //     )
+        //     .join('\n')}
+        // Total Price: ₹${order.totalPrice}
+        // Thank you for ordering. For more please visit our website http://www.orderplanning.com.\n
+        // Happy Shopping.😊`;
 
-    await client.messages.create({
-        mediaUrl: [imageUrl],
-        body: whatsappMessage,
-        from: 'whatsapp:+14155238886',
-        to: `whatsapp:+91${order.shippingInfo.phoneNumber}`
-    });
+        //     await client.messages.create({
+        //         mediaUrl: [imageUrl],
+        //         body: whatsappMessage,
+        //         from: 'whatsapp:+14155238886',
+        //         to: `whatsapp:+91${order.shippingInfo.phoneNumber}`
+        //     });
 
-    await sendEmail({
-        email: user.email,
-        subject: `Your Order📦 Status Update: ${order.orderStatus}`,
-        html: emailMessage
-    });
+        await sendEmail({
+            email: user.email,
+            subject: `Your Order📦 Status Update: ${order.orderStatus}`,
+            html: emailMessage
+        });
 
-    res.status(200).json({
-        success: true,
-        message: 'WhatsApp & Email sent successfully',
-        order
-    });
+        res.status(200).json({
+            success: true,
+            message: 'WhatsApp & Email sent successfully',
+            order
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({
+            success: false,
+            message: 'Internal Server Error'
+        });
+    }
 };
+
+async function getOrderFromCache(orderId) {
+    // Check if order data is in the cache
+    let order = NodeCache.get(orderId);
+
+    // If not in the cache, fetch from the database
+    if (!order) {
+        order = await Order.findById(orderId);
+
+        // Cache the order data for future use
+        if (order) {
+            NodeCache.set(orderId, order);
+        }
+    }
+
+    return order;
+}
 
 async function updateStock(id, quantity) {
     const product = await Product.findById(id);
@@ -300,196 +353,3 @@ exports.deleteOrder = async (req, res, next) => {
         message: 'Order📦 deleted successfully'
     });
 };
-/*
-exports.requestReturn = async (req, res) => {
-    try {
-        const order = await Order.findById(req.params.id);
-
-        if (!order) {
-            return res.status(404).json({
-                success: false,
-                message: 'Order not found'
-            });
-        }
-
-        if (order.orderStatus !== 'Delivered') {
-            return res.status(400).json({
-                success: false,
-                message: 'Order has not been delivered yet'
-            });
-        }
-
-        if (order.isReturned) {
-            return res.status(400).json({
-                success: true,
-                message: 'Order has already been returned'
-            });
-        }
-
-        order.isReturned = true;
-        order.returnReason = req.body.returnReason;
-        order.returnRequestedAt = new Date();
-        await order.save();
-
-        res.status(200).json({
-            success: true,
-            message: 'Return requested',
-            order
-        });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({
-            success: false,
-            message: 'Server error'
-        });
-    }
-}; */
-
-/*
-// Initiate refund for a returned order
-exports.initiateRefund = async (req, res) => {
-    try {
-            const order = await Order.findById(req.params.id);
-
-            if (!order) {
-                return res.status(404).json({
-                    success: false,
-                    message: 'Order not found'
-                });
-            }
-
-            if (order.orderStatus !== 'Delivered') {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Order has not been delivered yet'
-                });
-            }
-
-            if (!order.isReturned) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Order has not been returned'
-                });
-            }
-
-            if (order.isRefunded) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Order has already been refunded'
-                });
-            }
-
-            // Update the order refund status to 'initiated' and save
-            order.refundStatus = 'initiated';
-            await order.save();
-
-            res.status(200).json({
-                success: true,
-                message: 'Refund initiated',
-                order
-            });
-        } catch (error) {
-        console.error(error);
-        res.status(500).json({
-            success: false,
-            message: 'Server error'
-        });
-    }
-}; */
-/*
-exports.updateRefundStatus = async (req, res) => {
-    try {
-        const { refundStatus } = req.body;
-
-        const order = await Order.findById(req.params.id);
-
-        if (!order) {
-            return res.status(404).json({
-                success: false,
-                message: 'Order not found'
-            });
-        }
-
-        if (!refundStatus) {
-            return res.status(400).json({
-                success: false,
-                message: 'Refund status is required'
-            });
-        }
-
-        if (
-            refundStatus !== 'Pending' &&
-            refundStatus !== 'Approved' &&
-            refundStatus !== 'Rejected'
-        ) {
-            return res.status(400).json({
-                success: false,
-                message: 'Invalid refund status'
-            });
-        }
-
-        // If the refund status is 'approved', perform the actual refund process
-        if (refundStatus === 'Approved') {
-            const refund = await stripe.refunds.create({
-                payment_intent: order.paymentInfo.id,
-                amount: Math.round(order.totalPrice),
-            });
-
-            order.refundInfo = {
-                id: refund.id,
-                amount: refund.amount,
-                status: refund.status,
-                createdAt: refund.created
-                    ? new Date(refund.created * 1000)
-                    : null
-            };
-            await order.save();
-
-            order.refundedAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days later
-        }
-
-        // Update the refund status and save the order
-        order.refundStatus = refundStatus;
-        await order.save();
-
-        res.status(200).json({
-            success: true,
-            message: 'Refund status updated successfully',
-            order
-        });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({
-            success: false,
-            message: 'Server error'
-        });
-    }
-}; */
-/*
-// Get all return requests
-exports.getAllReturns = async (req, res) => {
-    try {
-        const returns = await Order.find({ isReturned: true })
-            .select('-orderItems')
-            .populate('user', 'name email')
-            .sort('-returnRequestedAt');
-
-        res.status(200).json({ success: true, returns });
-    } catch (error) {
-        res.status(500).json({ success: false, message: 'Server error' });
-    }
-};
-
-// Get all refund requests
-exports.getAllRefunds = async (req, res) => {
-    try {
-        const refunds = await Order.find({ isRefunded: true })
-            .select('-orderItems')
-            .populate('user', 'name email')
-            .sort('-refundRequestedAt');
-
-        res.status(200).json({ success: true, refunds });
-    } catch (error) {
-        res.status(500).json({ success: false, message: 'Server error' });
-    }
-}; */

@@ -34,7 +34,8 @@ router.route('/review').post(isAuthUser, createProductReview);
 
 router
     .route('/reviews')
-    .get(getProductReviews)
-    .delete(isAuthUser, deleteReview);
+    .get(getProductReviews);
+
+router.route('/review/:reviewId').delete(isAuthUser, deleteReview);
 
 module.exports = router;

@@ -1,5 +1,7 @@
 const Return = require('../models/return');
 const Order = require('../models/order');
+const nodeCache = require('node-cache');
+const NodeCache = new nodeCache();
 
 exports.requestReturn = async (req, res) => {
     try {
@@ -59,21 +61,26 @@ exports.requestReturn = async (req, res) => {
     }
 };
 
-
-
 // Get all return requests
 exports.getAllReturns = async (req, res) => {
     try {
-        const returns = await Return.find()
-            .populate({
-                path: 'order',
-                select: 'user returnRequestedAt totalPrice',
-                populate: {
-                    path: 'user',
-                    select: 'name email'
-                }
-            })
-            .sort('-requestedAt');
+        let returns;
+
+        if (NodeCache.has('returns;')) {
+            refunds = JSON.parse(JSON.stringify(NodeCache.get('returns')));
+        } else {
+            returns = await Return.find()
+                .populate({
+                    path: 'order',
+                    select: 'user returnRequestedAt totalPrice',
+                    populate: {
+                        path: 'user',
+                        select: 'name email'
+                    }
+                })
+                .sort('-requestedAt');
+            NodeCache.set('returns', JSON.stringify(returns));
+        }
 
         res.status(200).json({ success: true, returns });
     } catch (error) {

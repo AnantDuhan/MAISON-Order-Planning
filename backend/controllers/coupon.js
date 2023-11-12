@@ -1,4 +1,6 @@
 const Coupon = require('../models/Coupon');
+const nodeCache = require('node-cache');
+const NodeCache = new nodeCache();
 
 // Generate a new coupon code
 exports.generateCoupon = async (req, res, next) => {
@@ -27,7 +29,14 @@ exports.generateCoupon = async (req, res, next) => {
 // Get all coupon codes
 exports.getAllCoupons = async (req, res, next) => {
     try {
-        const coupons = await Coupon.find();
+        let coupons;
+
+        if (NodeCache.has('coupons')) {
+            coupons = JSON.parse(JSON.stringify(NodeCache.get('coupons')));
+        } else {
+            coupons = await Coupon.find();
+            NodeCache.set('coupons', JSON.stringify(coupons));
+        }
 
         res.status(200).json({
             success: true,

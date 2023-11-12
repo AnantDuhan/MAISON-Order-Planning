@@ -5,6 +5,8 @@ const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const AWS = require('aws-sdk');
 require('dotenv').config({ path: 'backend/config/config.env' });
+const nodeCache = require('node-cache');
+const NodeCache = new nodeCache();
 
 const s3 = new AWS.S3({
     region: process.env.AWS_BUCKET_REGION,
@@ -162,8 +164,6 @@ exports.forgotPassword = async (req, res, next) => {
         });
     }
 
-    console.log(user);
-
     // get reset password token
     const resetToken = user.getResetPasswordToken();
 
@@ -177,6 +177,10 @@ exports.forgotPassword = async (req, res, next) => {
             subject: `Password Recovery - Ecommerce`,
             html: `Your password reset token is:- \n\n ${resetPasswordURL} \n\n If you have not requested this email then, please ignore it.`
         });
+
+        const message = `Your password reset token is:- \n\n ${resetPasswordURL} \n\n If you have not requested this email then, please ignore it.`;
+
+        console.log("message", message);
 
         res.status(200).json({
             success: true,
@@ -197,61 +201,92 @@ exports.forgotPassword = async (req, res, next) => {
 
 // reset password
 exports.resetPassword = async (req, res, next) => {
-    // creating token hash
-    const resetPasswordToken = crypto
-        .createHash('sha256')
-        .update(req.params.token)
-        .digest('hex');
+    try {
+        const resetPasswordToken = crypto
+            .createHash('sha256')
+            .update(req.params.token)
+            .digest('hex');
 
-    const user = await User.findOne({
-        resetPasswordToken,
-        resetPasswordExpire: { $gt: Date.now() }
-    });
+        // Check if user data is in the cache
+        let user = NodeCache.get(resetPasswordToken);
 
-    if (!user) {
-        return res.status(400).json({
+        // If not in the cache, fetch from the database
+        if (!user) {
+            user = await User.findOne({
+                resetPasswordToken,
+                resetPasswordExpire: { $gt: Date.now() }
+            });
+
+            // Cache the user data for future use
+            if (user) {
+                NodeCache.set(resetPasswordToken, user);
+            }
+        }
+
+        if (!user) {
+            return res.status(400).json({
+                success: false,
+                message: 'Reset Password Token is invalid or has expired!'
+            });
+        }
+
+        if (req.body.password !== req.body.confirmPassword) {
+            return res.status(400).json({
+                success: false,
+                message: 'Passwords do not match!'
+            });
+        }
+
+        user.password = req.body.password;
+        user.resetPasswordToken = undefined;
+        user.resetPasswordExpire = undefined;
+
+        await user.save();
+
+        // Generate a new JWT token
+        let token = jwt.sign(
+            {
+                id: user._id,
+                name: user.name,
+                email: user.email,
+                avatar: user.avatar
+            },
+            process.env.JWT_SECRET_KEY
+        );
+
+        const options = {
+            expires: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
+            httpOnly: true
+        };
+
+        // Clear the cache for the user
+        NodeCache.del(resetPasswordToken);
+
+        res.status(200).cookie('token', token, options).json({
+            success: true,
+            user
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({
             success: false,
-            message: 'Reset Password Token in invalid or has been expired!'
+            message: 'Internal Server Error'
         });
     }
-
-    if (req.body.password !== req.body.confirmPassword) {
-        return res.status(400).json({
-            success: false,
-            message: 'Password does not match!'
-        });
-    }
-
-    user.password = req.body.password;
-    user.resetPasswordToken = undefined;
-    user.resetPasswordExpire = undefined;
-
-    await user.save();
-
-    let token = jwt.sign(
-        {
-            id: user._id,
-            name: user.name,
-            email: user.email,
-            avatar: user.avatar
-        },
-        process.env.JWT_SECRET_KEY
-    );
-
-    const options = {
-        expires: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
-        httpOnly: true
-    };
-
-    res.status(200).cookie('token', token, options).json({
-        success: true,
-        user
-    });
 };
 
 // get User details
 exports.getUserDetails = async (req, res, next) => {
-    const user = await User.findById(req.user.id);
+
+    let user;
+
+    if (NodeCache.has('user')) {
+        user = JSON.parse(JSON.stringify(NodeCache.get('user')));
+    } else {
+        user = await getUserFromCache(req.user.id);
+        NodeCache.set('user', JSON.stringify(user));
+    }
+
     res.status(200).json({
         success: true,
         user
@@ -261,7 +296,7 @@ exports.getUserDetails = async (req, res, next) => {
 // update User password
 exports.updatePassword = async (req, res, next) => {
     try {
-        const user = await User.findById(req.user.id).select('+password');
+        const user = await getUserFromCache(req.user.id);
 
         const isPasswordMatched = await user.comparePassword(
             req.body.oldPassword
@@ -285,6 +320,9 @@ exports.updatePassword = async (req, res, next) => {
 
         await user.save();
 
+        // Clear the cache for the updated user
+        NodeCache.del(req.user.id);
+
         let token = jwt.sign(
             {
                 id: user._id,
@@ -305,16 +343,41 @@ exports.updatePassword = async (req, res, next) => {
             user
         });
     } catch (err) {
+        console.error(err);
         res.status(500).json({
             success: false,
-            message: err.message
+            message: 'Internal Server Error'
         });
     }
 };
 
+async function getUserFromCache(userId) {
+    // Check if user data is in the cache
+    let user = NodeCache.get(userId);
+
+    // If not in the cache, fetch from the database
+    if (!user) {
+        user = await User.findById(userId).select('+password');
+
+        // Cache the user data for future use
+        if (user) {
+            NodeCache.set(userId, user);
+        }
+    }
+
+    return user;
+}
+
 // get all users --admin
 exports.getAllUsers = async (req, res, next) => {
-    const users = await User.find();
+    let users;
+
+    if (NodeCache.has('users')) {
+        users = JSON.parse(JSON.stringify(NodeCache.get('users')));
+    } else {
+        users = await User.find();
+        NodeCache.set('users', JSON.stringify(users));
+    }
 
     res.status(200).json({
         success: true,
@@ -324,7 +387,15 @@ exports.getAllUsers = async (req, res, next) => {
 
 // get single user --admin
 exports.getSingleUser = async (req, res, next) => {
-    const user = await User.findById(req.params.id);
+
+    let user;
+
+    if (NodeCache.has('user')) {
+        user = JSON.parse(JSON.stringify(NodeCache.get('user')));
+    } else {
+        user = await User.findById(req.params.id);
+        NodeCache.set('user', JSON.stringify(user));
+    }
 
     if (!user) {
         return res.status(400).json({
@@ -342,17 +413,29 @@ exports.getSingleUser = async (req, res, next) => {
 // update User Role --admin
 exports.updateUserRole = async (req, res, next) => {
     try {
+        let user;
         const newUserData = {
             name: req.body.name,
             email: req.body.email,
             role: req.body.role
         };
 
-        const user = await User.findByIdAndUpdate(req.params.id, newUserData, {
-            new: true,
-            runValidators: true,
-            useFindAndModify: false
-        });
+        // Check if user data is in the cache
+        if (NodeCache.has(req.params.id)) {
+            user = JSON.parse(JSON.stringify(NodeCache.get(req.params.id)));
+        } else {
+            // If not in the cache, fetch from the database
+            user = await User.findByIdAndUpdate(req.params.id, newUserData, {
+                new: true,
+                runValidators: true,
+                useFindAndModify: false
+            });
+
+            // Cache the updated user data for future use
+            if (user) {
+                NodeCache.set(req.params.id, user);
+            }
+        }
 
         res.status(200).json({
             success: true,
@@ -365,3 +448,4 @@ exports.updateUserRole = async (req, res, next) => {
         });
     }
 };
+

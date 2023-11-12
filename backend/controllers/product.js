@@ -1,9 +1,15 @@
 const Product = require('../models/product');
 const User = require('../models/user');
 const ApiFeatures = require('../utils/apifeatures');
+const nodeCache = require('node-cache');
+
+const NodeCache = new nodeCache();
 
 // get all products
 exports.getAllProducts = async (req, res, next) => {
+
+    let products;
+
     const resultPerPage = process.env.RESULT_PER_PAGE;
     const productsCount = await Product.countDocuments();
 
@@ -11,13 +17,19 @@ exports.getAllProducts = async (req, res, next) => {
         .search()
         .filter();
 
-    let products = await apiFeature.query;
+    products = await apiFeature.query;
 
     let filteredProductsCount = products.length;
 
     apiFeature.pagination(resultPerPage);
 
     products = await apiFeature.query.clone();
+
+    if (NodeCache.has("products")) {
+        products = JSON.parse(JSON.stringify(NodeCache.get("products")))
+    } else {
+        NodeCache.set("products", JSON.stringify(products));
+    }
 
     res.status(200).json({
         success: true,
@@ -30,7 +42,15 @@ exports.getAllProducts = async (req, res, next) => {
 
 // Get All Product (Admin)
 exports.getAdminProducts = async (req, res, next) => {
-    const products = await Product.find();
+
+    let products;
+
+    if (NodeCache.has('products')) {
+        products = JSON.parse(JSON.stringify(NodeCache.get('products')));
+    } else {
+        products = await Product.find();
+        NodeCache.set('products', JSON.stringify(products));
+    }
 
     res.status(200).json({
         success: true,
@@ -40,7 +60,15 @@ exports.getAdminProducts = async (req, res, next) => {
 
 // get product details
 exports.getProductDetails = async (req, res, next) => {
-    const product = await Product.findById(req.params.id);
+
+    let product;
+
+    if (NodeCache.has('product')) {
+        product = JSON.parse(JSON.stringify(NodeCache.get('product')));
+    } else {
+        product = await Product.findById(req.params.id);
+        NodeCache.set('product', JSON.stringify(product));
+    }
 
     if (!product) {
         res.status(404).json({
@@ -57,8 +85,10 @@ exports.getProductDetails = async (req, res, next) => {
 
 // create new review or update the review
 exports.createProductReview = async (req, res, next) => {
+
+    let review;
     const { rating, comment, productId } = req.body;
-    const review = {
+    review = {
         user: req.user._id,
         name: req.user.name,
         rating: Number(rating),
@@ -89,11 +119,15 @@ exports.createProductReview = async (req, res, next) => {
 
     product.ratings = avg / product.reviews.length;
 
+    const updatedProduct = await Product.findById(productId);
+
     await product.save({ validateBeforeSave: false });
 
     res.status(200).json({
         success: true,
-        review
+        review: updatedProduct.reviews.find(
+            rev => rev.user.toString() === req.user._id.toString()
+        )
     });
 };
 
@@ -111,8 +145,17 @@ exports.getAllWishlistProducts = async (req, res) => {
             });
         }
 
-        // Extract wishlist products from the user object
-        const wishlistProducts = user.wishlist.map(item => item.product);
+        let wishlistProducts;
+
+        if (NodeCache.has('wishlistProducts')) {
+            wishlistProducts = JSON.parse(
+                JSON.stringify(NodeCache.get('wishlistProducts'))
+            );
+        } else {
+            // Extract wishlist products from the user object
+            wishlistProducts = user.wishlist.map(item => item.product);
+            NodeCache.set('wishlistProducts', JSON.stringify(wishlistProducts));
+        }
 
         res.status(200).json({
             success: true,
@@ -130,6 +173,7 @@ exports.getAllWishlistProducts = async (req, res) => {
 exports.addToWishList = async (req, res) => {
     try {
 
+        let wishlist;
         const product = await Product.findById(req.params.id);
 
         if (!product) {
@@ -204,6 +248,8 @@ exports.removeFromWishList = async (req, res) => {
 
         user.wishlist.splice(isProductInWishlistIndex, 1);
 
+        NodeCache.set('wishlist', JSON.stringify(user.wishlist));
+
         await user.save();
 
         res.status(200).json({
@@ -222,7 +268,8 @@ exports.removeFromWishList = async (req, res) => {
 
 // Get all reviews of a product
 exports.getProductReviews = async (req, res, next) => {
-    const product = await Product.findById(req.query.id);
+    const productId = req.query.id;
+    const product = await Product.findById(productId);
 
     if (!product) {
         res.status(404).json({
@@ -231,24 +278,39 @@ exports.getProductReviews = async (req, res, next) => {
         });
     }
 
+    let reviews;
+
+    // Check if reviews are in the cache
+    if (NodeCache.has(`productReview-${productId}`)) {
+        reviews = JSON.parse(
+            JSON.stringify(NodeCache.get(`productReview-${productId}`))
+        );
+    } else {
+        reviews = product.reviews;
+        NodeCache.set(`productReview-${productId}`, JSON.stringify(reviews));
+    }
+
     res.status(200).json({
         success: true,
-        reviews: product.reviews
+        reviews
     });
 };
 
 exports.deleteReview = async (req, res, next) => {
-    const product = await Product.findById(req.query.productId);
+    const productId = req.query.id;
+    const reviewId = req.params.reviewId;
+
+    const product = await Product.findById(productId);
 
     if (!product) {
-        res.status(404).json({
+        return res.status(404).json({
             success: false,
             message: 'Product not found'
         });
     }
 
     const reviews = product.reviews.filter(
-        rev => rev._id.toString() !== req.query.id.toString()
+        rev => rev._id.toString() !== reviewId.toString()
     );
 
     let avg = 0;
@@ -268,7 +330,7 @@ exports.deleteReview = async (req, res, next) => {
     const numOfReviews = reviews.length;
 
     await Product.findByIdAndUpdate(
-        req.query.productId,
+        productId,
         {
             reviews,
             ratings,
@@ -281,7 +343,11 @@ exports.deleteReview = async (req, res, next) => {
         }
     );
 
+    NodeCache.set(`productReview-${productId}`, JSON.stringify(reviews));
+
     res.status(200).json({
-        success: true
+        success: true,
+        message: 'Review deleted successfully'
     });
 };
+

@@ -13,7 +13,7 @@ const jwt = require('jsonwebtoken');
 const stripe = require('stripe')(
     'sk_test_51K9RkSSDvITsgzEymgWGmrPCCP0Iu8b8j2AtRaZbnuXqwSLkQMSnTc6a6gQmRRzT60nP0KMhApPEpASMOPP3GgGh00rlK3KQm2'
 );
-require('dotenv').config({ path: 'backend/config/config.env' });
+require('dotenv').config({ path: '/backend/config/config.env' });
 
 app.use(cors());
 app.use(cookieParser());
@@ -501,4 +501,3 @@ app.delete(
 module.exports = app;
 // module.exports = s3;
 // module.exports = upload;
-

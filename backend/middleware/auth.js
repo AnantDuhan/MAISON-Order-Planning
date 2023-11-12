@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/user');
+const { promisify } = require('util');
 
 exports.isAuthUser = async (req, res, next) => {
    const { token } = req.cookies;
@@ -9,7 +10,10 @@ exports.isAuthUser = async (req, res, next) => {
           message: 'Please Login to access this resource'
       });
    }
-   const decodedToken = jwt.verify(token, process.env.JWT_SECRET_KEY);
+   const decodedToken = await promisify(jwt.verify)(
+       token,
+       process.env.JWT_SECRET_KEY
+   );
 
    req.user = await User.findById(decodedToken.id);
 

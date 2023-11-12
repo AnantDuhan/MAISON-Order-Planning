@@ -2,7 +2,9 @@ const Contact = require('../models/contact');
 const sendEmail = require('../utils/sendEmail');
 const accountSid = process.env.ACCOUNT_SID;
 const authToken = process.env.AUTH_TOKEN;
-const client = require('twilio')(accountSid, authToken);
+const twilio = require('twilio');
+
+const client = new twilio(accountSid, authToken, { username: 'AnantDuhan' });
 
 exports.contactUs = async (req, res) => {
     try {

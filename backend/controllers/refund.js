@@ -4,6 +4,9 @@ const Order = require('../models/order');
 const stripe = require('stripe')(
     'sk_test_51K9RkSSDvITsgzEymgWGmrPCCP0Iu8b8j2AtRaZbnuXqwSLkQMSnTc6a6gQmRRzT60nP0KMhApPEpASMOPP3GgGh00rlK3KQm2'
 );
+const nodeCache = require('node-cache');
+
+const NodeCache = new nodeCache();
 
 exports.initiateRefund = async (req, res) => {
     try {
@@ -182,16 +185,23 @@ exports.updateRefundStatus = async (req, res) => {
 
 exports.getAllRefunds = async (req, res) => {
     try {
-        const refunds = await Refund.find()
-            .populate({
-                path: 'order',
-                select: 'user refundRequestedAt totalPrice',
-                populate: {
-                    path: 'user',
-                    select: 'name email'
-                }
-            })
-            .sort('-requestedAt');
+        let refunds;
+
+        if (NodeCache.has('refunds;')) {
+            refunds = JSON.parse(JSON.stringify(NodeCache.get('refunds')));
+        } else {
+            refunds = await Refund.find()
+                .populate({
+                    path: 'order',
+                    select: 'user refundRequestedAt totalPrice',
+                    populate: {
+                        path: 'user',
+                        select: 'name email'
+                    }
+                })
+                .sort('-requestedAt');
+            NodeCache.set('refunds', JSON.stringify(refunds));
+        }
 
         res.status(200).json({ success: true, refunds });
     } catch (error) {
