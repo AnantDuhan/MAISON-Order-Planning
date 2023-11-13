@@ -1,5 +1,7 @@
 const mongoose = require('mongoose');
 
+mongoose.set('strictQuery', false);
+
 const contactSchema = new mongoose.Schema({
     name: {
         type: String,

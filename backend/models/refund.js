@@ -1,5 +1,7 @@
 const mongoose = require('mongoose');
 
+mongoose.set('strictQuery', false);
+
 const refundSchema = new mongoose.Schema({
     order: {
         type: mongoose.Schema.ObjectId,

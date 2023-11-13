@@ -1,5 +1,7 @@
 const mongoose = require('mongoose');
 
+mongoose.set('strictQuery', false);
+
 const orderSchema = new mongoose.Schema({
     shippingInfo: {
         address: {

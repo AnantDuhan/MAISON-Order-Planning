@@ -1,5 +1,7 @@
 const mongoose = require('mongoose');
 
+mongoose.set('strictQuery', false);
+
 const returnProductSchema = new mongoose.Schema({
     product: {
         type: mongoose.Schema.ObjectId,

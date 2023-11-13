@@ -11,78 +11,78 @@ const stripe = require('stripe')(
 );
 const nodeCache = require('node-cache');
 const NodeCache = new nodeCache();
+const Reorder = require('../models/reorder');
 
 // create new order
 exports.newOrder = async (req, res, next) => {
     try {
-            const user = await User.findById(req.user._id);
+        const user = await User.findById(req.user._id);
 
-            const {
-                shippingInfo,
-                orderItems,
-                paymentInfo,
-                itemsPrice,
-                taxPrice,
-                shippingPrice,
-                totalPrice,
-                couponCode
-            } = req.body;
+        const {
+            shippingInfo,
+            orderItems,
+            paymentInfo,
+            itemsPrice,
+            taxPrice,
+            shippingPrice,
+            totalPrice,
+            couponCode
+        } = req.body;
 
-            const coupon = await Coupon.findOne({ code: couponCode });
+        const coupon = await Coupon.findOne({ code: couponCode });
 
-            let discountedTotalPrice = totalPrice;
-            if (coupon) {
-                if (
-                    totalPrice >= coupon.minOrderAmount &&
-                    totalPrice <= coupon.maxOrderAmount
-                ) {
-                    discountedTotalPrice =
-                        totalPrice -
-                        (totalPrice * coupon.discountPercent) / 100;
-                }
+        let discountedTotalPrice = totalPrice;
+        if (coupon) {
+            if (
+                totalPrice >= coupon.minOrderAmount &&
+                totalPrice <= coupon.maxOrderAmount
+            ) {
+                discountedTotalPrice =
+                    totalPrice - (totalPrice * coupon.discountPercent) / 100;
             }
+        }
 
-            // Modify the orderItems to include the image data
-            const orderItemsWithImages = await Promise.all(
-                orderItems.map(async item => {
-                    const product = await Product.findById(item.product);
-                    if (product) {
-                        return {
-                            name: item.name,
-                            price: item.price,
-                            quantity: item.quantity,
-                            images: product.images, // Include the images from the product
-                            product: item.product
-                        };
-                    }
-                })
-            );
+        // Modify the orderItems to include the image data
+        const orderItemsWithImages = await Promise.all(
+            orderItems.map(async item => {
+                const product = await Product.findById(item.product);
+                if (product) {
+                    return {
+                        name: item.name,
+                        price: item.price,
+                        quantity: item.quantity,
+                        images: product.images, // Include the images from the product
+                        product: item.product
+                    };
+                }
+            })
+        );
 
-            const order = await Order.create({
-                shippingInfo,
-                orderItems: orderItemsWithImages,
-                paymentInfo,
-                itemsPrice,
-                taxPrice,
-                shippingPrice,
-                totalPrice: discountedTotalPrice,
-                paidAt: Date.now(),
-                user: req.user._id,
-                couponUsed: coupon ? true : false,
-                couponCode: couponCode
-            });
+        const order = await Order.create({
+            shippingInfo,
+            orderItems: orderItemsWithImages,
+            paymentInfo,
+            itemsPrice,
+            taxPrice,
+            shippingPrice,
+            totalPrice: discountedTotalPrice,
+            paidAt: Date.now(),
+            user: req.user._id,
+            couponUsed: coupon ? true : false,
+            couponCode: couponCode
+        });
 
-            const randomDays = Math.floor(Math.random() * 8); // Generate random number between 0 and 7
-            const currentDate = new Date();
-            const estimatedDeliveryDate = new Date(
-                currentDate.getFullYear(),
-                currentDate.getMonth(),
-                currentDate.getDate() + randomDays
-            ); // Add random days
+        const randomDays = Math.floor(Math.random() * 8); // Generate random number between 0 and 7
+        const currentDate = new Date();
+        const estimatedDeliveryDate = new Date(
+            currentDate.getFullYear(),
+            currentDate.getMonth(),
+            currentDate.getDate() + randomDays
+        ); // Add random days
 
-            const imageUrl = order.orderItems.image;
+        const imageUrl = order.orderItems.image;
 
-            const emailMessage = `<html>
+        const emailMessage = `<html>
     <body>
         <p>Hello ${user.name}!</p>
         <p>Your order📦 has been placed successfully. Your estimated Date of delivery is ${estimatedDeliveryDate.toDateString()}.</p>
@@ -93,45 +93,45 @@ exports.newOrder = async (req, res, next) => {
     </body>
     </html>`;
 
-            // For WhatsApp, use the same message without HTML tags
-//             const whatsappMessage = `Hello ${user.name}!\n
-//    Your order📦 has been placed successfully. Your estimated Date of delivery is ${estimatedDeliveryDate.toDateString()}.\n
-//    Your Order Details:
-//    Order ID: ${order._id}
-//    Items:
-//       ${order.orderItems
-//           .map(
-//               item =>
-//                   `${item.name} - Quantity: ${item.quantity} - Price: ₹${item.price}`
-//           )
-//           .join('\n')}
-//    Total Price: ₹${order.totalPrice}
+        // For WhatsApp, use the same message without HTML tags
+        //             const whatsappMessage = `Hello ${user.name}!\n
+        //    Your order📦 has been placed successfully. Your estimated Date of delivery is ${estimatedDeliveryDate.toDateString()}.\n
+        //    Your Order Details:
+        //    Order ID: ${order._id}
+        //    Items:
+        //       ${order.orderItems
+        //           .map(
+        //               item =>
+        //                   `${item.name} - Quantity: ${item.quantity} - Price: ₹${item.price}`
+        //           )
+        //           .join('\n')}
+        //    Total Price: ₹${order.totalPrice}
 
-//    Thank you for ordering. For more please visit our website http://www.orderplanning.com.\n
-//    Happy Shopping.😊`;
+        //    Thank you for ordering. For more please visit our website http://www.orderplanning.com.\n
+        //    Happy Shopping.😊`;
 
-//             await client.messages.create({
-//                 body: whatsappMessage,
-//                 from: 'whatsapp:+14155238886',
-//                 to: `whatsapp:+91${order.shippingInfo.phoneNumber}`,
-//                 mediaUrl: [imageUrl]
-//             });
+        //             await client.messages.create({
+        //                 body: whatsappMessage,
+        //                 from: 'whatsapp:+14155238886',
+        //                 to: `whatsapp:+91${order.shippingInfo.phoneNumber}`,
+        //                 mediaUrl: [imageUrl]
+        //             });
 
-            await sendEmail({
-                email: user.email,
-                subject: `Your Order📦 has been placed successfully`,
-                html: emailMessage
-            });
+        await sendEmail({
+            email: user.email,
+            subject: `Your Order📦 has been placed successfully`,
+            html: emailMessage
+        });
 
-            res.status(200).json({
-                success: true,
-                order
-            });
-        } catch (error) {
-            res.status(500).json({
-                success: false,
-                message: error.message
-            });
+        res.status(200).json({
+            success: true,
+            order
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
     }
 };
 
@@ -170,7 +170,7 @@ exports.myOrders = async (req, res, next) => {
     } else {
         orders = await Order.find({
             user: req.user._id
-        });;
+        });
         NodeCache.set('orders', JSON.stringify(orders));
     }
 
@@ -352,4 +352,57 @@ exports.deleteOrder = async (req, res, next) => {
         success: true,
         message: 'Order📦 deleted successfully'
     });
+};
+
+exports.reorder = async (req, res, next) => {
+    try {
+        const { originalOrderId } = req.body;
+
+        const originalOrder = await Order.findById(originalOrderId);
+
+        if (!originalOrder) {
+            return res.status(404).json({
+                success: false,
+                message: 'Original order not found'
+            });
+        }
+
+        const newOrder = new Order({
+            shippingInfo: originalOrder.shippingInfo,
+            orderItems: originalOrder.orderItems,
+            paymentInfo: originalOrder.paymentInfo,
+            itemsPrice: originalOrder.itemsPrice,
+            taxPrice: originalOrder.taxPrice,
+            shippingPrice: originalOrder.shippingPrice,
+            totalPrice: originalOrder.totalPrice
+        });
+
+        await newOrder.save();
+
+        const reorder = new Reorder({
+            originalOrder: originalOrder._id,
+            newOrderDetails: {
+                shippingInfo: newOrder.shippingInfo,
+                orderItems: newOrder.orderItems,
+                paymentInfo: newOrder.paymentInfo,
+                itemsPrice: newOrder.itemsPrice,
+                taxPrice: newOrder.taxPrice,
+                shippingPrice: newOrder.shippingPrice,
+                totalPrice: newOrder.totalPrice
+            }
+        });
+
+        await reorder.save();
+
+        res.status(200).json({
+            success: true,
+            newOrder
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({
+            success: false,
+            message: 'Internal Server Error'
+        });
+    }
 };

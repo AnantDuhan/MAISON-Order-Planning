@@ -5,7 +5,20 @@ const bodyParser = require('body-parser');
 const cors = require('cors');
 const errorMiddleware = require('./middleware/error');
 const multer = require('multer');
-const AWS = require('aws-sdk');
+const url = require('url');
+const {
+    S3Client,
+    GetObjectCommand,
+    PutObjectCommand,
+    DeleteObjectCommand,
+    UploadPartCommand,
+    CreateMultipartUploadCommand,
+    CompleteMultipartUploadCommand,
+    AbortMultipartUploadCommand,
+    DeleteObjectsCommand,
+} = require('@aws-sdk/client-s3');
+const { fromEnv } = require('@aws-sdk/credential-provider-env');
+// const s3 = new S3Client();
 const { isAuthUser, authRoles } = require('./middleware/auth');
 const User = require('./models/user');
 const Product = require('./models/product');
@@ -26,13 +39,17 @@ app.use(
     })
 );
 
-AWS.config.update({
-    region: process.env.AWS_BUCKET_REGION,
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
-});
+// s3.config.update({
+//     region: process.env.AWS_BUCKET_REGION,
+//     accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+//     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
+// });
 
-const s3 = new AWS.S3();
+// Initialize S3 client
+const s3 = new S3Client({
+    region: process.env.AWS_BUCKET_REGION,
+    credentials: fromEnv(),
+});
 
 // Configure Multer for file uploads
 const upload = multer({
@@ -80,8 +97,14 @@ app.use(async (req, res, next) => {
     return next();
 });
 
+process.noDeprecation = true;
+
 // middleware for error
 app.use(errorMiddleware);
+
+app.get('/', (req, res) => {
+    res.send('Hello, welcome to my API!');
+});
 
 app.post('/register', upload.single('image'), async (req, res) => {
     try {
@@ -93,6 +116,11 @@ app.post('/register', upload.single('image'), async (req, res) => {
             return;
         }
 
+        const s3 = new S3Client({
+            region: process.env.AWS_BUCKET_REGION,
+            credentials: fromEnv()
+        });
+
         // Define the upload parameters
         const uploadParams = {
             Bucket: process.env.AWS_BUCKET_NAME,
@@ -100,36 +128,26 @@ app.post('/register', upload.single('image'), async (req, res) => {
             Body: file.buffer // The file data to be uploaded
         };
 
+        // Upload the file to S3
+        const uploadCommand = new PutObjectCommand(uploadParams);
+        await s3.send(uploadCommand);
+
+        console.log(
+            '✅ Image uploaded successfully:',
+            `https://${uploadParams.Bucket}.s3.${s3.region}.amazonaws.com/${uploadParams.Key}`
+        );
+
         const customer = await stripe.customers.create({
             email,
             source: 'tok_visa'
         });
-
-        // Upload the file to S3
-        const avatarUrl = await s3
-            .upload(uploadParams, (err, data) => {
-                if (err) {
-                    console.error('⚠️ Error uploading image:', err);
-                    res.status(500).json({
-                        success: false,
-                        message: '⚠️ Error uploading image.' + err.message
-                    });
-                    return;
-                }
-                console.log('✅ Image uploaded successfully:', data.Location);
-                res.status(200).json({
-                    success: true,
-                    message: '✅ Image uploaded successfully.' + data.Location
-                });
-            })
-            .promise();
 
         const user = await User.create({
             name,
             whatsappNumber,
             email,
             password,
-            avatar: avatarUrl.Location,
+            avatar: `https://${uploadParams.Bucket}.s3.${process.env.AWS_BUCKET_REGION}.amazonaws.com/${uploadParams.Key}`,
             stripeCustomerId: customer.id
         });
 
@@ -152,54 +170,49 @@ app.post('/register', upload.single('image'), async (req, res) => {
             user
         });
     } catch (err) {
+        console.error('⚠️ Error:', err);
         res.status(500).json({
             success: false,
-            message: err.message
+            message: '⚠️ Error: ' + err.message
         });
     }
 });
 
 app.put('/me/update', isAuthUser, upload.single('image'), async (req, res) => {
     try {
-        const userId = req.user.id;
+        const userId = req.user._id;
         const { name, email } = req.body;
         const file = req.file;
 
         // Upload the avatar image to AWS S3
-        const params = {
+        const uploadParams = {
             Bucket: process.env.AWS_BUCKET_NAME,
             Key: `${userId}-${file.originalname}`,
             Body: file.buffer,
             ContentType: file.mimetype
         };
 
-        s3.upload(params, (err, data) => {
-            if (err) {
-                console.error('⚠️ Error uploading avatar:', err);
-                res.status(500).json({ error: '⚠️ Internal server error.' });
-            } else {
-                const avatarUrl = data.Location;
+        const s3 = new S3Client({
+            region: process.env.AWS_BUCKET_REGION,
+            credentials: fromEnv()
+        });
 
-                // Update the user profile in the database
-                User.findByIdAndUpdate(
-                    userId,
-                    { name: name, email: email, avatar: avatarUrl },
-                    { new: true },
-                    (err, updatedUser) => {
-                        if (err) {
-                            console.error('⚠️ Error updating profile:', err);
-                            res.status(500).json({
-                                error: '⚠️ Internal server error.'
-                            });
-                        } else {
-                            res.status(200).json({
-                                message: '✅ Profile updated successfully.',
-                                user: updatedUser
-                            });
-                        }
-                    }
-                );
-            }
+        // Upload the file to S3
+        const uploadCommand = new PutObjectCommand(uploadParams);
+        await s3.send(uploadCommand);
+
+        const avatarUrl = `https://${uploadParams.Bucket}.s3.${s3.region}.amazonaws.com/${uploadParams.Key}`;
+
+        // Update the user profile in the database
+        const updatedUser = await User.findByIdAndUpdate(
+            userId,
+            { name, email, avatar: avatarUrl },
+            { new: true }
+        );
+
+        res.status(200).json({
+            message: '✅ Profile updated successfully.',
+            user: updatedUser
         });
     } catch (error) {
         console.error('⚠️ Error processing request:', error);
@@ -208,7 +221,7 @@ app.put('/me/update', isAuthUser, upload.single('image'), async (req, res) => {
 });
 
 // Extract image key from URL
-const getImageKeyFromUrl = imageUrl => {
+const getImageKeyFromUrl = (imageUrl) => {
     const parsedUrl = url.parse(imageUrl);
     const pathName = parsedUrl.pathname;
     const key = pathName.substring(1); // Remove the leading slash (/)
@@ -224,9 +237,16 @@ app.delete(
         try {
             const userId = req.params.id;
             const user = await User.findById(userId);
+
             if (!user) {
                 return res.status(404).json({ error: '⚠️ User not found' });
             }
+
+            // Initialize S3 client
+            const s3 = new S3Client({
+                region: process.env.AWS_BUCKET_REGION,
+                credentials: fromEnv()
+            });
 
             // Delete image from AWS S3
             const imageKey = getImageKeyFromUrl(user.avatar);
@@ -234,11 +254,15 @@ app.delete(
                 Bucket: process.env.AWS_BUCKET_NAME,
                 Key: imageKey
             };
-            await s3.deleteObject(deleteParams).promise();
+
+            // Delete the object from S3
+            await s3.send(new DeleteObjectCommand(deleteParams));
+
             console.log('✅ Image deleted from AWS S3');
 
             // Delete user from MongoDB
             await User.findByIdAndDelete(userId);
+
             console.log('✅ User deleted from MongoDB:', user);
 
             return res.status(200).json({
@@ -265,6 +289,12 @@ app.post(
             const imageUrls = [];
 
             if (files && files.length > 0) {
+                // Initialize S3 client
+                const s3 = new S3Client({
+                    region: process.env.AWS_BUCKET_REGION,
+                    credentials: fromEnv()
+                });
+
                 for (const file of files) {
                     // Upload the product image to AWS S3
                     const uploadParams = {
@@ -274,32 +304,17 @@ app.post(
                         ContentType: file.mimetype
                     };
 
-                    const uploadResult = await s3
-                        .upload(uploadParams, (err, data) => {
-                            if (err) {
-                                console.error('⚠️ Error uploading image:', err);
-                                res.status(500).json({
-                                    success: false,
-                                    message:
-                                        '⚠️ Error uploading image.' +
-                                        err.message
-                                });
-                                return;
-                            }
-                            console.log(
-                                '✅ Image uploaded successfully:',
-                                data.Location
-                            );
-                            res.status(200).json({
-                                success: true,
-                                message:
-                                    '✅ Image uploaded successfully.' +
-                                    data.Location
-                            });
-                        })
-                        .promise();
+                    // Upload the file to S3
+                    const uploadCommand = new PutObjectCommand(uploadParams);
+                    await s3.send(uploadCommand);
 
-                    imageUrls.push(uploadResult.Location);
+                    console.log(
+                        '✅ Image uploaded successfully:',
+                        `https://${uploadParams.Bucket}.s3.${s3.region}.amazonaws.com/${uploadParams.Key}`
+                    );
+                    imageUrls.push(
+                        `https://${uploadParams.Bucket}.s3.${s3.region}.amazonaws.com/${uploadParams.Key}`
+                    );
                 }
             }
 
@@ -311,7 +326,7 @@ app.post(
                 category,
                 Stock,
                 images: imageUrls.map(url => ({ url })),
-                user: req.user.id
+                user: req.user._id
             });
 
             const newProduct = await product.save();
@@ -349,6 +364,12 @@ app.put(
                 return res.status(404).json({ error: '⚠️ Product not found' });
             }
 
+            // Initialize S3 client
+            const s3 = new S3Client({
+                region: process.env.AWS_BUCKET_REGION,
+                credentials: fromEnv()
+            });
+
             // Delete images from AWS S3
             const deleteObjects = product.images.map(image => ({
                 Key: getImageKeyFromUrl(image.url)
@@ -360,22 +381,30 @@ app.put(
                     Quiet: false
                 }
             };
-            await s3.deleteObjects(deleteParams).promise();
+            await s3.send(new DeleteObjectCommand(deleteParams));
+
             console.log('✅ Images deleted from AWS S3');
 
             // Upload new images
-            for (const file of files) {
-                const params = {
-                    Bucket: process.env.AWS_BUCKET_NAME,
-                    Key: file.originalname,
-                    Body: file.buffer,
-                    ContentType: file.mimetype
-                };
+            const uploadParams = {
+                Bucket: process.env.AWS_BUCKET_NAME,
+                Key: '', // Set this dynamically below
+                ContentType: '', // Set this dynamically below
+                Body: null // Set this dynamically below
+            };
 
-                const s3UploadResult = await s3.upload(params).promise();
+            for (const file of files) {
+                uploadParams.Key = file.originalname;
+                uploadParams.ContentType = file.mimetype;
+                uploadParams.Body = file.buffer;
+
+                await s3.send(
+                    new UploadPartCommand(uploadParams)
+                );
+
                 imageUrls.push({
                     key: file.originalname,
-                    url: s3UploadResult.Location
+                    url: `https://${deleteObjects.Bucket}.s3.${s3.region}.amazonaws.com/${deleteObjects.Key}`
                 });
             }
 
@@ -413,48 +442,6 @@ app.put(
     }
 );
 
-app.put(
-    '/admin/product/:id',
-    isAuthUser,
-    authRoles('admin'),
-    upload.array('product', 10),
-    async (req, res) => {
-        try {
-            const productId = req.params.id;
-            const product = await Product.findById(productId);
-            if (!product) {
-                return res.status(404).json({ error: '⚠️ Product not found' });
-            }
-
-            // Delete images from AWS S3
-            const deleteObjects = product.images.map(image => ({
-                Key: getImageKeyFromUrl(image.url)
-            }));
-            const deleteParams = {
-                Bucket: process.env.AWS_BUCKET_NAME,
-                Delete: {
-                    Objects: deleteObjects,
-                    Quiet: false
-                }
-            };
-            await s3.deleteObjects(deleteParams).promise();
-            console.log('✅ Images deleted from AWS S3');
-
-            // Delete product from MongoDB
-            await Product.findByIdAndDelete(productId);
-            console.log('✅ Product deleted from MongoDB:', product);
-
-            return res.status(200).json({
-                success: true,
-                message: '✅ Product deleted successfully.',
-                product
-            });
-        } catch (error) {
-            console.error('⚠️ Error processing request:', error);
-            return res.status(500).json({ error: '⚠️ Internal server error.' });
-        }
-    }
-);
 
 app.delete(
     '/admin/product/:id',
@@ -464,9 +451,16 @@ app.delete(
         try {
             const productId = req.params.id;
             const product = await Product.findById(productId);
+
             if (!product) {
                 return res.status(404).json({ error: '⚠️ Product not found' });
             }
+
+            // Initialize S3 client
+            const s3 = new S3Client({
+                region: process.env.AWS_BUCKET_REGION,
+                credentials: fromEnv()
+            });
 
             // Delete images from AWS S3
             const deleteObjects = product.images.map(image => ({
@@ -479,11 +473,13 @@ app.delete(
                     Quiet: false
                 }
             };
-            await s3.deleteObjects(deleteParams).promise();
+            await s3.send(new DeleteObjectsCommand(deleteParams));
+
             console.log('✅ Images deleted from AWS S3');
 
             // Delete product from MongoDB
             await Product.findByIdAndDelete(productId);
+
             console.log('✅ Product deleted from MongoDB:', product);
 
             return res.status(200).json({
@@ -499,5 +495,3 @@ app.delete(
 );
 
 module.exports = app;
-// module.exports = s3;
-// module.exports = upload;

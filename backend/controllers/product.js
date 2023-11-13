@@ -2,7 +2,6 @@ const Product = require('../models/product');
 const User = require('../models/user');
 const ApiFeatures = require('../utils/apifeatures');
 const nodeCache = require('node-cache');
-
 const NodeCache = new nodeCache();
 
 // get all products
@@ -173,7 +172,6 @@ exports.getAllWishlistProducts = async (req, res) => {
 exports.addToWishList = async (req, res) => {
     try {
 
-        let wishlist;
         const product = await Product.findById(req.params.id);
 
         if (!product) {

@@ -1,5 +1,7 @@
 const mongoose = require('mongoose');
 
+mongoose.set('strictQuery', false);
+
 const subscription = new mongoose.Schema({
     subscriptionId: {
         type: String,

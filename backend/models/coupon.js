@@ -1,5 +1,7 @@
 const mongoose = require('mongoose');
 
+mongoose.set('strictQuery', false);
+
 const couponSchema = new mongoose.Schema({
     code: {
         type: String,

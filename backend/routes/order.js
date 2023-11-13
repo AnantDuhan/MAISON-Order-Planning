@@ -6,6 +6,7 @@ const {
    getAllOrders,
    updateOrder,
    deleteOrder,
+   reorder,
 } = require('../controllers/order');
 const router = express.Router();
 
@@ -33,6 +34,8 @@ router
     .post(isAuthUser, authRoles('admin'), initiateRefund);
 
 router.route('/admin/order/:orderId/refund/:refundId/status').patch(isAuthUser, authRoles('admin'), updateRefundStatus);
+
+router.route('/reorder').post(isAuthUser, reorder);
 
 router.route('/admin/returns').get(isAuthUser, authRoles('admin'), getAllReturns);
 

@@ -3,16 +3,22 @@ const User = require('../models/user');
 const sendEmail = require('../utils/sendEmail');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
-const AWS = require('aws-sdk');
 require('dotenv').config({ path: 'backend/config/config.env' });
 const nodeCache = require('node-cache');
 const NodeCache = new nodeCache();
+const { S3Client, GetObjectCommand } = require('@aws-sdk/client-s3');
+const { fromEnv } = require('@aws-sdk/credential-provider-env');
 
-const s3 = new AWS.S3({
+const s3 = new S3Client({
     region: process.env.AWS_BUCKET_REGION,
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
+    credentials: fromEnv()
 });
+
+// const s3 = new S3Client({
+//     region: process.env.AWS_BUCKET_REGION,
+//     accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+//     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
+// });
 
 // register user
 exports.registerUser = async(req, res, next) => {
@@ -283,7 +289,8 @@ exports.getUserDetails = async (req, res, next) => {
     if (NodeCache.has('user')) {
         user = JSON.parse(JSON.stringify(NodeCache.get('user')));
     } else {
-        user = await getUserFromCache(req.user.id);
+        console.log('id', req.user._id)
+        user = await getUserFromCache(`${req.user._id}`);
         NodeCache.set('user', JSON.stringify(user));
     }
 
@@ -296,7 +303,8 @@ exports.getUserDetails = async (req, res, next) => {
 // update User password
 exports.updatePassword = async (req, res, next) => {
     try {
-        const user = await getUserFromCache(req.user.id);
+
+        const user = await getUserFromCache(`${req.user._id}`);
 
         const isPasswordMatched = await user.comparePassword(
             req.body.oldPassword

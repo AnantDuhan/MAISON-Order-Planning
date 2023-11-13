@@ -1,5 +1,7 @@
 const mongoose = require('mongoose');
 
+mongoose.set('strictQuery', false);
+
 const subscriber = new mongoose.Schema({
     email: {
         type: String,
