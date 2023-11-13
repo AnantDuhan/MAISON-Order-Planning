@@ -1,23 +1,46 @@
 # ECOMMERCE - MERN
 
-![ecommerce](/frontend/src/images/logo.png)
-
 ## Demo
 
-This application will be deployed on Heroku soon. You can check it out 😄 [here]().
-This is a FULL Stack Ecommerce website which includes all the features that a Ecommerce website will usually have. It comes with a Admin Dashboard and Enabled Payment using Stripe.
+This full-stack e-commerce application is built using cutting-edge technologies to provide users with a seamless shopping experience. Below are some key features and technologies used in the development:
 
-1. Buyers browse the store categories, products and brands.
-2. Buyers can filter price, rating, categories for more confined search.
-3. Admins manage and control the entire store components.
+## Features
 
-* features:
-  * Node provides the backend environment for this application
-  * Express middleware is used to handle requests, routes, isAuthenticatedUser
-  * Mongoose schemas to model the application data
-  * React for displaying UI components
-  * Redux to manage application's state
-  * Redux Thunk middleware to handle asynchronous redux actions
+* **Browse and Shop:**
+  * Buyers can explore store categories, products, and brands.
+  * Intuitive filtering options for price, rating, and categories to enhance the search experience.
+
+* **Admin Dashboard:**
+  * Comprehensive admin dashboard to manage and control various components of the store.
+
+* **User Engagement:**
+  * Enabled user reviews, ratings, and Wishlist features to enhance user interaction.
+
+* **Payment Integration:**
+  * Integrated Stripe for secure and convenient payment processing.
+
+* **Additional Functionality:**
+  * Implemented advanced product searching and filtering functionalities.
+  * Integrated coupon code functionality for discounts.
+  * Seamless return and refund features for a smooth user experience.
+
+## Technologies Used
+
+* **Backend:**
+  * Node.js provides the backend environment.
+  * Express middleware handles requests, routes, and user authentication.
+  * MongoDB with Mongoose schemas models the application data.
+
+* **Frontend:**
+  * React.js for building dynamic and responsive UI components.
+  * Redux for managing the application's state.
+  * Redux Thunk middleware for handling asynchronous redux actions.
+
+* **Testing:**
+  * Unit tests performed using Mocha and Chai in the backend to ensure robust code quality.
+
+* **Storage:**
+  * AWS-S3 utilized for efficient storage of user avatars and product images, ensuring scalability and performance.
 
 ## Install
 
@@ -82,7 +105,7 @@ $ npm run start:production
 - [Express](https://expressjs.com/)
 - [React](https://reactjs.org/)
 - [Node](https://nodejs.org/en/)
-- [Amazon Web Services]()
+- [AWS-S3](https://aws.amazon.com/s3/)
 
 ### Code Formatter
 
