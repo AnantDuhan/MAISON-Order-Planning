@@ -1,6 +1,4 @@
-# ECOMMERCE - MERN
-
-## Demo
+# Order Planning - An Ecommerce Platform
 
 This full-stack e-commerce application is built using cutting-edge technologies to provide users with a seamless shopping experience. Below are some key features and technologies used in the development:
 
