@@ -1,44 +1,53 @@
-# Order Planning - An Ecommerce Platform
+# Order Planning - An E-commerce Platform
 
 This full-stack e-commerce application is built using cutting-edge technologies to provide users with a seamless shopping experience. Below are some key features and technologies used in the development:
 
 ## Features
 
-* **Browse and Shop:**
-  * Buyers can explore store categories, products, and brands.
-  * Intuitive filtering options for price, rating, and categories to enhance the search experience.
+- **Browse and Shop:**
+  - Buyers can explore store categories, products, and brands.
+  - Intuitive filtering options for price, rating, and categories to enhance the search experience.
 
-* **Admin Dashboard:**
-  * Comprehensive admin dashboard to manage and control various components of the store.
+- **Admin Dashboard:**
+  - Comprehensive **admin dashboard** to manage and control various components of the store.
 
-* **User Engagement:**
-  * Enabled user reviews, ratings, and Wishlist features to enhance user interaction.
+- **User Engagement:**
+  - Enabled user **reviews**, **ratings**, and **Wishlist** features to enhance user interaction.
 
-* **Payment Integration:**
-  * Integrated Stripe for secure and convenient payment processing.
+- **Payment Integration:**
+  - Integrated **Stripe** for secure and convenient payment processing.
 
-* **Additional Functionality:**
-  * Implemented advanced product searching and filtering functionalities.
-  * Integrated coupon code functionality for discounts.
-  * Seamless return and refund features for a smooth user experience.
+- **Additional Functionality:**
+  - Implemented advanced product **searching** and **filtering** functionalities.
+  - Integrated **coupon code** functionality for discounts.
+  - Seamless **return** and **refund** features for a smooth user experience.
+  - Increased Performing performance by **85%** using **caching**.
+
+- **Upcoming Features:**
+  - Adding more **filtering functionalities** for the products.
+  - Adding **Google OAuth, OTP Based Login** to the users.
+  - Adding **subscription** functionality using **Stripe membership** for users.
+  - Adding **Multilingual** Support for the users of different languages.
+  - Adding **Recommendation System** for the users to help them shop better with suggesstions.
 
 ## Technologies Used
 
-* **Backend:**
-  * Node.js provides the backend environment.
-  * Express middleware handles requests, routes, and user authentication.
-  * MongoDB with Mongoose schemas models the application data.
+- **Backend:**
 
-* **Frontend:**
-  * React.js for building dynamic and responsive UI components.
-  * Redux for managing the application's state.
-  * Redux Thunk middleware for handling asynchronous redux actions.
+  - Node.js provides the backend environment.
+  - Express middleware handles requests, routes, and user authentication.
+  - MongoDB with Mongoose schemas models the application data.
+- **Frontend:**
 
-* **Testing:**
-  * Unit tests performed using Mocha and Chai in the backend to ensure robust code quality.
+  - React.js for building dynamic and responsive UI components.
+  - Redux for managing the application's state.
+  - Redux Thunk middleware for handling asynchronous redux actions.
+- **Testing:**
 
-* **Storage:**
-  * AWS-S3 utilized for efficient storage of user avatars and product images, ensuring scalability and performance.
+  - Unit tests performed using Mocha and Chai in the backend to ensure robust code quality.
+- **Storage:**
+
+  - AWS-S3 utilized for efficient storage of user avatars and product images, ensuring scalability and performance.
 
 ## Install
 
@@ -57,13 +66,13 @@ $ npm install
 
 Make Sure to Create a config.env file in backend/config directory that include:
 
-* DB_URI & JWT_SECRET_KEY & JWT_EXPIRES_IN
-* PORT, FRONTEND_URL & RESULT_PER_PAGE
-* STRIPE_PUBLISHABLE_KEY & STRIPE_SECRET_KEY
-* COOKIE_EXPIRES
-* SMTP_HOST, SMTP_PORT & SMTP_SERVICE
-* SMTP_MAIL & SMTP_PASSWORD
-* AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_BUCKET_NAME & AWS_BUCKET_REGION
+- DB_URI & JWT_SECRET_KEY & JWT_EXPIRES_IN
+- PORT, FRONTEND_URL & RESULT_PER_PAGE
+- STRIPE_PUBLISHABLE_KEY & STRIPE_SECRET_KEY
+- COOKIE_EXPIRES
+- SMTP_HOST, SMTP_PORT & SMTP_SERVICE
+- SMTP_MAIL & SMTP_PASSWORD
+- AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_BUCKET_NAME & AWS_BUCKET_REGION
 
 ## Heroku Deployment
 
@@ -104,8 +113,9 @@ $ npm run start:production
 - [React](https://reactjs.org/)
 - [Node](https://nodejs.org/en/)
 - [AWS-S3](https://aws.amazon.com/s3/)
+- [Stripe](https://dashboard.stripe.com/dashboard)
 
-### Code Formatter
+## Code Formatter
 
 - Add a `.vscode` directory
 - Create a file `settings.json` inside `.vscode`
@@ -113,12 +123,12 @@ $ npm run start:production
 - Add the following snippet:
 
 ```json
-    {
-      "editor.formatOnSave": true,
-      "prettier.singleQuote": true,
-      "prettier.arrowParens": "avoid",
-      "prettier.jsxSingleQuote": true,
-      "prettier.trailingComma": "none",
-      "javascript.preferences.quoteStyle": "single",
-    }
+{
+    "editor.formatOnSave": true,
+    "prettier.singleQuote": true,
+    "prettier.arrowParens": "avoid",
+    "prettier.jsxSingleQuote": true,
+    "prettier.trailingComma": "none",
+    "javascript.preferences.quoteStyle": "single"
+}
 ```
