@@ -3,8 +3,9 @@ const mongoose = require('mongoose');
 mongoose.set('strictQuery', false);
 
 const returnProductSchema = new mongoose.Schema({
+    _id: String,
     product: {
-        type: mongoose.Schema.ObjectId,
+        type: Number,
         ref: 'Product',
         required: true
     },
@@ -15,8 +16,9 @@ const returnProductSchema = new mongoose.Schema({
 });
 
 const returnSchema = new mongoose.Schema({
+    _id: String,
     order: {
-        type: mongoose.Schema.ObjectId,
+        type: Number,
         ref: 'Order',
         required: true
     },

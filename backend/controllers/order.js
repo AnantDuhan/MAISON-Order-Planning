@@ -12,6 +12,10 @@ const stripe = require('stripe')(
 const nodeCache = require('node-cache');
 const NodeCache = new nodeCache();
 const Reorder = require('../models/reorder');
+const Snowflake = require('@theinternetfolks/snowflake');
+
+const timestamp = Date.now();
+const timestampInSeconds = Math.floor(timestamp / 1000);
 
 // create new order
 exports.newOrder = async (req, res, next) => {
@@ -59,6 +63,9 @@ exports.newOrder = async (req, res, next) => {
         );
 
         const order = await Order.create({
+            _id: Snowflake.Snowflake.generate({
+                timestamp: timestampInSeconds
+            }),
             shippingInfo,
             orderItems: orderItemsWithImages,
             paymentInfo,

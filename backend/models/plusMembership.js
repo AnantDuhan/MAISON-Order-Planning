@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 mongoose.set('strictQuery', false);
 
 const subscription = new mongoose.Schema({
+    _id: String,
     subscriptionId: {
         type: String,
         required: true
@@ -24,7 +25,7 @@ const subscription = new mongoose.Schema({
         required: true
     },
     user: {
-        type: mongoose.Schema.ObjectId,
+        type: Number,
         ref: 'User',
         required: true
     },

@@ -4,32 +4,28 @@ const sendEmail = require('../utils/sendEmail');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 require('dotenv').config({ path: 'backend/config/config.env' });
-const nodeCache = require('node-cache');
-const NodeCache = new nodeCache();
-const { S3Client, GetObjectCommand } = require('@aws-sdk/client-s3');
+const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
 const { fromEnv } = require('@aws-sdk/credential-provider-env');
+const Snowflake = require('@theinternetfolks/snowflake');
 
-const s3 = new S3Client({
-    region: process.env.AWS_BUCKET_REGION,
-    credentials: fromEnv()
-});
-
-// const s3 = new S3Client({
-//     region: process.env.AWS_BUCKET_REGION,
-//     accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-//     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
-// });
+const timestamp = Date.now();
+const timestampInSeconds = Math.floor(timestamp / 1000);
 
 // register user
-exports.registerUser = async(req, res, next) => {
+exports.registerUser = async (req, res, next) => {
     try {
-        const { name, email, password } = req.body;
+        const { name, whatsappNumber, email, password } = req.body;
         const file = req.file;
 
         if (!file) {
             res.status(400).send('No file uploaded.');
             return;
         }
+
+        const s3 = new S3Client({
+            region: process.env.AWS_BUCKET_REGION,
+            credentials: fromEnv()
+        });
 
         // Define the upload parameters
         const uploadParams = {
@@ -39,34 +35,34 @@ exports.registerUser = async(req, res, next) => {
         };
 
         // Upload the file to S3
-        const avatarUrl = await s3
-            .upload(uploadParams, (err, data) => {
-                if (err) {
-                    console.error('⚠️ Error uploading image:', err);
-                    res.status(500).json({
-                        success: false,
-                        message: '⚠️ Error uploading image.' + err.message
-                    });
-                    return;
-                }
-                console.log('✅ Image uploaded successfully:', data.Location);
-                res.status(200).json({
-                    success: true,
-                    message: '✅ Image uploaded successfully.' + data.Location
-                });
-            })
-            .promise();
+        const uploadCommand = new PutObjectCommand(uploadParams);
+        await s3.send(uploadCommand);
+
+        const cacheBuster = Date.now();
+        const avatarUrl = `https://${uploadParams.Bucket}.s3.${s3.region}.amazonaws.com/${uploadParams.Key}?cacheBuster=${cacheBuster}`;
+
+        console.log('✅ Image uploaded successfully:', avatarUrl);
+
+        const customer = await stripe.customers.create({
+            email,
+            source: 'tok_visa'
+        });
 
         const user = await User.create({
+            _id: Snowflake.Snowflake.generate({
+                timestamp: timestampInSeconds
+            }),
             name,
+            whatsappNumber,
             email,
             password,
-            avatar: avatarUrl.Location
+            avatar: avatarUrl,
+            stripeCustomerId: customer.id
         });
 
         let token = jwt.sign(
             {
-                id: user._id,
+                userId: user._id,
                 name: user.name,
                 email: user.email
             },
@@ -83,12 +79,13 @@ exports.registerUser = async(req, res, next) => {
             user
         });
     } catch (err) {
+        console.error('⚠️ Error:', err);
         res.status(500).json({
             success: false,
-            message: err.message
+            message: '⚠️ Error: ' + err.message
         });
     }
-}
+};
 
 // Login User
 exports.loginUser = async (req, res, next) => {
@@ -186,7 +183,7 @@ exports.forgotPassword = async (req, res, next) => {
 
         const message = `Your password reset token is:- \n\n ${resetPasswordURL} \n\n If you have not requested this email then, please ignore it.`;
 
-        console.log("message", message);
+        console.log('message', message);
 
         res.status(200).json({
             success: true,
@@ -213,21 +210,10 @@ exports.resetPassword = async (req, res, next) => {
             .update(req.params.token)
             .digest('hex');
 
-        // Check if user data is in the cache
-        let user = NodeCache.get(resetPasswordToken);
-
-        // If not in the cache, fetch from the database
-        if (!user) {
-            user = await User.findOne({
-                resetPasswordToken,
-                resetPasswordExpire: { $gt: Date.now() }
-            });
-
-            // Cache the user data for future use
-            if (user) {
-                NodeCache.set(resetPasswordToken, user);
-            }
-        }
+        const user = await User.findOne({
+            resetPasswordToken,
+            resetPasswordExpire: { $gt: Date.now() }
+        });
 
         if (!user) {
             return res.status(400).json({
@@ -265,9 +251,6 @@ exports.resetPassword = async (req, res, next) => {
             httpOnly: true
         };
 
-        // Clear the cache for the user
-        NodeCache.del(resetPasswordToken);
-
         res.status(200).cookie('token', token, options).json({
             success: true,
             user
@@ -283,16 +266,7 @@ exports.resetPassword = async (req, res, next) => {
 
 // get User details
 exports.getUserDetails = async (req, res, next) => {
-
-    let user;
-
-    if (NodeCache.has('user')) {
-        user = JSON.parse(JSON.stringify(NodeCache.get('user')));
-    } else {
-        console.log('id', req.user._id)
-        user = await getUserFromCache(`${req.user._id}`);
-        NodeCache.set('user', JSON.stringify(user));
-    }
+    const user = await User.findById(req.user._id);
 
     res.status(200).json({
         success: true,
@@ -303,8 +277,7 @@ exports.getUserDetails = async (req, res, next) => {
 // update User password
 exports.updatePassword = async (req, res, next) => {
     try {
-
-        const user = await getUserFromCache(`${req.user._id}`);
+        const user = await User.findById(req.user._id);
 
         const isPasswordMatched = await user.comparePassword(
             req.body.oldPassword
@@ -327,9 +300,6 @@ exports.updatePassword = async (req, res, next) => {
         user.password = req.body.newPassword;
 
         await user.save();
-
-        // Clear the cache for the updated user
-        NodeCache.del(req.user.id);
 
         let token = jwt.sign(
             {
@@ -359,33 +329,9 @@ exports.updatePassword = async (req, res, next) => {
     }
 };
 
-async function getUserFromCache(userId) {
-    // Check if user data is in the cache
-    let user = NodeCache.get(userId);
-
-    // If not in the cache, fetch from the database
-    if (!user) {
-        user = await User.findById(userId).select('+password');
-
-        // Cache the user data for future use
-        if (user) {
-            NodeCache.set(userId, user);
-        }
-    }
-
-    return user;
-}
-
 // get all users --admin
 exports.getAllUsers = async (req, res, next) => {
-    let users;
-
-    if (NodeCache.has('users')) {
-        users = JSON.parse(JSON.stringify(NodeCache.get('users')));
-    } else {
-        users = await User.find();
-        NodeCache.set('users', JSON.stringify(users));
-    }
+    const users = await User.find();
 
     res.status(200).json({
         success: true,
@@ -395,15 +341,7 @@ exports.getAllUsers = async (req, res, next) => {
 
 // get single user --admin
 exports.getSingleUser = async (req, res, next) => {
-
-    let user;
-
-    if (NodeCache.has('user')) {
-        user = JSON.parse(JSON.stringify(NodeCache.get('user')));
-    } else {
-        user = await User.findById(req.params.id);
-        NodeCache.set('user', JSON.stringify(user));
-    }
+    const user = await User.findById(req.params.id);
 
     if (!user) {
         return res.status(400).json({
@@ -421,29 +359,16 @@ exports.getSingleUser = async (req, res, next) => {
 // update User Role --admin
 exports.updateUserRole = async (req, res, next) => {
     try {
-        let user;
         const newUserData = {
             name: req.body.name,
             email: req.body.email,
             role: req.body.role
         };
-
-        // Check if user data is in the cache
-        if (NodeCache.has(req.params.id)) {
-            user = JSON.parse(JSON.stringify(NodeCache.get(req.params.id)));
-        } else {
-            // If not in the cache, fetch from the database
-            user = await User.findByIdAndUpdate(req.params.id, newUserData, {
-                new: true,
-                runValidators: true,
-                useFindAndModify: false
-            });
-
-            // Cache the updated user data for future use
-            if (user) {
-                NodeCache.set(req.params.id, user);
-            }
-        }
+        const user = await User.findByIdAndUpdate(req.params.id, newUserData, {
+            new: true,
+            runValidators: true,
+            useFindAndModify: false
+        });
 
         res.status(200).json({
             success: true,
@@ -456,4 +381,3 @@ exports.updateUserRole = async (req, res, next) => {
         });
     }
 };
-

@@ -3,6 +3,10 @@ const stripe = require('stripe')(
     'sk_test_51K9RkSSDvITsgzEymgWGmrPCCP0Iu8b8j2AtRaZbnuXqwSLkQMSnTc6a6gQmRRzT60nP0KMhApPEpASMOPP3GgGh00rlK3KQm2'
 );
 const Subscription = require('../models/plusMembership');
+const Snowflake = require('@theinternetfolks/snowflake');
+
+const timestamp = Date.now();
+const timestampInSeconds = Math.floor(timestamp / 1000);
 
 exports.allPrices = async (req, res, next) => {
     try {
@@ -33,7 +37,10 @@ exports.createSubscription = async (req, res, next) => {
             duration,
         } = req.body;
 
-        const subscription = new Subscription({
+        const subscription = Subscription.create({
+            _id: Snowflake.Snowflake.generate({
+                timestamp: timestampInSeconds
+            }),
             subscriptionId,
             name,
             description,
@@ -193,6 +200,9 @@ exports.plusSubscription_monthly = async (req, res, next) => {
     try {
         const user = await User.findOne({ _id: req.user._id })
         const subscription = await stripe.subscriptions.create({
+            _id: Snowflake.Snowflake.generate({
+                timestamp: timestampInSeconds
+            }),
             customer: user.stripeCustomerId,
             items: [{ price: 'price_1NqBy5SDvITsgzEydDy964tk' }]
         });
@@ -224,6 +234,9 @@ exports.plusSubscription_every3months = async (req, res, next) => {
 
         // Create the subscription
         const subscription = await stripe.subscriptions.create({
+            _id: Snowflake.Snowflake.generate({
+                timestamp: timestampInSeconds
+            }),
             customer: req.user._id,
             items: [{ price: 'price_1NqFbMSDvITsgzEyDQq1f4En' }]
         });
@@ -255,6 +268,9 @@ exports.plusSubscription_yearly = async (req, res, next) => {
 
         // Create the subscription
         const subscription = await stripe.subscriptions.create({
+            _id: Snowflake.Snowflake.generate({
+                timestamp: timestampInSeconds
+            }),
             customer: req.user._id,
             items: [{ price: 'price_1NqBxlSDvITsgzEybWFmkGg' }]
         });

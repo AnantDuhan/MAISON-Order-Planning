@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 mongoose.set('strictQuery', false);
 
 const orderSchema = new mongoose.Schema({
+    _id: String,
     shippingInfo: {
         address: {
             type: String,
@@ -52,14 +53,14 @@ const orderSchema = new mongoose.Schema({
                 }
             ],
             product: {
-                type: mongoose.Schema.ObjectId,
+                type: Number,
                 ref: 'Product',
                 required: true
             }
         }
     ],
     user: {
-        type: mongoose.Schema.ObjectId,
+        type: Number,
         ref: 'User',
         required: true
     },
@@ -104,13 +105,13 @@ const orderSchema = new mongoose.Schema({
     },
     return: [
         {
-            type: mongoose.Schema.ObjectId,
+            type: Number,
             ref: 'Return'
         }
     ],
     refund: [
         {
-            type: mongoose.Schema.ObjectId,
+            type: Number,
             ref: 'Refund',
             required: true
         }

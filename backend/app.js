@@ -8,13 +8,9 @@ const multer = require('multer');
 const url = require('url');
 const {
     S3Client,
-    GetObjectCommand,
     PutObjectCommand,
     DeleteObjectCommand,
     UploadPartCommand,
-    CreateMultipartUploadCommand,
-    CompleteMultipartUploadCommand,
-    AbortMultipartUploadCommand,
     DeleteObjectsCommand,
 } = require('@aws-sdk/client-s3');
 const { fromEnv } = require('@aws-sdk/credential-provider-env');
@@ -26,9 +22,9 @@ const jwt = require('jsonwebtoken');
 const stripe = require('stripe')(
     'sk_test_51K9RkSSDvITsgzEymgWGmrPCCP0Iu8b8j2AtRaZbnuXqwSLkQMSnTc6a6gQmRRzT60nP0KMhApPEpASMOPP3GgGh00rlK3KQm2'
 );
+const Snowflake = require('@theinternetfolks/snowflake');
 require('dotenv').config({ path: '/backend/config/config.env' });
 
-app.use(cors());
 app.use(cookieParser());
 app.use(express.json({ limit: '50mb' }));
 app.use(
@@ -70,6 +66,9 @@ const upload = multer({
 // app.use(upload.single('image'));
 // app.use(upload.array('product', 10));
 
+const timestamp = Date.now();
+const timestampInSeconds = Math.floor(timestamp / 1000);
+
 // Route Imports
 const productRoute = require('./routes/product');
 const userRoute = require('./routes/user');
@@ -97,10 +96,22 @@ app.use(async (req, res, next) => {
     return next();
 });
 
+const corsOptions = {
+    origin: 'http://localhost:3000',
+    optionsSuccessStatus: 200, // some legacy browsers (IE11, various SmartTVs) choke on 204
+};
+
+app.use(cors(corsOptions));
+
 process.noDeprecation = true;
 
 // middleware for error
 app.use(errorMiddleware);
+
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).send('Internal Server Error');
+});
 
 app.get('/', (req, res) => {
     res.send('Hello, welcome to my API!');
@@ -132,10 +143,10 @@ app.post('/register', upload.single('image'), async (req, res) => {
         const uploadCommand = new PutObjectCommand(uploadParams);
         await s3.send(uploadCommand);
 
-        console.log(
-            '✅ Image uploaded successfully:',
-            `https://${uploadParams.Bucket}.s3.${s3.region}.amazonaws.com/${uploadParams.Key}`
-        );
+        const cacheBuster = Date.now();
+        const avatarUrl = `https://${uploadParams.Bucket}.s3.${process.env.AWS_BUCKET_REGION}.amazonaws.com/${uploadParams.Key}?cacheBuster=${cacheBuster}`;
+
+        console.log('✅ Image uploaded successfully:', avatarUrl);
 
         const customer = await stripe.customers.create({
             email,
@@ -143,17 +154,20 @@ app.post('/register', upload.single('image'), async (req, res) => {
         });
 
         const user = await User.create({
+            _id: Snowflake.Snowflake.generate({
+                timestamp: timestampInSeconds
+            }),
             name,
             whatsappNumber,
             email,
             password,
-            avatar: `https://${uploadParams.Bucket}.s3.${process.env.AWS_BUCKET_REGION}.amazonaws.com/${uploadParams.Key}`,
+            avatar: avatarUrl,
             stripeCustomerId: customer.id
         });
 
         let token = jwt.sign(
             {
-                id: user._id,
+                userId: user._id,
                 name: user.name,
                 email: user.email
             },
@@ -201,7 +215,8 @@ app.put('/me/update', isAuthUser, upload.single('image'), async (req, res) => {
         const uploadCommand = new PutObjectCommand(uploadParams);
         await s3.send(uploadCommand);
 
-        const avatarUrl = `https://${uploadParams.Bucket}.s3.${s3.region}.amazonaws.com/${uploadParams.Key}`;
+        const cacheBuster = Date.now();
+        const avatarUrl = `https://${uploadParams.Bucket}.s3.${process.env.AWS_BUCKET_REGION}.amazonaws.com/${uploadParams.Key}?cacheBuster=${cacheBuster}`;
 
         // Update the user profile in the database
         const updatedUser = await User.findByIdAndUpdate(
@@ -308,18 +323,19 @@ app.post(
                     const uploadCommand = new PutObjectCommand(uploadParams);
                     await s3.send(uploadCommand);
 
-                    console.log(
-                        '✅ Image uploaded successfully:',
-                        `https://${uploadParams.Bucket}.s3.${s3.region}.amazonaws.com/${uploadParams.Key}`
-                    );
-                    imageUrls.push(
-                        `https://${uploadParams.Bucket}.s3.${s3.region}.amazonaws.com/${uploadParams.Key}`
-                    );
+                    const cacheBuster = Date.now();
+                    const avatarUrl = `https://${uploadParams.Bucket}.s3.${process.env.AWS_BUCKET_REGION}.amazonaws.com/${uploadParams.Key}?cacheBuster=${cacheBuster}`;
+
+                    console.log('✅ Image uploaded successfully:', avatarUrl);
+                    imageUrls.push(avatarUrl);
                 }
             }
 
             // Create a new product in the database
             const product = await Product.create({
+                _id: Snowflake.Snowflake.generate({
+                    timestamp: timestampInSeconds
+                }),
                 name,
                 description,
                 price,
@@ -381,16 +397,17 @@ app.put(
                     Quiet: false
                 }
             };
-            await s3.send(new DeleteObjectCommand(deleteParams));
+            const deleteObject = new DeleteObjectCommand(deleteParams);
+            await s3.send(deleteObject);
 
             console.log('✅ Images deleted from AWS S3');
 
             // Upload new images
             const uploadParams = {
                 Bucket: process.env.AWS_BUCKET_NAME,
-                Key: '', // Set this dynamically below
-                ContentType: '', // Set this dynamically below
-                Body: null // Set this dynamically below
+                Key: `${productId}-${files.originalname}`,
+                Body: files.buffer,
+                ContentType: files.mimetype
             };
 
             for (const file of files) {
@@ -402,9 +419,12 @@ app.put(
                     new UploadPartCommand(uploadParams)
                 );
 
+                const cacheBuster = Date.now();
+                const avatarUrl = `https://${uploadParams.Bucket}.s3.${process.env.AWS_BUCKET_REGION}.amazonaws.com/${uploadParams.Key}?cacheBuster=${cacheBuster}`;
+
                 imageUrls.push({
                     key: file.originalname,
-                    url: `https://${deleteObjects.Bucket}.s3.${s3.region}.amazonaws.com/${deleteObjects.Key}`
+                    url: avatarUrl
                 });
             }
 

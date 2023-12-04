@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 mongoose.set('strictQuery', false);
 
 const contactSchema = new mongoose.Schema({
+    _id: String,
     name: {
         type: String,
         required: true

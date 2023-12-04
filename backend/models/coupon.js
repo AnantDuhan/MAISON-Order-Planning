@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 mongoose.set('strictQuery', false);
 
 const couponSchema = new mongoose.Schema({
+    _id: String,
     code: {
         type: String,
         required: true,

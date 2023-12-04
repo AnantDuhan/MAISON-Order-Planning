@@ -1,4 +1,8 @@
 const Subscribe = require('../models/subscribe');
+const Snowflake = require('@theinternetfolks/snowflake');
+
+const timestamp = Date.now();
+const timestampInSeconds = Math.floor(timestamp / 1000);
 
 exports.subscriber = async (req, res, next) => {
     try {
@@ -12,7 +16,12 @@ exports.subscriber = async (req, res, next) => {
                     .json({ error: 'Email address is already subscribed.' });
             }
 
-            const newSubscriber = await Subscribe.create({ email });
+            const newSubscriber = await Subscribe.create({
+                _id: Snowflake.Snowflake.generate({
+                    timestamp: timestampInSeconds
+                }),
+                email
+            });
             await newSubscriber.save();
 
             res.status(200).json({

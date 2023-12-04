@@ -3,10 +3,10 @@ const validator = require('validator');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
-
 mongoose.set('strictQuery', false);
 
 const userSchema = new mongoose.Schema({
+    _id: String,
     name: {
         type: String,
         required: [true, 'Please Enter Your Name'],
@@ -44,6 +44,7 @@ const userSchema = new mongoose.Schema({
     wishlist: {
         type: [
             {
+                _id: String,
                 name: {
                     type: String,
                     required: [true, 'Please Enter product Name'],
@@ -64,6 +65,7 @@ const userSchema = new mongoose.Schema({
                 },
                 images: [
                     {
+                        _id: String,
                         url: {
                             type: String,
                             required: true
@@ -71,7 +73,7 @@ const userSchema = new mongoose.Schema({
                     }
                 ],
                 product: {
-                    type: mongoose.Schema.Types.ObjectId,
+                    type: Number,
                     ref: 'Product'
                 }
             }
@@ -105,11 +107,11 @@ userSchema.pre('save', async function (next) {
 userSchema.methods.getJWTToken = function () {
     return jwt.sign(
         {
-            id: this._id,
+            id: this._id
         },
         process.env.JWT_SECRET_KEY,
         {
-            expiresIn: process.env.JWT_EXPIRES_IN,
+            expiresIn: process.env.JWT_EXPIRES_IN
         }
     );
 };

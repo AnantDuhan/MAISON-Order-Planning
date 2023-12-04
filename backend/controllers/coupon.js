@@ -1,6 +1,10 @@
 const Coupon = require('../models/Coupon');
 const nodeCache = require('node-cache');
 const NodeCache = new nodeCache();
+const Snowflake = require('@theinternetfolks/snowflake');
+
+const timestamp = Date.now();
+const timestampInSeconds = Math.floor(timestamp / 1000);
 
 // Generate a new coupon code
 exports.generateCoupon = async (req, res, next) => {
@@ -8,9 +12,12 @@ exports.generateCoupon = async (req, res, next) => {
         const { code, discount } = req.body;
 
         const coupon = await Coupon.create({
+            _id: Snowflake.Snowflake.generate({
+                timestamp: timestampInSeconds
+            }),
             code,
             discount,
-            expiresAt: new Date(Date.now()+ 7 * 24 * 60 * 60 * 1000)
+            expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
         });
 
         res.status(201).json({
@@ -29,14 +36,7 @@ exports.generateCoupon = async (req, res, next) => {
 // Get all coupon codes
 exports.getAllCoupons = async (req, res, next) => {
     try {
-        let coupons;
-
-        if (NodeCache.has('coupons')) {
-            coupons = JSON.parse(JSON.stringify(NodeCache.get('coupons')));
-        } else {
-            coupons = await Coupon.find();
-            NodeCache.set('coupons', JSON.stringify(coupons));
-        }
+        const coupons = await Coupon.find();
 
         res.status(200).json({
             success: true,

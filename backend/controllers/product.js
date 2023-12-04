@@ -1,8 +1,10 @@
 const Product = require('../models/product');
 const User = require('../models/user');
 const ApiFeatures = require('../utils/apifeatures');
-const nodeCache = require('node-cache');
-const NodeCache = new nodeCache();
+const Snowflake = require('@theinternetfolks/snowflake');
+
+const timestamp = Date.now();
+const timestampInSeconds = Math.floor(timestamp / 1000);
 
 // get all products
 exports.getAllProducts = async (req, res, next) => {
@@ -24,12 +26,6 @@ exports.getAllProducts = async (req, res, next) => {
 
     products = await apiFeature.query.clone();
 
-    if (NodeCache.has("products")) {
-        products = JSON.parse(JSON.stringify(NodeCache.get("products")))
-    } else {
-        NodeCache.set("products", JSON.stringify(products));
-    }
-
     res.status(200).json({
         success: true,
         products,
@@ -42,14 +38,7 @@ exports.getAllProducts = async (req, res, next) => {
 // Get All Product (Admin)
 exports.getAdminProducts = async (req, res, next) => {
 
-    let products;
-
-    if (NodeCache.has('products')) {
-        products = JSON.parse(JSON.stringify(NodeCache.get('products')));
-    } else {
-        products = await Product.find();
-        NodeCache.set('products', JSON.stringify(products));
-    }
+    const products = await Product.find();
 
     res.status(200).json({
         success: true,
@@ -60,14 +49,7 @@ exports.getAdminProducts = async (req, res, next) => {
 // get product details
 exports.getProductDetails = async (req, res, next) => {
 
-    let product;
-
-    if (NodeCache.has('product')) {
-        product = JSON.parse(JSON.stringify(NodeCache.get('product')));
-    } else {
-        product = await Product.findById(req.params.id);
-        NodeCache.set('product', JSON.stringify(product));
-    }
+    const product = await Product.findById(req.params.id);
 
     if (!product) {
         res.status(404).json({
@@ -88,6 +70,9 @@ exports.createProductReview = async (req, res, next) => {
     let review;
     const { rating, comment, productId } = req.body;
     review = {
+        _id: Snowflake.Snowflake.generate({
+            timestamp: timestampInSeconds
+        }),
         user: req.user._id,
         name: req.user.name,
         rating: Number(rating),
@@ -144,17 +129,7 @@ exports.getAllWishlistProducts = async (req, res) => {
             });
         }
 
-        let wishlistProducts;
-
-        if (NodeCache.has('wishlistProducts')) {
-            wishlistProducts = JSON.parse(
-                JSON.stringify(NodeCache.get('wishlistProducts'))
-            );
-        } else {
-            // Extract wishlist products from the user object
-            wishlistProducts = user.wishlist.map(item => item.product);
-            NodeCache.set('wishlistProducts', JSON.stringify(wishlistProducts));
-        }
+        const wishlistProducts = user.wishlist.map(item => item.product);
 
         res.status(200).json({
             success: true,
@@ -186,6 +161,8 @@ exports.addToWishList = async (req, res) => {
         const isProductInWishlist = user.wishlist.some(
             item => item.product.toString() === req.params.id
         );
+
+        console.log("product in wishlist", isProductInWishlist);
         if (isProductInWishlist) {
             return res.status(400).json({
                 success: false,
@@ -194,12 +171,15 @@ exports.addToWishList = async (req, res) => {
         }
 
         const wishlistItem = {
+            _id: Snowflake.Snowflake.generate({
+                timestamp: timestampInSeconds
+            }),
             product: req.params.id,
             name: product.name,
             description: product.description,
             price: product.price,
             ratings: product.ratings,
-            images: product.images,
+            images: product.images
         };
 
         user.wishlist.push(wishlistItem);
@@ -246,8 +226,6 @@ exports.removeFromWishList = async (req, res) => {
 
         user.wishlist.splice(isProductInWishlistIndex, 1);
 
-        NodeCache.set('wishlist', JSON.stringify(user.wishlist));
-
         await user.save();
 
         res.status(200).json({
@@ -276,17 +254,7 @@ exports.getProductReviews = async (req, res, next) => {
         });
     }
 
-    let reviews;
-
-    // Check if reviews are in the cache
-    if (NodeCache.has(`productReview-${productId}`)) {
-        reviews = JSON.parse(
-            JSON.stringify(NodeCache.get(`productReview-${productId}`))
-        );
-    } else {
-        reviews = product.reviews;
-        NodeCache.set(`productReview-${productId}`, JSON.stringify(reviews));
-    }
+    const reviews = product.reviews;
 
     res.status(200).json({
         success: true,
@@ -340,8 +308,6 @@ exports.deleteReview = async (req, res, next) => {
             useFindAndModify: false
         }
     );
-
-    NodeCache.set(`productReview-${productId}`, JSON.stringify(reviews));
 
     res.status(200).json({
         success: true,

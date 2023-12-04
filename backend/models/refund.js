@@ -3,8 +3,9 @@ const mongoose = require('mongoose');
 mongoose.set('strictQuery', false);
 
 const refundSchema = new mongoose.Schema({
+    _id: String,
     order: {
-        type: mongoose.Schema.ObjectId,
+        type: Number,
         ref: 'Order',
         required: true
     },
