@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    container_name: mern_ecommerce_fullstack
+    ports:
+      - "4000:4000"
+    environment:
+      - DB_URI=mongodb+srv://duhananant:Deepu0600@ecommerce.iutjhpe.mongodb.net/
+      - PORT=4000
+      - JWT_SECRET=5ygV>@]K-H(#\nP*$5;.H6{|v<bzsn6Vwe`EQ3)T8mvK6(x2F9
+      - JWT_EXPIRE=5d
+    depends_on:
+      mongo:
+        condition: service_healthy
+    links:
+      - mongo
+    restart: unless-stopped
+
+  mongo:
+    image: mongo:latest
+    container_name: my_mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh mongodb+srv://duhananant:Deepu0600@ecommerce.iutjhpe.mongodb.net/ --quiet
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+    restart: unless-stopped
+
+volumes:
+  mongo-data:
+    driver: local
