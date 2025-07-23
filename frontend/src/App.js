@@ -51,6 +51,7 @@ import './App.css';
 import PlusMembership from './components/Subscription/PlusMembership';
 import PaymentPlusMembership from './components/Subscription/PaymentPlusMembership';
 import Wishlist from './components/Product/Wishlist';
+import SearchResult from './components/Product/SearchResult';
 
 /*
     TODO: #5 Sidebar for Admin Dashboard Not Visible
@@ -140,6 +141,7 @@ function App() {
                     element={<ResetPassword />}
                     exact
                 />
+                <Route path='/products/search' element={<SearchResult />} exact />
                 <Route path='/login' element={<LoginAndRegister />} exact />
                 {/* <Route path='/register' element={<Signup />} exact /> */}
 

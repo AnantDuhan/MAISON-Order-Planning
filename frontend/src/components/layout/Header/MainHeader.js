@@ -1,6 +1,6 @@
 import ShoppingCartIcon from '@material-ui/icons/ShoppingCart';
 import FavoriteIcon from '@mui/icons-material/Favorite';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { FaSearch } from 'react-icons/fa';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router';
@@ -10,21 +10,29 @@ import { toast } from 'react-toastify';
 import { logout } from '../../../actions/userAction';
 
 import './MainHeader.css';
+// import { productsSearchReducer } from '../../../reducers/productReducer';
+import { searchProducts } from '../../../actions/productAction';
+
+const useDebounce = (value, delay) => {
+    const [debouncedValue, setDebouncedValue] = useState(value);
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            setDebouncedValue(value);
+        }, delay);
+        return () => {
+            clearTimeout(handler);
+        };
+    }, [value, delay]);
+    return debouncedValue;
+};
 
 const MainHeader =() => {
     const { isAuthenticated, user } = useSelector(state => state.user);
 
-    const [product, setProduct] = useState('');
-    const dispatch = useDispatch();
+    const [keyword, setKeyword] = useState('');
+    const debouncedKeyword = useDebounce(keyword, 500);
 
-    const searchSubmitHandler = e => {
-        e.preventDefault();
-        if (product.trim()) {
-            navigate(`/products/${product}`);
-        } else {
-            navigate('/products');
-        }
-    };
+    const dispatch = useDispatch();
 
     const handleLogout = () => {
         dispatch(logout());
@@ -35,6 +43,16 @@ const MainHeader =() => {
     const navigate = useNavigate();
 
     const { cartItems } = useSelector(state => state.cart);
+
+    useEffect(() => {
+        if (debouncedKeyword.trim()) {
+            console.log(`✅ DISPATCHING SEARCH FOR: "${debouncedKeyword}"`);
+            dispatch(searchProducts(debouncedKeyword));
+            navigate(`products/search?keyword=${debouncedKeyword}`);
+        } else {
+            navigate('/products');
+        }
+    }, [debouncedKeyword, dispatch, navigate]);
 
     return (
         <nav className='nav'>
@@ -74,7 +92,7 @@ const MainHeader =() => {
                 </div>
                 <div className='social'>
                     {/* Search Box */}
-                    <form className='searchBox' onSubmit={searchSubmitHandler}>
+                    {/* <form className='searchBox' onSubmit={searchSubmitHandler}>
                         <div className='searchContainer'>
                             <input
                                 type='text'
@@ -83,7 +101,21 @@ const MainHeader =() => {
                             />
                             <FaSearch className='searchIcon' />
                         </div>
-                    </form>
+                    </form> */}
+
+                    <div className='social'>
+                        <form className='searchBox'>
+                            <div className='searchContainer'>
+                                <input
+                                    type='text'
+                                    placeholder='Search a Product...'
+                                    value={keyword}
+                                    onChange={e => setKeyword(e.target.value)}
+                                />
+                                <FaSearch className='searchIcon' />
+                            </div>
+                        </form>
+                    </div>
 
                     <Link to='/wishlist' className='nav-link'>
                         <div className='wishlist-container'>
