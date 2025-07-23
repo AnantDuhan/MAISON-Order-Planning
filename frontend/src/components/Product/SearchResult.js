@@ -1,6 +1,4 @@
-import Slider from '@material-ui/core/Slider';
-import Typography from '@material-ui/core/Typography';
-import React, { Fragment, useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import Pagination from 'react-js-pagination';
 import { useDispatch, useSelector } from 'react-redux';
 // 1. Import useLocation to check the URL
@@ -54,18 +52,18 @@ const SearchResult = () => {
         setCurrentPage(e);
     };
 
-    const getUniqueCategories = (products) => {
-        if (!products) return [];
-        const categoriesSet = new Set();
-        products.forEach((product) => {
-            categoriesSet.add(product.category);
-        });
-        return Array.from(categoriesSet);
-    };
+    // const getUniqueCategories = (products) => {
+    //     if (!products) return [];
+    //     const categoriesSet = new Set();
+    //     products.forEach((product) => {
+    //         categoriesSet.add(product.category);
+    //     });
+    //     return Array.from(categoriesSet);
+    // };
 
-    const priceHandler = (event, newPrice) => {
-        // ... (price handler logic remains the same)
-    };
+    // const priceHandler = (event, newPrice) => {
+    //     // ... (price handler logic remains the same)
+    // };
 
     useEffect(() => {
         if (error) {
@@ -123,7 +121,7 @@ const SearchResult = () => {
                             </p>
                         )}
                     </div>
-                    
+
                     {!isSearchPage && (
                         <Fragment>
                             {resultPerPage < count && (

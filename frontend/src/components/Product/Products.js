@@ -3,7 +3,7 @@ import Typography from '@material-ui/core/Typography';
 import React, { Fragment, useEffect, useState } from 'react';
 import Pagination from 'react-js-pagination';
 import { useDispatch, useSelector } from 'react-redux';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 // import Loader from '../layout/Loader/Loader';
 import LoadingBar from 'react-top-loading-bar';
@@ -16,7 +16,6 @@ import './Products.css';
 
 const Products = () => {
     const dispatch = useDispatch();
-    const navigate = useNavigate();
 
     const [currentPage, setCurrentPage] = useState(1);
     const [price, setPrice] = useState([0, 400000]);

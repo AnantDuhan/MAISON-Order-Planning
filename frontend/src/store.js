@@ -24,7 +24,6 @@ import {
     productsReducer,
     reviewReducer,
     wishlistReducer,
-    recommendedProductsReducer,
     productsSearchReducer
 } from './reducers/productReducer';
 import {

@@ -10,14 +10,13 @@ import { toast } from 'react-toastify';
 import LoadingBar from 'react-top-loading-bar';
 
 import { addItemsToCart } from '../../actions/cartAction';
-import { addProductToWishlist, clearErrors, getProductDetails, newReview, getProductsByIds } from '../../actions/productAction';
+import { addProductToWishlist, clearErrors, getProductDetails, newReview } from '../../actions/productAction';
 import { NEW_REVIEW_RESET } from '../../constants/productConstants';
 import MetaData from '../layout/MetaData';
 import ReviewCard from './ReviewCard';
 
 import './ProductDetails.css';
 import 'react-responsive-carousel/lib/styles/carousel.min.css';
-import ProductCard from '../Home/ProductCard';
 
 const ProductDetails = () => {
     const dispatch = useDispatch();
@@ -33,10 +32,10 @@ const ProductDetails = () => {
         state => state.newReview
     );
 
-    const {
-        products: recommendedProducts,
-        loading: recommendationsLoading,
-    } = useSelector(state => state.recommendedProducts);
+    // const {
+    //     products: recommendedProducts,
+    //     loading: recommendationsLoading,
+    // } = useSelector(state => state.recommendedProducts);
 
     const [progress, setProgress] = useState(0);
 
@@ -55,7 +54,7 @@ const ProductDetails = () => {
     const [comment, setComment] = useState('');
     const [lightboxIsOpen, setLightboxIsOpen] = useState(false);
     const [lightboxImageIndex, setLightboxImageIndex] = useState(0);
-    const [recommendations, setRecommendations] = useState([]);
+    // const [recommendations, setRecommendations] = useState([]);
 
     const increaseQuantity = () => {
         if (product.Stock <= quantity) return;

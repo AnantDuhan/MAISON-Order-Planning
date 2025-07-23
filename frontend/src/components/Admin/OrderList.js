@@ -19,7 +19,7 @@ const OrderList = ({ orderId, refundId, refundStatus }) => {
 
     const [openDialog, setOpenDialog] = useState(false);
     const [selectedRefundStatus, setSelectedRefundStatus] = useState('');
-    const [clickedOrder, setClickedOrder] = useState(null);
+    // const [clickedOrder, setClickedOrder] = useState(null);
 
     const { error, orders } = useSelector(state => state.allOrders);
     // const { order } = useSelector(state => state.orderDetails);
@@ -35,11 +35,11 @@ const OrderList = ({ orderId, refundId, refundStatus }) => {
         handleCloseDialog();
     };
 
-    const handleOpenDialog = order => {
-        setOpenDialog(true);
-        setSelectedRefundStatus(order.refundStatus);
-        setClickedOrder(order);
-    };
+    // const handleOpenDialog = order => {
+    //     setOpenDialog(true);
+    //     setSelectedRefundStatus(order.refundStatus);
+    //     setClickedOrder(order);
+    // };
 
     const handleCloseDialog = () => {
         setOpenDialog(false);

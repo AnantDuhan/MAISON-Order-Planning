@@ -1,5 +1,5 @@
 import { useDispatch, useSelector } from 'react-redux';
-import React, { Fragment, useEffect } from 'react';
+import { Fragment, useEffect } from 'react';
 import { getAllPrices, getAllSubscription } from '../../actions/subscriptionAction';
 import Loader from '../layout/Loader/Loader';
 import MetaData from '../layout/MetaData';
@@ -9,7 +9,7 @@ import { Link } from 'react-router-dom';
 
 const PlusMembership = () => {
     const dispatch = useDispatch();
-    const { loading, subscriptions, prices, error } = useSelector(
+    const { loading, prices, error } = useSelector(
         state => state.plusSubscription
     );
 
