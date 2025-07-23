@@ -10,13 +10,14 @@ import { toast } from 'react-toastify';
 import LoadingBar from 'react-top-loading-bar';
 
 import { addItemsToCart } from '../../actions/cartAction';
-import { addProductToWishlist, clearErrors, getProductDetails, newReview } from '../../actions/productAction';
+import { addProductToWishlist, clearErrors, getProductDetails, newReview, getProductsByIds } from '../../actions/productAction';
 import { NEW_REVIEW_RESET } from '../../constants/productConstants';
 import MetaData from '../layout/MetaData';
 import ReviewCard from './ReviewCard';
 
 import './ProductDetails.css';
 import 'react-responsive-carousel/lib/styles/carousel.min.css';
+import ProductCard from '../Home/ProductCard';
 
 const ProductDetails = () => {
     const dispatch = useDispatch();
@@ -31,6 +32,11 @@ const ProductDetails = () => {
     const { success, error: reviewError } = useSelector(
         state => state.newReview
     );
+
+    const {
+        products: recommendedProducts,
+        loading: recommendationsLoading,
+    } = useSelector(state => state.recommendedProducts);
 
     const [progress, setProgress] = useState(0);
 
@@ -49,6 +55,7 @@ const ProductDetails = () => {
     const [comment, setComment] = useState('');
     const [lightboxIsOpen, setLightboxIsOpen] = useState(false);
     const [lightboxImageIndex, setLightboxImageIndex] = useState(0);
+    const [recommendations, setRecommendations] = useState([]);
 
     const increaseQuantity = () => {
         if (product.Stock <= quantity) return;
@@ -122,6 +129,24 @@ const ProductDetails = () => {
         setProgress(100);
         setTimeout(() => setProgress(0), 5000);
     }, [dispatch, id, error, reviewError, success]);
+
+    // useEffect(() => {
+    //     const fetchRecommendations = async () => {
+    //         if (!id) return;
+    //         try {
+    //             const apiUrl = process.env.REACT_APP_RECOMMENDATION_API_URL;
+    //             const response = await fetch(`${apiUrl}/recommend?product_id=${id}`);
+    //             const data = await response.json();
+
+    //             // if (data.recommendations && data.recommendations.length > 0) {
+    //             //     dispatch(getProductsByIds(data.recommendations));
+    //             // }
+    //         } catch (error) {
+    //             console.error("Failed to fetch recommendations:", error);
+    //         }
+    //     };
+    //     fetchRecommendations();
+    // }, [id, dispatch]);
 
     return (
         <Fragment>
@@ -252,6 +277,17 @@ const ProductDetails = () => {
                             </button>
                         </div>
                     </div>
+
+                    {/* {recommendations && recommendations.length > 0 && (
+                        <Fragment>
+                            <h3 className='reviewsHeading'>YOU MIGHT ALSO LIKE</h3>
+                            <div className='recommendations'>
+                                {recommendations.map(recProduct => (
+                                    <ProductCard key={recProduct._id} product={recProduct} />
+                                ))}
+                            </div>
+                        </Fragment>
+                    )} */}
 
                     <h3 className='reviewsHeading'>REVIEWS</h3>
 

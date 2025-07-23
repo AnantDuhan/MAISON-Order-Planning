@@ -1,12 +1,55 @@
 import axios from 'axios';
 
-import { ADD_PRODUCT_TO_WISHLIST_FAIL, ADD_PRODUCT_TO_WISHLIST_REQUEST, ADD_PRODUCT_TO_WISHLIST_SUCCESS, ADMIN_PRODUCT_FAIL, ADMIN_PRODUCT_REQUEST, ADMIN_PRODUCT_SUCCESS, ALL_PRODUCT_FAIL, ALL_PRODUCT_REQUEST, ALL_PRODUCT_SUCCESS, ALL_REVIEW_FAIL, ALL_REVIEW_REQUEST, ALL_REVIEW_SUCCESS, ALL_WISHLIST_PRODUCTS_FAIL, ALL_WISHLIST_PRODUCTS_REQUEST, ALL_WISHLIST_PRODUCTS_SUCCESS, CLEAR_ERRORS, DELETE_PRODUCT_FAIL, DELETE_PRODUCT_REQUEST, DELETE_PRODUCT_SUCCESS, DELETE_REVIEW_FAIL, DELETE_REVIEW_REQUEST, DELETE_REVIEW_SUCCESS, NEW_PRODUCT_FAIL, NEW_PRODUCT_REQUEST, NEW_PRODUCT_SUCCESS, NEW_REVIEW_FAIL, NEW_REVIEW_REQUEST, NEW_REVIEW_SUCCESS, PRODUCT_DETAILS_FAIL, PRODUCT_DETAILS_REQUEST, PRODUCT_DETAILS_SUCCESS, REMOVE_PRODUCT_FROM_WISHLIST_FAIL, REMOVE_PRODUCT_FROM_WISHLIST_REQUEST, REMOVE_PRODUCT_FROM_WISHLIST_SUCCESS, UPDATE_PRODUCT_FAIL, UPDATE_PRODUCT_REQUEST, UPDATE_PRODUCT_SUCCESS } from '../constants/productConstants';
+import { ADD_PRODUCT_TO_WISHLIST_FAIL, 
+    ADD_PRODUCT_TO_WISHLIST_REQUEST, 
+    ADD_PRODUCT_TO_WISHLIST_SUCCESS, 
+    ADMIN_PRODUCT_FAIL, 
+    ADMIN_PRODUCT_REQUEST, 
+    ADMIN_PRODUCT_SUCCESS, 
+    ALL_PRODUCT_FAIL, 
+    ALL_PRODUCT_REQUEST, 
+    ALL_PRODUCT_SUCCESS, 
+    ALL_REVIEW_FAIL, 
+    ALL_REVIEW_REQUEST, 
+    ALL_REVIEW_SUCCESS, 
+    ALL_WISHLIST_PRODUCTS_FAIL, 
+    ALL_WISHLIST_PRODUCTS_REQUEST, 
+    ALL_WISHLIST_PRODUCTS_SUCCESS, 
+    DELETE_PRODUCT_FAIL, 
+    DELETE_PRODUCT_REQUEST, 
+    DELETE_PRODUCT_SUCCESS, 
+    DELETE_REVIEW_FAIL, 
+    DELETE_REVIEW_REQUEST, 
+    DELETE_REVIEW_SUCCESS, 
+    NEW_PRODUCT_FAIL, 
+    NEW_PRODUCT_REQUEST, 
+    NEW_PRODUCT_SUCCESS, 
+    NEW_REVIEW_FAIL, 
+    NEW_REVIEW_REQUEST,
+    NEW_REVIEW_SUCCESS, 
+    PRODUCT_DETAILS_FAIL, 
+    PRODUCT_DETAILS_REQUEST, 
+    PRODUCT_DETAILS_SUCCESS, 
+    REMOVE_PRODUCT_FROM_WISHLIST_FAIL, 
+    REMOVE_PRODUCT_FROM_WISHLIST_REQUEST, 
+    REMOVE_PRODUCT_FROM_WISHLIST_SUCCESS, 
+    UPDATE_PRODUCT_FAIL, 
+    UPDATE_PRODUCT_REQUEST, 
+    UPDATE_PRODUCT_SUCCESS, 
+    RECOMMENDED_PRODUCTS_REQUEST, 
+    RECOMMENDED_PRODUCTS_SUCCESS, 
+    RECOMMENDED_PRODUCTS_FAIL,
+    SEARCH_PRODUCTS_REQUEST,
+    SEARCH_PRODUCTS_SUCCESS,
+    SEARCH_PRODUCTS_FAIL,
+    CLEAR_ERRORS
+} from '../constants/productConstants';
 
 // Get All Products
 export const getProduct = (
     keyword = '',
     currentPage = 1,
-    price = [0, 400000],
+    price = [0, 999999],
     category,
     ratings = 0
 ) => async dispatch => {
@@ -271,6 +314,51 @@ export const removeProductFromWishlist = id => async dispatch => {
                });
            }
        };
+
+// export const getProductsByIds = (ids) => async dispatch => {
+//     try {
+//         dispatch({ type: RECOMMENDED_PRODUCTS_REQUEST });
+
+//         const { data } = await axios.post(`/api/v1/products/batch`, { ids });
+
+//         dispatch({
+//             type: RECOMMENDED_PRODUCTS_SUCCESS,
+//             payload: data.products
+//         });
+//     } catch (error) {
+//         dispatch({
+//             type: RECOMMENDED_PRODUCTS_FAIL,
+//             payload: error.response.data.message
+//         });
+//         return [];
+//     }
+// };
+
+export const searchProducts = (keyword = '') => async (dispatch) => {
+    try {
+        dispatch({ type: SEARCH_PRODUCTS_REQUEST });
+        if (!keyword) {
+            return dispatch({
+                type: SEARCH_PRODUCTS_FAIL,
+                payload: 'Search term is required'
+            });
+        }
+        let link = `/api/v1/products/search?keyword=${keyword}`;
+
+        const { data } = await axios.get(link);
+
+        dispatch({
+            type: SEARCH_PRODUCTS_SUCCESS,
+            payload: data, 
+        });
+
+    } catch (error) {
+        dispatch({
+            type: SEARCH_PRODUCTS_FAIL,
+            payload: error.response.data.message,
+        });
+    }
+};
 
 // Clearing Errors
 export const clearErrors = () => async dispatch => {

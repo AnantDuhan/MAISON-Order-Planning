@@ -40,6 +40,12 @@ import {
     REMOVE_PRODUCT_FROM_WISHLIST_REQUEST,
     REMOVE_PRODUCT_FROM_WISHLIST_SUCCESS,
     REMOVE_PRODUCT_FROM_WISHLIST_FAIL,
+    RECOMMENDED_PRODUCTS_REQUEST,
+    RECOMMENDED_PRODUCTS_SUCCESS,
+    RECOMMENDED_PRODUCTS_FAIL,
+    SEARCH_PRODUCTS_REQUEST,
+    SEARCH_PRODUCTS_SUCCESS,
+    SEARCH_PRODUCTS_FAIL,
     CLEAR_ERRORS
 } from '../constants/productConstants';
 
@@ -327,6 +333,59 @@ export const wishlistReducer = (state = initialState, action) => {
                 ...state,
                 loading: false,
                 error: action.payload
+            };
+
+        default:
+            return state;
+    }
+};
+
+// export const recommendedProductsReducer = (state = { products: [] }, action) => {
+//     switch (action.type) {
+//         case RECOMMENDED_PRODUCTS_REQUEST:
+//             return {
+//                 loading: true,
+//                 products: [],
+//             };
+//         case RECOMMENDED_PRODUCTS_SUCCESS:
+//             return {
+//                 loading: false,
+//                 products: action.payload,
+//             };
+//         case RECOMMENDED_PRODUCTS_FAIL:
+//             return {
+//                 loading: false,
+//                 error: action.payload,
+//             };
+//         default:
+//             return state;
+//     }
+// };
+
+export const productsSearchReducer = (state = { products: [] }, action) => {
+    switch (action.type) {
+        case SEARCH_PRODUCTS_REQUEST:
+            return {
+                loading: true,
+                products: [], 
+            };
+
+        case SEARCH_PRODUCTS_SUCCESS:
+            return {
+                loading: false,
+                products: action.payload.products,
+            };
+
+        case SEARCH_PRODUCTS_FAIL:
+            return {
+                loading: false,
+                error: action.payload,
+            };
+
+        case CLEAR_ERRORS:
+            return {
+                ...state,
+                error: null,
             };
 
         default:

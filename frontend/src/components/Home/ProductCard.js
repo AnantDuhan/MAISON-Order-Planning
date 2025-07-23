@@ -8,6 +8,7 @@ import { toast } from 'react-toastify';
 const ProductCard = ({ product }) => {
 
     const dispatch = useDispatch();
+    const defaultImageUrl = "https://ecommerce-bucket-sdk.s3.ap-south-1.amazonaws.com/default.jpg";
 
     const options = {
         size: 'small',
@@ -17,7 +18,7 @@ const ProductCard = ({ product }) => {
     };
 
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
-    const images = product.images;
+    const images = product.images || defaultImageUrl;
 
     const addToWishlist = () => {
         toast.success('Product added to wishlist');
@@ -33,12 +34,18 @@ const ProductCard = ({ product }) => {
         return () => clearInterval(intervalId);
     }, [currentImageIndex, images.length]);
 
+    if (!product) {
+        return null;
+    }
+
+    const imageUrl = images.length > 0 ? images[currentImageIndex]?.url : defaultImageUrl;
+
     return (
         <Fragment>
                 <Link className='productCard' to={`/product/${product._id}`}>
                     <div className='image-container'>
                         <img
-                            src={images[currentImageIndex].url}
+                            src={imageUrl}
                             alt={product.name}
                             className='product-image'
                         />

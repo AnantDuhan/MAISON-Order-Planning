@@ -21,6 +21,18 @@ const ProductGridItem = ({ product }) => {
         precision: 0.5
     };
 
+    if (!product) {
+        return null;
+    }
+
+    const defaultImageUrl = "https://ecommerce-bucket-sdk.s3.ap-south-1.amazonaws.com/default.jpg";
+
+    const imageUrl = product.images && product.images.length > 0 
+        ? product.images[0]?.url 
+        : defaultImageUrl;
+
+    
+
     return (
         <Link to={`/product/${product._id}`}>
             <div
@@ -28,7 +40,7 @@ const ProductGridItem = ({ product }) => {
                 onMouseEnter={handleMouseEnter}
                 onMouseLeave={handleMouseLeave}
             >
-                <img src={product.images[0].url} alt={product.name} />
+                <img src={imageUrl} alt={product.name} />
 
                 {hovered && (
                     <div className='productGridItemContent'>
