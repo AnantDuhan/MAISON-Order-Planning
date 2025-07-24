@@ -4,7 +4,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import MetaData from '../layout/MetaData';
 import './ConfirmOrder.css';
 import { Link, useNavigate } from 'react-router-dom';
-import { Typography } from '@material-ui/core';
+import { Typography } from '@mui/material';
 import { getAllCoupons } from '../../actions/couponAction';
 
 const ConfirmOrder = () => {

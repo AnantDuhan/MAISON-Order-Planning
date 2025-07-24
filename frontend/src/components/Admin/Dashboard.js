@@ -1,7 +1,7 @@
 import React, { Fragment, useEffect } from 'react';
 // import Sidebar from './Sidebar.js';
 import './Dashboard.css';
-import { Typography } from '@material-ui/core';
+import { Typography } from '@mui/material';
 import { Link } from 'react-router-dom';
 import 'chart.js/auto';
 import { Doughnut, Line } from 'react-chartjs-2';

@@ -1,4 +1,4 @@
-import { Rating } from '@material-ui/lab';
+import { Rating } from '@mui/material';
 import React, { Fragment, useEffect, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { Link } from 'react-router-dom';
@@ -13,7 +13,7 @@ const ProductCard = ({ product }) => {
     const options = {
         size: 'small',
         value: product.ratings,
-        readOnly: false,
+        readOnly: true,
         precision: 0.2
     };
 

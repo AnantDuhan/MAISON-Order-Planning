@@ -1,9 +1,9 @@
-import HomeIcon from '@material-ui/icons/Home';
-import LocationCityIcon from '@material-ui/icons/LocationCity';
-import PhoneIcon from '@material-ui/icons/Phone';
-import PinDropIcon from '@material-ui/icons/PinDrop';
-import PublicIcon from '@material-ui/icons/Public';
-import TransferWithinAStationIcon from '@material-ui/icons/TransferWithinAStation';
+import HomeIcon from '@mui/icons-material/Home';
+import LocationCityIcon from '@mui/icons-material/LocationCity';
+import PhoneIcon from '@mui/icons-material/Phone';
+import PinDropIcon from '@mui/icons-material/PinDrop';
+import PublicIcon from '@mui/icons-material/Public';
+import TransferWithinAStationIcon from '@mui/icons-material/TransferWithinAStation';
 import { Country, State } from 'country-state-city';
 import React, { Fragment, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';

@@ -1,7 +1,7 @@
-import { Button } from '@material-ui/core';
-import { DataGrid } from '@material-ui/data-grid';
-import DeleteIcon from '@material-ui/icons/Delete';
-import Star from '@material-ui/icons/Star';
+import { Button } from '@mui/material';
+import { DataGrid } from '@mui/x-data-grid';
+import DeleteIcon from '@mui/icons-material/Delete';
+import Star from '@mui/icons-material/Star';
 import React, { Fragment, useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';

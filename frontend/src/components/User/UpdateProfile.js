@@ -1,5 +1,5 @@
-import FaceIcon from '@material-ui/icons/Face';
-import MailOutlineIcon from '@material-ui/icons/MailOutline';
+import FaceIcon from '@mui/icons-material/Face';
+import MailOutlineIcon from '@mui/icons-material/MailOutline';
 import React, { Fragment, useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router';

@@ -1,8 +1,8 @@
 import BadgeIcon from '@mui/icons-material/Badge';
-import LockOpenIcon from '@material-ui/icons/LockOpen';
-import MailOutlineIcon from '@material-ui/icons/MailOutline';
-import VisibilityIcon from '@material-ui/icons/Visibility';
-import VisibilityOffIcon from '@material-ui/icons/VisibilityOff';
+import LockOpenIcon from '@mui/icons-material/LockOpen';
+import MailOutlineIcon from '@mui/icons-material/MailOutline';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import React, { Fragment, useEffect, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useNavigate } from 'react-router-dom';
@@ -83,6 +83,8 @@ const LoginAndRegister = ({ history, location }) => {
     };
 
     useEffect(() => {
+        setProgress(100);
+
         if (error) {
             toast.error(error);
             dispatch(clearErrors());
@@ -91,9 +93,16 @@ const LoginAndRegister = ({ history, location }) => {
         if (isAuthenticated) {
             navigate('/');
         }
-        setProgress(100);
-        setTimeout(() => setProgress(0), 5000);
-    }, [dispatch, error, navigate, isAuthenticated]);
+
+        const timer = setTimeout(() => {
+            setProgress(0);
+        }, 5000);
+
+        return () => {
+            clearTimeout(timer);
+        };
+
+    }, [dispatch, error, navigate, isAuthenticated, setProgress]);
 
     const switchTabs = (e, tab) => {
         if (tab === 'login') {

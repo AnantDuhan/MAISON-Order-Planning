@@ -1,13 +1,13 @@
-import { Button, Dialog, DialogActions, DialogContent, DialogTitle } from '@material-ui/core';
-import { Rating } from '@material-ui/lab';
+import { Button, Dialog, DialogActions, DialogContent, DialogTitle } from '@mui/material';
+import { Rating } from '@mui/material';
 import React, { Fragment, useEffect, useState } from 'react';
-import Lightbox from 'react-images';
 import { useDispatch, useSelector } from 'react-redux';
 import { Carousel } from 'react-responsive-carousel';
 import { useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
-// import Loader from '../layout/Loader/Loader';
 import LoadingBar from 'react-top-loading-bar';
+import Lightbox from "yet-another-react-lightbox"; 
+import "yet-another-react-lightbox/styles.css"; 
 
 import { addItemsToCart } from '../../actions/cartAction';
 import { addProductToWishlist, clearErrors, getProductDetails, newReview } from '../../actions/productAction';
@@ -32,40 +32,33 @@ const ProductDetails = () => {
         state => state.newReview
     );
 
-    // const {
-    //     products: recommendedProducts,
-    //     loading: recommendationsLoading,
-    // } = useSelector(state => state.recommendedProducts);
-
     const [progress, setProgress] = useState(0);
+    const [quantity, setQuantity] = useState(1);
+    const [open, setOpen] = useState(false);
+    const [rating, setRating] = useState(0);
+    const [comment, setComment] = useState('');
+    
+    // State for the new lightbox
+    const [lightboxIsOpen, setLightboxIsOpen] = useState(false);
+    const [lightboxImageIndex, setLightboxImageIndex] = useState(0);
 
     const onLoaderFinished = () => setProgress(0);
 
     const options = {
         size: 'large',
         value: product?.ratings,
-        readOnly: false,
+        readOnly: true, // Should be true for display
         precision: 0.5
     };
 
-    const [quantity, setQuantity] = useState(1);
-    const [open, setOpen] = useState(false);
-    const [rating, setRating] = useState(0);
-    const [comment, setComment] = useState('');
-    const [lightboxIsOpen, setLightboxIsOpen] = useState(false);
-    const [lightboxImageIndex, setLightboxImageIndex] = useState(0);
-    // const [recommendations, setRecommendations] = useState([]);
-
     const increaseQuantity = () => {
         if (product.Stock <= quantity) return;
-
         const qty = quantity + 1;
         setQuantity(qty);
     };
 
     const decreaseQuantity = () => {
         if (1 >= quantity) return;
-
         const qty = quantity - 1;
         setQuantity(qty);
     };
@@ -94,11 +87,9 @@ const ProductDetails = () => {
 
     const reviewSubmitHandler = () => {
         const reviewData = new FormData();
-
         reviewData.set('productId', id);
         reviewData.set('comment', comment);
         reviewData.set('rating', rating);
-
         dispatch(newReview(reviewData));
         setOpen(false);
         setProgress(progress + 80);
@@ -110,42 +101,32 @@ const ProductDetails = () => {
     };
 
     useEffect(() => {
+        let isMounted = true;
+        const timer = setTimeout(() => {
+            if (isMounted) setProgress(0);
+        }, 5000);
+
+        setProgress(100);
+
         if (error) {
             toast.error(error);
             dispatch(clearErrors());
         }
-
         if (reviewError) {
             toast.error(reviewError);
             dispatch(clearErrors());
         }
-
         if (success) {
             toast.success('Review Added Successfully');
             dispatch({ type: NEW_REVIEW_RESET });
         }
         dispatch(getProductDetails(id));
-        setProgress(100);
-        setTimeout(() => setProgress(0), 5000);
+
+        return () => {
+            isMounted = false;
+            clearTimeout(timer);
+        }
     }, [dispatch, id, error, reviewError, success]);
-
-    // useEffect(() => {
-    //     const fetchRecommendations = async () => {
-    //         if (!id) return;
-    //         try {
-    //             const apiUrl = process.env.REACT_APP_RECOMMENDATION_API_URL;
-    //             const response = await fetch(`${apiUrl}/recommend?product_id=${id}`);
-    //             const data = await response.json();
-
-    //             // if (data.recommendations && data.recommendations.length > 0) {
-    //             //     dispatch(getProductsByIds(data.recommendations));
-    //             // }
-    //         } catch (error) {
-    //             console.error("Failed to fetch recommendations:", error);
-    //         }
-    //     };
-    //     fetchRecommendations();
-    // }, [id, dispatch]);
 
     return (
         <Fragment>
@@ -161,11 +142,12 @@ const ProductDetails = () => {
                     <div className='ProductDetails'>
                         <div>
                             {product.images && product.images.length > 0 && (
-                                <Carousel showThumbs={false}>
+                                <Carousel showThumbs={false} autoPlay infiniteLoop>
                                     {product.images.map((item, i) => (
                                         <div
                                             key={i}
                                             onClick={() => openLightbox(i)}
+                                            style={{ cursor: 'pointer' }}
                                         >
                                             <img
                                                 className='CarouselImage'
@@ -178,30 +160,13 @@ const ProductDetails = () => {
                             )}
                         </div>
 
-                        {lightboxIsOpen && (
-                            <Lightbox
-                                images={product.images.map(item => ({
-                                    src: item.url
-                                }))}
-                                isOpen={lightboxIsOpen}
-                                onClose={() => setLightboxIsOpen(false)}
-                                currentImage={lightboxImageIndex}
-                                onClickPrev={() =>
-                                    setLightboxImageIndex(prev =>
-                                        prev === 0
-                                            ? product.images.length - 1
-                                            : prev - 1
-                                    )
-                                }
-                                onClickNext={() =>
-                                    setLightboxImageIndex(prev =>
-                                        prev === product.images.length - 1
-                                            ? 0
-                                            : prev + 1
-                                    )
-                                }
-                            />
-                        )}
+                        {/* 3. The new Lightbox component implementation */}
+                        <Lightbox
+                            open={lightboxIsOpen}
+                            close={() => setLightboxIsOpen(false)}
+                            slides={product.images?.map(item => ({ src: item.url })) || []}
+                            index={lightboxImageIndex}
+                        />
 
                         <div>
                             <div className='detailsBlock-1'>
@@ -209,7 +174,7 @@ const ProductDetails = () => {
                                 <p>Product # {product._id}</p>
                             </div>
                             <div className='detailsBlock-2'>
-                                <Rating name={`rating`} {...options} />
+                                <Rating name="product-rating" {...options} />
                                 <span className='detailsBlock-2-span'>
                                     {' '}
                                     ({product.numOfReviews} Reviews)
@@ -219,47 +184,25 @@ const ProductDetails = () => {
                                 <h1>{`₹${product.price}`}</h1>
                                 <div className='detailsBlock-3-1'>
                                     <div className='detailsBlock-3-1-1'>
-                                        <button onClick={decreaseQuantity}>
-                                            -
-                                        </button>
-                                        <input
-                                            readOnly
-                                            type='number'
-                                            value={quantity}
-                                        />
-                                        <button onClick={increaseQuantity}>
-                                            +
-                                        </button>
+                                        <button onClick={decreaseQuantity}>-</button>
+                                        <input readOnly type='number' value={quantity} />
+                                        <button onClick={increaseQuantity}>+</button>
                                     </div>
-                                    <button
-                                        onClick={wishlistHandler}
-                                        className='submitReview'
-                                    >
+                                    <button onClick={wishlistHandler} className='submitReview'>
                                         Add to Wishlist
                                     </button>
                                     <button
-                                        disabled={
-                                            product.Stock < 1 ? true : false
-                                        }
+                                        disabled={product.Stock < 1}
                                         onClick={addToCartHandler}
                                         className='submitReview'
                                     >
                                         Add to Cart
                                     </button>
                                 </div>
-
                                 <p>
                                     Status:{' '}
-                                    <b
-                                        className={
-                                            product.Stock < 1
-                                                ? 'redColor'
-                                                : 'greenColor'
-                                        }
-                                    >
-                                        {product.Stock < 1
-                                            ? 'Out Of Stock'
-                                            : 'In Stock'}
+                                    <b className={product.Stock < 1 ? 'redColor' : 'greenColor'}>
+                                        {product.Stock < 1 ? 'Out Of Stock' : 'In Stock'}
                                     </b>
                                 </p>
                             </div>
@@ -268,25 +211,11 @@ const ProductDetails = () => {
                                 Description : <p>{product.description}</p>
                             </div>
 
-                            <button
-                                onClick={submitReviewToggle}
-                                className='submitReview'
-                            >
+                            <button onClick={submitReviewToggle} className='submitReview'>
                                 Submit Review
                             </button>
                         </div>
                     </div>
-
-                    {/* {recommendations && recommendations.length > 0 && (
-                        <Fragment>
-                            <h3 className='reviewsHeading'>YOU MIGHT ALSO LIKE</h3>
-                            <div className='recommendations'>
-                                {recommendations.map(recProduct => (
-                                    <ProductCard key={recProduct._id} product={recProduct} />
-                                ))}
-                            </div>
-                        </Fragment>
-                    )} */}
 
                     <h3 className='reviewsHeading'>REVIEWS</h3>
 
@@ -298,12 +227,10 @@ const ProductDetails = () => {
                         <DialogTitle>Submit Review</DialogTitle>
                         <DialogContent className='submitDialog'>
                             <Rating
-                                onChange={e => setRating(e.target.value)}
-                                value={rating}
+                                onChange={(e) => setRating(e.target.value)}
+                                value={Number(rating)}
                                 size='large'
-                                precision='0.5'
                             />
-
                             <textarea
                                 className='submitDialogTextArea'
                                 cols='30'
@@ -313,18 +240,8 @@ const ProductDetails = () => {
                             ></textarea>
                         </DialogContent>
                         <DialogActions>
-                            <Button
-                                onClick={submitReviewToggle}
-                                color='secondary'
-                            >
-                                Cancel
-                            </Button>
-                            <Button
-                                onClick={reviewSubmitHandler}
-                                color='primary'
-                            >
-                                Submit
-                            </Button>
+                            <Button onClick={submitReviewToggle} color='secondary'>Cancel</Button>
+                            <Button onClick={reviewSubmitHandler} color='primary'>Submit</Button>
                         </DialogActions>
                     </Dialog>
 

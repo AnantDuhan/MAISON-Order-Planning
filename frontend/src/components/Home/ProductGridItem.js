@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import './ProductGridItem.css';
-import { Rating } from '@material-ui/lab';
+import { Rating } from '@mui/material';
 import { Link } from 'react-router-dom';
 
 const ProductGridItem = ({ product }) => {

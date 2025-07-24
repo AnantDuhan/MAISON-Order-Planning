@@ -1,4 +1,4 @@
-import ShoppingCartIcon from '@material-ui/icons/ShoppingCart';
+import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import FavoriteIcon from '@mui/icons-material/Favorite';
 import React, { useEffect, useState } from 'react';
 import { FaSearch } from 'react-icons/fa';

@@ -1,9 +1,9 @@
-import Slider from '@material-ui/core/Slider';
-import Typography from '@material-ui/core/Typography';
+import Slider from '@mui/material/Slider';
+import Typography from '@mui/material/Typography';
 import React, { Fragment, useEffect, useState } from 'react';
 import Pagination from 'react-js-pagination';
 import { useDispatch, useSelector } from 'react-redux';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 // import Loader from '../layout/Loader/Loader';
 import LoadingBar from 'react-top-loading-bar';
@@ -16,6 +16,8 @@ import './Products.css';
 
 const Products = () => {
     const dispatch = useDispatch();
+    const navigate = useNavigate();
+    const { isAuthenticated } = useSelector(state => state.user);
 
     const [currentPage, setCurrentPage] = useState(1);
     const [price, setPrice] = useState([0, 400000]);
@@ -62,14 +64,27 @@ const Products = () => {
     };
 
     useEffect(() => {
+        setProgress(100);
+
         if (error) {
             toast.error(error);
             dispatch(clearErrors());
         }
-        setProgress(100);
-        setTimeout(() => setProgress(0), 5000);
+
+        if (isAuthenticated) {
+            navigate('/products');
+        }
+
+        const timer = setTimeout(() => {
+            setProgress(0);
+        }, 5000);
+
         dispatch(getProduct(keyword, currentPage, price, category, ratings));
-    }, [dispatch, keyword, currentPage, price, category, ratings, error]);
+
+        return () => {
+            clearTimeout(timer);
+        };
+    }, [dispatch, navigate, isAuthenticated, keyword, currentPage, price, category, ratings, error]);
 
     let count = filteredProductsCount;
 
@@ -158,7 +173,7 @@ const Products = () => {
                         <div className='paginationBox'>
                             <Pagination
                                 activePage={currentPage}
-                                itemsCountPerPage={resultPerPage}
+                                itemsCountPerPage={Number(resultPerPage)}
                                 totalItemsCount={productsCount}
                                 onChange={setCurrentPageNo}
                                 nextPageText='Next'

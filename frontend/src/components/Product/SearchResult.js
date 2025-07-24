@@ -93,11 +93,11 @@ const SearchResult = () => {
     return (
         <Fragment>
             {isLoading ? ( // 6. Use the combined loading state
-                <LoadingBar
+                (<LoadingBar
                     color='red'
                     progress={progress}
                     onLoaderFinished={onLoaderFinished}
-                />
+                />)
             ) : (
                 <Fragment>
                     <MetaData title='PRODUCTS -- ECOMMERCE' />

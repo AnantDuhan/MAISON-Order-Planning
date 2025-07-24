@@ -1,8 +1,8 @@
-import { Button } from '@material-ui/core';
-import AccountCircleIcon from '@material-ui/icons/AccountCircle';
-import EmailIcon from '@material-ui/icons/Email';
-import SubjectIcon from '@material-ui/icons/Subject';
-import MessageIcon from '@material-ui/icons/Message';
+import { Button } from '@mui/material';
+import AccountCircleIcon from '@mui/icons-material/AccountCircle';
+import EmailIcon from '@mui/icons-material/Email';
+import SubjectIcon from '@mui/icons-material/Subject';
+import MessageIcon from '@mui/icons-material/Message';
 import React, { Fragment, useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { toast } from 'react-toastify';

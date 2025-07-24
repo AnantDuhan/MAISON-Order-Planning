@@ -1,4 +1,4 @@
-import { Rating } from '@material-ui/lab';
+import { Rating } from '@mui/material';
 import React from 'react'
 
 import profilePng from '../../images/Profile.png';

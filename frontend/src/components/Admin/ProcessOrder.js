@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { Link, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { UPDATE_ORDER_RESET } from '../../constants/orderConstants';
-import AccountTreeIcon from '@material-ui/icons/AccountTree';
+import AccountTreeIcon from '@mui/icons-material/AccountTree';
 import {
     clearErrors,
     getOrderDetails,
@@ -21,7 +21,7 @@ import {
     MenuItem,
     Select,
     Typography
-} from '@material-ui/core';
+} from '@mui/material';
 // import Loader from '../layout/Loader/Loader';
 import MetaData from '../layout/MetaData';
 import LoadingBar from 'react-top-loading-bar';

@@ -1,9 +1,9 @@
-import { Button } from '@material-ui/core';
-import AccountTreeIcon from '@material-ui/icons/AccountTree';
-import AttachMoneyIcon from '@material-ui/icons/AttachMoney';
-import DescriptionIcon from '@material-ui/icons/Description';
-import SpellcheckIcon from '@material-ui/icons/Spellcheck';
-import StorageIcon from '@material-ui/icons/Storage';
+import { Button } from '@mui/material';
+import AccountTreeIcon from '@mui/icons-material/AccountTree';
+import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
+import DescriptionIcon from '@mui/icons-material/Description';
+import SpellcheckIcon from '@mui/icons-material/Spellcheck';
+import StorageIcon from '@mui/icons-material/Storage';
 import React, { Fragment, useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';

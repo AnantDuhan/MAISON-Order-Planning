@@ -1,6 +1,6 @@
-import { Typography } from '@material-ui/core';
-import { DataGrid } from '@material-ui/data-grid';
-import LaunchIcon from '@material-ui/icons/Launch';
+import { Typography } from '@mui/material';
+import { DataGrid } from '@mui/x-data-grid';
+import LaunchIcon from '@mui/icons-material/Launch';
 import React, { Fragment, useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';

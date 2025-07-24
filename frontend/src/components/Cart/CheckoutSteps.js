@@ -1,7 +1,7 @@
-import { Step, StepLabel, Stepper, Typography } from '@material-ui/core';
-import AccountBalanceIcon from '@material-ui/icons/AccountBalance';
-import LibraryAddCheckIcon from '@material-ui/icons/LibraryAddCheck';
-import LocalShippingIcon from '@material-ui/icons/LocalShipping';
+import { Step, StepLabel, Stepper, Typography } from '@mui/material';
+import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
+import LibraryAddCheckIcon from '@mui/icons-material/LibraryAddCheck';
+import LocalShippingIcon from '@mui/icons-material/LocalShipping';
 import React, { Fragment } from 'react';
 
 import './CheckoutSteps.css';

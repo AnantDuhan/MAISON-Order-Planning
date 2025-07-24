@@ -1,5 +1,5 @@
-import LockIcon from '@material-ui/icons/Lock';
-import LockOpenIcon from '@material-ui/icons/LockOpen';
+import LockIcon from '@mui/icons-material/Lock';
+import LockOpenIcon from '@mui/icons-material/LockOpen';
 import React, { Fragment, useEffect, useState } from 'react';
 // import Loader from '../layout/Loader/Loader';
 import { useDispatch, useSelector } from 'react-redux';

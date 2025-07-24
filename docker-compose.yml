@@ -1,11 +1,9 @@
-version: '3.8'
-
 services:
   app:
     build: .
     container_name: mern_ecommerce_fullstack
     ports:
-      - "4000:4000"
+      - "4001:4000"
     environment:
       - DB_URI=mongodb+srv://duhananant:Deepu0600@ecommerce.iutjhpe.mongodb.net/
       - PORT=4000

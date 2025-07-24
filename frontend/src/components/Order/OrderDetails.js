@@ -21,7 +21,7 @@ import {
     MenuItem,
     Select,
     Typography
-} from '@material-ui/core';
+} from '@mui/material';
 // import Loader from '../layout/Loader/Loader';
 import LoadingBar from 'react-top-loading-bar';
 import MetaData from '../layout/MetaData';
@@ -329,7 +329,7 @@ const OrderDetails = () => {
                                                     {/* Check if the product has multiple images */}
                                                     {item.images.length > 1 ? (
                                                         // If there are multiple images, display them in a carousel
-                                                        <Carousel
+                                                        (<Carousel
                                                             showThumbs={false}
                                                         >
                                                             {item.images.map(
@@ -352,16 +352,16 @@ const OrderDetails = () => {
                                                                     </div>
                                                                 )
                                                             )}
-                                                        </Carousel>
+                                                        </Carousel>)
                                                     ) : (
                                                         // If there's only one image, display it as a regular image
-                                                        <img
+                                                        (<img
                                                             src={
                                                                 item.images[0]
                                                                     .url
                                                             }
                                                             alt='Product'
-                                                        />
+                                                        />)
                                                     )}
                                                 </div>
                                                 <div className='orderItemDetails'>

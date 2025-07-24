@@ -1,5 +1,5 @@
-import { Typography } from '@material-ui/core';
-import CheckCircleIcon from '@material-ui/icons/CheckCircle';
+import { Typography } from '@mui/material';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import React, { useEffect } from 'react';
 import { useDispatch } from 'react-redux';
 import { Link } from 'react-router-dom';

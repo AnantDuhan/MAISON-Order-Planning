@@ -1,5 +1,5 @@
-import { Typography } from '@material-ui/core';
-import RemoveShoppingCartIcon from '@material-ui/icons/RemoveShoppingCart';
+import { Typography } from '@mui/material';
+import RemoveShoppingCartIcon from '@mui/icons-material/RemoveShoppingCart';
 import React, { Fragment } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router';
