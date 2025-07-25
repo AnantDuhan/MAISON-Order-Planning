@@ -23,3 +23,5 @@ yarn-debug.log*
 yarn-error.log*
 
 /config/config.env
+/Product-Recommendation-System/*.csv
+/Product-Recommendation-System/*.pkl
