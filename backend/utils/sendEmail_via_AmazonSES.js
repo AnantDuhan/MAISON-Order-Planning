@@ -31,7 +31,7 @@ const sendEmailViaAmazonSES = async (options) => {
                         Data: options.subject
                     }
                 },
-                Source: 'anantduhan6@gmail.com' // Use a default source address
+                Source: 'duhananant@gmail.com' // Use a default source address
             };
 
             const data = await ses.sendEmail(params).promise();

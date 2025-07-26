@@ -21,7 +21,6 @@ import UsersList from './components/Admin/UsersList';
 import Cart from './components/Cart/Cart';
 import ConfirmOrder from './components/Cart/ConfirmOrder';
 import OrderSuccess from './components/Cart/OrderSuccess';
-import Payment from './components/Cart/Payment';
 import Shipping from './components/Cart/Shipping';
 import Home from './components/Home/Home';
 import About from './components/layout/About/About';

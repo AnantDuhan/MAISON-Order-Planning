@@ -189,6 +189,111 @@
     color: rgba(70, 117, 218, 0.932);
 }
 
+.google-login-button {
+    width: 100%;
+    height: 3.5vmax;
+    background-color: #4285F4;
+    color: white;
+    font: 300 0.9vmax "Roboto";
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease-in-out;
+}
+.google-login-button:hover {
+    background-color: #357ae8;
+}
+.google-login-button svg {
+    margin-right: 0.5vmax;
+    font-size: 1.2vmax;
+}
+.google-login-button img {
+    width: 1.5vmax;
+    height: 1.5vmax;
+    margin-right: 0.5vmax;
+}
+
+.social-login-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1.5vmax;
+  margin-bottom: 1vmax;
+}
+
+.google-logo-icon {
+  width: 1.5vmax;
+  height: 1.5vmax;
+  margin-right: 0.8vmax;
+}
+
+.social-login-text {
+  margin: 0; 
+  color: rgba(0, 0, 0, 0.7);
+  font: 400 0.9vmax "Roboto";
+}
+
+.or-divider {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    color: rgba(0, 0, 0, 0.6);
+    margin: 1vmax 0;
+    width: 100%;
+}
+
+.or-divider-line {
+    flex-grow: 1;
+    height: 1px;
+    background-color: rgba(0, 0, 0, 0.2);
+}
+
+.or-divider-text {
+    padding: 0 1vmax;
+    font-size: 0.9vmax;
+    font-weight: 400;
+}
+
+.google-login-button-container {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    margin-top: 1vmax;
+}
+
+.login-mode-toggle {
+    color: rgba(70, 117, 218, 0.932);
+    font: 500 0.8vmax "Gill Sans";
+    cursor: pointer;
+    text-align: center;
+    margin-top: 1.5vmax;
+    transition: all 0.3s;
+}
+
+.login-mode-toggle:hover {
+    text-decoration: underline;
+}
+
+.resend-otp-container {
+    margin-top: 1.5vmax;
+    text-align: center;
+    font: 400 0.8vmax "Roboto";
+    color: rgba(0, 0, 0, 0.6);
+}
+
+.resend-otp-button {
+    color: rgba(70, 117, 218, 0.932);
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.resend-otp-button:hover {
+    text-decoration: underline;
+}
+
 @media screen and (max-width: 600px) {
     .LoginSignUpContainer {
         background-color: white;
@@ -241,5 +346,14 @@
     .signUpBtn {
         font: 300 1.9vmax "Roboto";
         padding: 1.8vmax;
+    }
+
+    /* --- Responsive Google Login Styles --- */
+    .or-divider {
+        margin: 3vmax 0;
+    }
+
+    .or-divider-text {
+        font-size: 1.5vmax;
     }
 }

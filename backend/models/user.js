@@ -21,13 +21,11 @@ const userSchema = new mongoose.Schema({
     },
     password: {
         type: String,
-        required: [true, 'Please Enter Your Password'],
         minLength: [6, 'Password must be atleast of 6 characters long'],
         select: false
     },
     whatsappNumber: {
         type: Number,
-        required: true,
         unique: [true, 'This number is already in use by another account!']
     },
     otp: {
@@ -36,6 +34,11 @@ const userSchema = new mongoose.Schema({
             select: false
         },
         expiry: Date
+    },
+    authProvider: {
+        type: String,
+        enum: ['local', 'google'],
+        default: 'local'
     },
     avatar: {
         type: String,
@@ -79,6 +82,20 @@ const userSchema = new mongoose.Schema({
             }
         ],
         default: []
+    },
+    twoFactorAuth: {
+        secret: {
+            type: String,
+            select: false,
+        },
+        tempSecret: { 
+            type: String,
+            select: false,
+        },
+        enabled: {
+            type: Boolean,
+            default: false,
+        }
     },
     stripeCustomerId: String,
     plusSubscriptionId: String,

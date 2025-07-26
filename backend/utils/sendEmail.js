@@ -14,7 +14,7 @@ const sendEmail = async options => {
         from: 'admin@orderplanning.com',
         to: options.email,
         subject: options.subject,
-        html: options.message,
+        html: options.html,
         headers: {
             'Content-Type': 'text/html',
             charset: 'UTF-8'
@@ -24,4 +24,4 @@ const sendEmail = async options => {
     await transporter.sendMail(mailOptions);
 };
 
-module.exports = {sendEmail};
+module.exports = sendEmail;

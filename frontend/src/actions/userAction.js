@@ -34,12 +34,23 @@ import {
     USER_DETAILS_REQUEST,
     USER_DETAILS_SUCCESS,
     USER_DETAILS_FAIL,
-    CLEAR_ERRORS
+    GOOGLE_LOGIN_REQUEST,
+    GOOGLE_LOGIN_SUCCESS,
+    GOOGLE_LOGIN_FAIL,
+    OTP_SEND_REQUEST,
+    OTP_SEND_SUCCESS,
+    OTP_SEND_FAIL,
+    OTP_LOGIN_REQUEST,
+    OTP_LOGIN_SUCCESS,
+    OTP_LOGIN_FAIL,
+    LOGIN_2FA_REQUIRED,
+    CLEAR_ERRORS,
 } from '../constants/userConstants';
 import axios from 'axios';
 
 // Login
-export const login = (email, password) => async dispatch => {
+// Replace your existing login action with this
+export const login = (email, password) => async (dispatch) => {
     try {
         dispatch({ type: LOGIN_REQUEST });
 
@@ -51,7 +62,13 @@ export const login = (email, password) => async dispatch => {
             { config }
         );
 
-        dispatch({ type: LOGIN_SUCCESS, payload: data.user });
+        if (data.twoFactorRequired) {
+            dispatch({ type: LOGIN_2FA_REQUIRED, payload: { userId: data.userId } });
+        } else {
+            dispatch({ type: LOGIN_SUCCESS, payload: data.user });
+            localStorage.setItem('authToken', data.token);
+        }
+
     } catch (error) {
         dispatch({ type: LOGIN_FAIL, payload: error.response.data.message });
     }
@@ -259,6 +276,52 @@ export const deleteUser = id => async dispatch => {
             type: DELETE_USER_FAIL,
             payload: error.response.data.message
         });
+    }
+};
+
+export const loginWithGoogle = (googleToken) => async (dispatch) => {
+    try {
+        dispatch({ type: GOOGLE_LOGIN_REQUEST });
+
+        const config = { headers: { "Content-Type": "application/json" } };
+
+        const { data } = await axios.post(
+            `/api/v1/auth/google`,
+            { token: googleToken },
+            config
+        );
+
+        dispatch({ type: GOOGLE_LOGIN_SUCCESS, payload: data });
+
+    } catch (error) {
+        dispatch({
+            type: GOOGLE_LOGIN_FAIL,
+            payload: error.response.data.message,
+        });
+    }
+};
+
+// Send Login OTP
+export const sendOtp = (whatsappNumber) => async (dispatch) => {
+    try {
+        dispatch({ type: OTP_SEND_REQUEST });
+        const config = { headers: { "Content-Type": "application/json" } };
+        const { data } = await axios.post(`/api/v1/otp/send`, { whatsappNumber }, config);
+        dispatch({ type: OTP_SEND_SUCCESS, payload: data.message });
+    } catch (error) {
+        dispatch({ type: OTP_SEND_FAIL, payload: error.response.data.message });
+    }
+};
+
+// Verify Login OTP
+export const loginWithOtp = (whatsappNumber, otp) => async (dispatch) => {
+    try {
+        dispatch({ type: OTP_LOGIN_REQUEST });
+        const config = { headers: { "Content-Type": "application/json" } };
+        const { data } = await axios.post(`/api/v1/otp/verify`, { whatsappNumber, otp }, config);
+        dispatch({ type: OTP_LOGIN_SUCCESS, payload: data });
+    } catch (error) {
+        dispatch({ type: OTP_LOGIN_FAIL, payload: error.response.data.message });
     }
 };
 

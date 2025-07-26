@@ -10,6 +10,13 @@ const {
    getAllUsers,
    getSingleUser,
    updateUserRole,
+   googleLogin,
+   sendLoginOtp,
+   verifyLoginOtp,
+   setupTwoFactorAuth,
+   verifyTwoFactorAuth,
+   disableTwoFactorAuth,
+   validateTfaToken,
 } = require('../controllers/user');
 
 const { isAuthUser, authRoles } = require('../middleware/auth');
@@ -60,5 +67,16 @@ router
 // router.route('/contact-us').post(contactUs);
 
 router.route('/subscribe').post(subscriber);
+
+router.route('/auth/google').post(googleLogin);
+
+router.route('/otp/send').post(sendLoginOtp);
+router.route('/otp/verify').post(verifyLoginOtp);
+
+// 2FA Routes
+router.route('/2fa/setup').get(isAuthUser, setupTwoFactorAuth);
+router.route('/2fa/verify').post(isAuthUser, verifyTwoFactorAuth);
+router.route('/2fa/disable').post(isAuthUser, disableTwoFactorAuth);
+router.route('/2fa/validate').post(validateTfaToken);
 
 module.exports = router;

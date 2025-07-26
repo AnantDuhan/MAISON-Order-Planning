@@ -7,6 +7,19 @@ require('dotenv').config({ path: 'backend/config/config.env' });
 const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
 const { fromEnv } = require('@aws-sdk/credential-provider-env');
 const Snowflake = require('@theinternetfolks/snowflake');
+const { OAuth2Client } = require('google-auth-library');
+const twilio = require('twilio');
+const validator = require('validator'); 
+const ejs = require('ejs');
+const path = require('path');
+const speakeasy = require('speakeasy');
+const qrcode = require('qrcode');
+
+const accountSid = process.env.TWILIO_ACCOUNT_SID;
+const authToken = process.env.TWILIO_AUTH_TOKEN;
+
+const optclient = twilio(accountSid, authToken);
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 const timestamp = Date.now();
 const timestampInSeconds = Math.floor(timestamp / 1000);
@@ -30,8 +43,8 @@ exports.registerUser = async (req, res, next) => {
         // Define the upload parameters
         const uploadParams = {
             Bucket: process.env.AWS_BUCKET_NAME,
-            Key: file.originalname, // The name under which the file will be stored in S3
-            Body: file.buffer // The file data to be uploaded
+            Key: file.originalname, 
+            Body: file.buffer
         };
 
         // Upload the file to S3
@@ -74,9 +87,11 @@ exports.registerUser = async (req, res, next) => {
             httpOnly: true
         };
 
+        const finalToken = user.getJWTToken();
         res.status(201).cookie('token', token, options).json({
             success: true,
-            user
+            user,
+            token: finalToken
         });
     } catch (err) {
         console.error('⚠️ Error:', err);
@@ -100,11 +115,19 @@ exports.loginUser = async (req, res, next) => {
             });
         }
 
-        const user = await User.findOne({ email }).select('+password');
+        const user = await User.findOne({ email }).select('+password +twoFactorAuth.enabled');
         if (!user) {
             return res.status(401).json({
                 success: false,
                 message: 'Invalid Email or Password'
+            });
+        }
+
+        if (user.twoFactorAuth.enabled) {
+            return res.status(200).json({
+                success: true,
+                twoFactorRequired: true,
+                userId: user._id,
             });
         }
 
@@ -380,4 +403,295 @@ exports.updateUserRole = async (req, res, next) => {
             error: error.message
         });
     }
+};
+
+exports.googleLogin = async (req, res, next) => {
+    try {
+        const { idToken } = req.body;
+
+        if (!idToken) {
+            return res.status(400).json({
+                success: false,
+                message: 'Google ID token is required'
+            });
+        }
+
+        const ticket = await client.verifyIdToken({
+            idToken,
+            audience: process.env.GOOGLE_CLIENT_ID
+        });
+
+        const payload = ticket.getPayload();
+        const { email, name, picture } = payload;
+
+        let user = await User.findOne({ email });
+
+        if (!user) {
+            user = await User.create({
+                _id: Snowflake.Snowflake.generate({ timestamp: timestampInSeconds }),
+                name,
+                email,
+                avatar: picture,
+                authProvider: 'google'
+            });
+        }
+
+        let token = jwt.sign(
+            {
+                id: user._id,
+                name: user.name,
+                email: user.email,
+                avatar: user.avatar
+            },
+            process.env.JWT_SECRET_KEY
+        );
+
+        const options = {
+            expires: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
+            httpOnly: true
+        };
+
+        res.status(200).cookie('token', token, options).json({
+            success: true,
+            user
+        });
+    } catch (error) {
+        console.error('🔐 Google login error: ', error);
+        res.status(500).json({
+            success: false,
+            message: 'Internal Server Error'
+        });
+    }
+};
+
+exports.sendLoginOtp = async (req, res, next) => {
+    try {
+        const identifier = String(req.body.identifier || req.body.whatsappNumber || '');
+
+        if (!identifier) {
+            return res.status(400).json({
+                success: false,
+                message: 'Please enter your Email or WhatsApp number'
+            });
+        }
+
+        let user;
+        const isEmail = validator.isEmail(identifier);
+
+        // Step 1: Find the user first.
+        if (isEmail) {
+            user = await User.findOne({ email: identifier });
+        } else {
+            const numberIdentifier = parseInt(identifier, 10);
+            if (!isNaN(numberIdentifier)) {
+                user = await User.findOne({ whatsappNumber: numberIdentifier });
+            }
+        }
+
+        // Step 2: Check if the user was found.
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found'
+            });
+        }
+
+        // Step 3: Now that we have a user, generate and assign the OTP.
+        const otp = crypto.randomInt(100000, 1000000);
+        const otpExpiry = Date.now() + 10 * 60 * 1000; // 10 minutes expiry
+        
+        user.otp = {
+            code: otp,
+            expiry: otpExpiry
+        };
+        
+        await user.save({ validateBeforeSave: false });
+
+        // Step 4: Send the email or SMS.
+        if (isEmail) {
+            const html = await ejs.renderFile(
+                path.join(__dirname, '../mails/activation-mail.ejs'),
+                { name: user.name, otp: otp }
+            );
+            await sendEmail({
+                email: user.email,
+                subject: 'Your E-Commerce Login OTP',
+                html: html,
+            });
+            res.status(200).json({
+                success: true,
+                message: `OTP sent to ${user.email}`,
+            });
+        } else {
+            if (!user.whatsappNumber) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'No WhatsApp number is associated with this account.'
+                });
+            }
+            await optclient.messages.create({
+                body: `Your E-Commerce login OTP is: ${otp}`,
+                from: process.env.TWILIO_PHONE_NUMBER,
+                to: `+${user.whatsappNumber}`,
+            });
+            res.status(200).json({
+                success: true,
+                message: `OTP sent to ${user.whatsappNumber}`,
+            });
+        }
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message || 'An internal server error occurred.'
+        });
+    }
+};
+
+
+
+exports.verifyLoginOtp = async (req, res, next) => {
+    // Use 'identifier' to accept both email and number
+    const { identifier, otp } = req.body;
+
+    if (!identifier || !otp) {
+        return res.status(400).json({
+            success: false,
+            message: 'Please provide an identifier and OTP'
+        });
+    }
+
+    let user;
+    const isEmail = validator.isEmail(identifier);
+
+    // Find the user by the correct identifier and select the OTP fields
+    if (isEmail) {
+        user = await User.findOne({ email: identifier }).select('+otp.code +otp.expiry');
+    } else {
+        user = await User.findOne({ whatsappNumber: identifier }).select('+otp.code +otp.expiry');
+    }
+
+    if (!user) {
+        return res.status(404).json({
+            success: false,
+            message: 'User not found'
+        });
+    }
+
+    if (!user.otp || !user.otp.code) {
+        return res.status(400).json({
+            success: false,
+            message: 'OTP not requested or already used'
+        });
+    }
+
+    if (user.otp.expiry < Date.now()) {
+        return res.status(400).json({
+            success: false,
+            message: 'OTP has expired'
+        });
+    }
+
+    if (user.otp.code !== Number(otp)) {
+        return res.status(400).json({
+            success: false,
+            message: 'Incorrect OTP'
+        });
+    }
+
+    // Clear OTP after successful verification
+    user.otp = undefined;
+    await user.save({ validateBeforeSave: false });
+
+    const token = user.getJWTToken();
+
+    res.status(200).json({
+        success: true,
+        token,
+        user,
+    });
+};
+
+exports.setupTwoFactorAuth = async (req, res, next) => {
+    const user = await User.findById(req.user.id).select('+twoFactorAuth.tempSecret');
+
+    const secret = speakeasy.generateSecret({
+        name: `Order Planning - (${user.email})`,
+    });
+
+    user.twoFactorAuth.tempSecret = secret.base32;
+    await user.save({ validateBeforeSave: false });
+
+    qrcode.toDataURL(secret.otpauth_url, (err, data_url) => {
+        if (err) {
+            return next(new ErrorHandler('Error generating QR code', 500));
+        }
+        res.status(200).json({
+            success: true,
+            qrCodeUrl: data_url,
+        });
+    });
+};
+
+exports.verifyTwoFactorAuth = async (req, res, next) => {
+    const { token } = req.body;
+    const user = await User.findById(req.user.id).select('+twoFactorAuth.tempSecret +twoFactorAuth.secret');
+
+    const isVerified = speakeasy.totp.verify({
+        secret: user.twoFactorAuth.tempSecret,
+        encoding: 'base32',
+        token,
+    });
+
+    if (!isVerified) {
+        return next(new ErrorHandler('Invalid 2FA token', 400));
+    }
+
+    user.twoFactorAuth.secret = user.twoFactorAuth.tempSecret;
+    user.twoFactorAuth.tempSecret = undefined; // Clear temp secret
+    user.twoFactorAuth.enabled = true;
+    await user.save({ validateBeforeSave: false });
+
+    res.status(200).json({
+        success: true,
+        message: '2FA enabled successfully',
+    });
+};
+
+exports.disableTwoFactorAuth = async (req, res, next) => {
+    const user = await User.findById(req.user.id);
+
+    user.twoFactorAuth.enabled = false;
+    user.twoFactorAuth.secret = undefined;
+    await user.save({ validateBeforeSave: false });
+
+    res.status(200).json({
+        success: true,
+        message: '2FA disabled successfully',
+    });
+};
+
+exports.validateTfaToken = async (req, res, next) => {
+    const { userId, token } = req.body;
+    const user = await User.findById(userId).select('+twoFactorAuth.secret');
+
+    if (!user || !user.twoFactorAuth.secret) {
+        return next(new ErrorHandler('Invalid request', 400));
+    }
+
+    const isVerified = speakeasy.totp.verify({
+        secret: user.twoFactorAuth.secret,
+        encoding: 'base32',
+        token,
+    });
+
+    if (!isVerified) {
+        return next(new ErrorHandler('Invalid 2FA token', 400));
+    }
+
+    // If token is valid, now we generate and send the final JWT
+    const finalToken = user.getJWTToken();
+    res.status(200).json({
+        success: true,
+        token: finalToken,
+    });
 };
