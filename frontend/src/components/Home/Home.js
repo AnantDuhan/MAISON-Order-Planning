@@ -11,7 +11,7 @@ import ProductCard from './ProductCard';
 import ProductGridItem from './ProductGridItem';
 
 import './Home.css';
-import ThreeJSBanner from './ThreeJSBanner';
+import ThreeJSMacbookBanner from './ThreeJSMacbookBanner';
 
 const Home = () => {
     const dispatch = useDispatch();
@@ -63,7 +63,7 @@ const Home = () => {
                 <Fragment>
                     <MetaData title='Order Planning' />
 
-                    <ThreeJSBanner />
+                    <ThreeJSMacbookBanner />
 
                     {/* <h2 className='homeHeading'>Featured Products</h2>
 

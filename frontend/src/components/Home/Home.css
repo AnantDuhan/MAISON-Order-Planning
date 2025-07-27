@@ -1,6 +1,7 @@
 .banner {
   /* Remove the background image */
-  background-color: #f0f2f5; /* A light, clean background color */
+  background: radial-gradient(#a39d58 0%, #ff7802 100%);
+  /* background-color: #f0f2f5; A light, clean background color */
   height: 100vh; /* Changed to vh for full viewport height */
   width: 100%;
   display: flex;
