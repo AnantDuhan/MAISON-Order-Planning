@@ -48,7 +48,8 @@
         "stripe": "^16.2.0",
         "twilio": "^5.8.0",
         "validator": "^13.12.0",
-        "webfontloader": "^1.6.28"
+        "webfontloader": "^1.6.28",
+        "websocket": "^1.0.35"
     },
     "devDependencies": {
         "chai": "^5.1.1",

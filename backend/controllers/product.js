@@ -4,13 +4,13 @@ import Review from '../models/review.js';
 import ApiFeatures from '../utils/apifeatures.js';
 import { Snowflake } from '@theinternetfolks/snowflake';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import redisClientPromise from '../config/redisClient.js';
+import dotenv from 'dotenv';
+
+dotenv.config({ path: '../config/config.env' });
 
 const timestamp = Date.now();
 const timestampInSeconds = Math.floor(timestamp / 1000);
-
-const genAi = new GoogleGenerativeAI({
-    apiKey: process.env.GEMINI_API_KEY
-});
 
 // get all products
 export const getAllProducts = async (req, res, next) => {
@@ -55,71 +55,146 @@ export const getAdminProducts = async (req, res, next) => {
 // get product details
 export const getProductDetails = async (req, res, next) => {
 
-    const product = await Product.findById(req.params.id);
+    const redisClient = redisClientPromise;
+    const productId = req.params.id;
+    const cacheKey = `product:${productId}`;
+
+    try {
+        const cachedProduct = await redisClient.get(cacheKey);
+        if (cachedProduct) {
+            const productData = JSON.parse(cachedProduct);
+            return res.status(200).json({
+                success: true,
+                product: productData
+            });
+        }
+
+        // --- 2. If Miss, Get from DB ---
+        const product = await Product.findById(productId);
+
+        if (!product) {
+            return res.status(404).json({
+                success: false,
+                message: 'Product not found'
+            });
+        }
+        // --- 3. Store in Cache ---
+        await redisClient.set(cacheKey, JSON.stringify(product), {
+            EX: 3600
+        });
+
+        res.status(200).json({
+            success: true,
+            product
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Internal Server Error'
+        });
+    }
+};
+
+export const updateProduct = async (req, res, next) => {
+    const productId = req.params.id;
+    let product = await Product.findById(productId);
 
     if (!product) {
-        res.status(404).json({
-            success: false,
-            message: 'Product not found'
-        })
+        return res.status(404).json({ message: 'Product not found' });
     }
 
+    // Update product with new data from req.body
+    product = await Product.findByIdAndUpdate(productId, req.body, {
+        new: true,
+        runValidators: true,
+    });
+    
+    // --- Invalidate the cache after the update ---
+    try {
+        const redisClient = redisClientPromise;
+        const cacheKey = `product:${productId}`;
+        await redisClient.del(cacheKey);
+    } catch (cacheError) {
+        console.error('Redis cache invalidation error:', cacheError);
+    }
+
+    await redisClient.set(`/admin/product/${productId}`, JSON.stringify(product));
+
+    const io = req.app.get('socketio');
+    io.to(productId).emit('productUpdate', product);
+    
     res.status(200).json({
         success: true,
-        product
+        product,
     });
 };
 
 // create new review or update the review
 export const createProductReview = async (req, res, next) => {
-
-    let review;
     const { rating, comment, productId } = req.body;
-    review = {
-        _id: Snowflake.Snowflake.generate({
-            timestamp: timestampInSeconds
-        }),
-        user: req.user._id,
-        name: req.user.name,
-        rating: Number(rating),
-        comment
-    };
 
     const product = await Product.findById(productId);
+
+    if (!product) {
+        return next(new ErrorHandler("Product not found", 404));
+    }
+
     const isReviewed = product.reviews.find(
-        rev => rev.user.toString() === req.user._id.toString()
+        (rev) => rev.user.toString() === req.user._id.toString()
     );
 
-    console.log(product.reviews)
+    let newReview;
+
     if (isReviewed) {
-        product.reviews.forEach(rev => {
-            if (rev.user.toString() === req.user._id.toString())
-                (rev.rating = rating), (rev.comment = comment);
+        product.reviews.forEach((rev) => {
+            if (rev.user.toString() === req.user._id.toString()) {
+                rev.rating = rating;
+                rev.comment = comment;
+            }
         });
     } else {
-        product.reviews.push(review);
+        newReview = {
+            _id: Snowflake.generate(),
+            user: req.user._id,
+            name: req.user.name,
+            rating: Number(rating),
+            comment,
+        };
+        product.reviews.push(newReview);
         product.numOfReviews = product.reviews.length;
     }
 
     let avg = 0;
-
-    product.reviews.forEach(rev => {
+    product.reviews.forEach((rev) => {
         avg += rev.rating;
     });
-
-    product.ratings = avg / product.reviews.length;
-
-    const updatedProduct = await Product.findById(productId);
+    product.ratings = product.reviews.length > 0 ? avg / product.reviews.length : 0;
 
     await product.save({ validateBeforeSave: false });
 
+    // Invalidate Redis Cache
+    try {
+        const redisClient = req.app.get('redisClient');
+        const cacheKey = `product:${productId}`;
+        await redisClient.del(cacheKey);
+    } catch (cacheError) {
+        console.error('Redis cache invalidation error:', cacheError);
+    }
+
+    await redisClient.set(`product:${productId}`, JSON.stringify(product));
+
+    const io = req.app.get('socketio');
+    io.to(productId).emit('reviewUpdate', {
+        reviews: product.reviews,
+        ratings: product.ratings,
+        numOfReviews: product.numOfReviews,
+    });
+
     res.status(200).json({
         success: true,
-        review: updatedProduct.reviews.find(
-            rev => rev.user.toString() === req.user._id.toString()
-        )
     });
 };
+
 
 export const getAllWishlistProducts = async (req, res) => {
     try {
@@ -168,7 +243,6 @@ export const addToWishList = async (req, res) => {
             item => item.product.toString() === req.params.id
         );
 
-        console.log("product in wishlist", isProductInWishlist);
         if (isProductInWishlist) {
             return res.status(400).json({
                 success: false,
@@ -177,9 +251,7 @@ export const addToWishList = async (req, res) => {
         }
 
         const wishlistItem = {
-            _id: Snowflake.Snowflake.generate({
-                timestamp: timestampInSeconds
-            }),
+            _id: Snowflake.generate(),
             product: req.params.id,
             name: product.name,
             description: product.description,
@@ -191,6 +263,9 @@ export const addToWishList = async (req, res) => {
         user.wishlist.push(wishlistItem);
 
         await user.save();
+
+        const io = req.app.get('socketio');
+        io.to(req.user._id.toString()).emit('wishlistUpdate', user.wishlist);
 
         res.status(200).json({
             success: true,
@@ -233,6 +308,9 @@ export const removeFromWishList = async (req, res) => {
         user.wishlist.splice(isProductInWishlistIndex, 1);
 
         await user.save();
+
+        const io = req.app.get('socketio');
+        io.to(req.user._id.toString()).emit('wishlistUpdate', user.wishlist);
 
         res.status(200).json({
             success: true,
@@ -315,6 +393,22 @@ export const deleteReview = async (req, res, next) => {
         }
     );
 
+    try {
+        const redisClient = redisClientPromise;
+        const cacheKey = `product:${productId}`;
+        await redisClient.del(cacheKey);
+        console.log(`CACHE INVALIDATED for product: ${productId}`);
+    } catch (cacheError) {
+        console.error('Redis cache invalidation error:', cacheError);
+    }
+
+    const io = req.app.get('socketio');
+    io.to(productId).emit('reviewUpdate', {
+        reviews: product.reviews,
+        ratings: product.ratings,
+        numOfReviews: product.numOfReviews,
+    });
+
     res.status(200).json({
         success: true,
         message: 'Review deleted successfully'
@@ -322,45 +416,75 @@ export const deleteReview = async (req, res, next) => {
 };
 
 export const summerizeProductReviews = async (req, res, next) => {
-    const product = await Product.findById(req.params.id);
+    if (!process.env.GEMINI_API_KEY) {
+        return res.status(500).json({
+            success: false,
+            message: 'GEMINI_API_KEY not found. Please check your server environment variables.'
+        });
+    }
 
-  if (!product) {
-    res.status(404);
-    throw new Error('Product not found');
-  }
+    const productId = req.params.id;
 
-  // 1. Fetch all reviews for the product
-  const reviews = await Review.find({ product: product._id });
+    const product = await Product.findById(productId);
 
-  if (reviews.length < 3) {
-    res.status(400);
-    throw new Error('Not enough reviews to generate a summary.');
-  }
+    if (!product) {
+        return res.status(404).json({
+            success: false,
+            message: 'Product not found'
+        });
+    }
+    
+    if (product.numOfReviews < 3) {
+        return res.status(400).json({
+            success: false,
+            message: 'Not enough reviews to generate a summary.'
+        });
+    }
 
-  // 2. Concatenate review text
-  const reviewsText = reviews.map((r) => r.comment).join('\n');
+    
+    // if (product.numOfReviews < 3) {
+    //     return res.status(400).json({
+    //         success: false,
+    //         message: 'Review count mismatch. Not enough reviews to summarize.'
+    //     });
+    // }
+    
+    const reviewsText = product.reviews.map((r) => r.comment).join('\n');
 
-  // 3. Create the prompt for the AI
-  const prompt = `You are an e-commerce assistant. Based on the following customer reviews, generate a concise summary. The summary should be a string containing a 'Pros' list and a 'Cons' list, each with 2-3 bullet points. Use emojis like ✅ for pros and ⚠️ for cons.
+    const prompt = `You are an e-commerce assistant. Based on the following customer reviews, generate a concise summary. The summary should be a string containing a 'Pros' list and a 'Cons' list, each with 2-3 bullet points. Use emojis like ✅ for pros and ⚠️ for cons. Reviews: --- ${reviewsText} ---`;
 
-  Reviews:
-  ---
-  ${reviewsText}
-  ---
-  `;
+    // Initialize the client here, inside the function, to ensure the API key is loaded.
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-pro' });
+    const result = await model.generateContent(prompt);
+    const summary = result.response.text();
 
-  // 4. Send the prompt to the Gemini API
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-  const result = await model.generateContent(prompt);
-  const summary = result.response.text();
+    product.aiSummary = summary;
+    await product.save();
 
-  // 5. Save the result to the product
-  product.aiSummary = summary;
-  await product.save();
+    try {
+        const redisClient = req.app.get('redisClient');
+        if (redisClient) {
+            const cacheKey = `product:${productId}`;
+            await redisClient.del(cacheKey);
+            console.log(`CACHE INVALIDATED for product: ${productId}`);
+        } else {
+            console.log('Redis client not initialized, skipping cache invalidation.');
+        }
+    } catch (cacheError) {
+        console.error('Redis cache invalidation error:', cacheError);
+    }
 
-  res.status(201).json({
-    message: 'Summary generated successfully',
-    summary: product.aiSummary,
-  });
+    const io = req.app.get('socketio');
+    if (io) {
+        io.to(productId).emit('summaryUpdate', summary);
+    } else {
+        console.log('Socket.io not initialized, skipping emit.');
+    }
+
+    res.status(201).json({
+        success: true,
+        message: 'Summary generated successfully',
+        summary: product.aiSummary,
+    });
 };
-

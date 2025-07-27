@@ -47,7 +47,8 @@ import {
     SUMMARIZE_REVIEWS_SUCCESS,
     SUMMARIZE_REVIEWS_FAIL,
     SUMMARIZE_REVIEWS_RESET,
-    CLEAR_ERRORS
+    CLEAR_ERRORS,
+    REALTIME_PRODUCT_UPDATE
 } from '../constants/productConstants';
 
 export const productsReducer = (state = { products: [] }, action) => {
@@ -160,6 +161,11 @@ export const productReducer = (state = {}, action) => {
             return {
                 ...state,
                 isUpdated: false,
+            };
+        case REALTIME_PRODUCT_UPDATE:
+            return {
+                ...state,
+                product: action.payload, // Replace the product data with the new data from the socket
             };
         case CLEAR_ERRORS:
             return {

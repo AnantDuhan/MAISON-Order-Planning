@@ -5,7 +5,7 @@ mongoose.set('strictQuery', false);
 const reviewSchema = new mongoose.Schema({
     _id: String,
     user: {
-        type: mongoose.Schema.ObjectId,
+        type: String,
         ref: 'User',
         required: true,
     },
@@ -24,7 +24,7 @@ const reviewSchema = new mongoose.Schema({
         required: true,
     },
     product: {
-        type: mongoose.Schema.ObjectId,
+        type: String,
         ref: 'Product',
         required: true,
     },

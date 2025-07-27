@@ -9,7 +9,8 @@ const {
    addToWishList,
    removeFromWishList,
    getAllWishlistProducts,
-   summerizeProductReviews
+   summerizeProductReviews,
+   updateProduct
 } = require('../controllers/product');
 
 const { isAuthUser, authRoles } = require('../middleware/auth');
@@ -24,6 +25,8 @@ router
     .route('/wishlist/:id')
     .post(isAuthUser, addToWishList)
     .delete(isAuthUser, removeFromWishList);
+
+router.route('/admin/update/product/:id').put(isAuthUser, authRoles('admin'), updateProduct);
 
 router
     .route('/admin/products')

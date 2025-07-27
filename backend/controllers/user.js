@@ -532,7 +532,7 @@ exports.sendLoginOtp = async (req, res, next) => {
             await optclient.messages.create({
                 body: `Your E-Commerce login OTP is: ${otp}`,
                 from: process.env.TWILIO_PHONE_NUMBER,
-                to: `+${user.whatsappNumber}`,
+                to: `${user.whatsappNumber}`,
             });
             res.status(200).json({
                 success: true,

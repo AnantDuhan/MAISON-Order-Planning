@@ -50,7 +50,7 @@ const MainHeader =() => {
             dispatch(searchProducts(debouncedKeyword));
             navigate(`products/search?keyword=${debouncedKeyword}`);
         } else {
-            navigate('/products');
+            // navigate('/products');
         }
     }, [debouncedKeyword, dispatch, navigate]);
 
@@ -139,11 +139,11 @@ const MainHeader =() => {
                             <Link to='/account'>
                                 <img
                                     src={
-                                        user.avatar
-                                            ? user.avatar
+                                        user?.avatar
+                                            ? user?.avatar
                                             : '/Profile.png'
                                     }
-                                    alt={`${user.name}`}
+                                    alt={`${user?.name}`}
                                     className='profile-photo'
                                 />
                             </Link>

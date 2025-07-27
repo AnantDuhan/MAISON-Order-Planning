@@ -272,6 +272,12 @@ const LoginAndRegister = () => {
                                         {loginMode === 'password' ? 'Login with OTP' : 'Login with Password'}
                                     </p>
 
+
+                                    <div className="or-divider">
+                                        <span className="or-divider-line"></span>
+                                        <span className="or-divider-text">OR</span>
+                                        <span className="or-divider-line"></span>
+                                    </div>
                                     <input type='submit' value={loginMode === 'password' ? 'Login' : (otpStep === 1 ? 'Send OTP' : 'Verify & Login')} className='loginBtn' />
 
                                     {/* --- Resend OTP Section --- */}
@@ -284,20 +290,14 @@ const LoginAndRegister = () => {
                                             )}
                                         </div>
                                     )}
-
-                                    <div className="or-divider">
-                                        <span className="or-divider-line"></span>
-                                        <span className="or-divider-text">OR</span>
-                                        <span className="or-divider-line"></span>
-                                    </div>
-                                    <div className="social-login-header">
+                                    {/* <div className="social-login-header">
                                         <img 
                                             src="https://ecommerce-bucket-sdk.s3.ap-south-1.amazonaws.com/googleLogo.png" 
                                             alt="Google logo" 
                                             className="google-logo-icon" 
                                         />
                                         <p className="social-login-text">SignIn with Google</p>
-                                    </div>
+                                    </div> */}
                                     <div className="google-login-button-container">
                                         <GoogleLogin
                                             onSuccess={handleGoogleLoginSuccess}
@@ -390,14 +390,14 @@ const LoginAndRegister = () => {
                                         <span className="or-divider-text">OR</span>
                                         <span className="or-divider-line"></span>
                                     </div>
-                                    <div className="social-login-header">
+                                    {/* <div className="social-login-header">
                                         <img 
                                             src="https://ecommerce-bucket-sdk.s3.ap-south-1.amazonaws.com/googleLogo.png" 
                                             alt="Google logo" 
                                             className="google-logo-icon" 
                                         />
                                         <p className="social-login-text">SignUp with Google</p>
-                                    </div>
+                                    </div> */}
                                     <div className="google-login-button-container">
                                         <GoogleLogin
                                             onSuccess={handleGoogleLoginSuccess}

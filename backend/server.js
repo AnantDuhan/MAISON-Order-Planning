@@ -2,6 +2,9 @@ const app = require('./app');
 // const cronJob = require('./cronJob');
 const dotenv = require('dotenv');
 const connectDB = require('./config/database');
+const http = require('http');
+const { Server } = require('socket.io');
+const redisClient = require('./config/redisClient');
 
 // Handling Uncaught Exceptions
 // process.on('uncaughtException', (err) => {
@@ -12,6 +15,16 @@ const connectDB = require('./config/database');
 
 // config
 dotenv.config({ path: './backend/config/config.env' });
+
+const createServer = http.createServer(app);
+const io = new Server(createServer, {
+    cors: {
+        origin: "http://localhost:3000",
+    }
+});
+
+app.set('socketio', io);
+app.set('redisClient', redisClient);
 
 //connecting to database
 connectDB();

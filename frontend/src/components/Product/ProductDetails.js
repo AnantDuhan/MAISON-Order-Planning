@@ -12,12 +12,14 @@ import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 
 import { addItemsToCart } from '../../actions/cartAction';
 import { addProductToWishlist, clearErrors, getProductDetails, newReview, summarizeProductReviews } from '../../actions/productAction';
-import { NEW_REVIEW_RESET, SUMMARIZE_REVIEWS_RESET } from '../../constants/productConstants';
+import { NEW_REVIEW_RESET, REALTIME_PRODUCT_UPDATE, SUMMARIZE_REVIEWS_RESET } from '../../constants/productConstants';
 import MetaData from '../layout/MetaData';
 import ReviewCard from './ReviewCard';
 
 import './ProductDetails.css';
 import 'react-responsive-carousel/lib/styles/carousel.min.css';
+
+import io from 'socket.io-client';
 
 const ProductDetails = () => {
     const dispatch = useDispatch();
@@ -145,6 +147,44 @@ const ProductDetails = () => {
         }
     }, [dispatch, id, error, reviewError, success, isSummarized]);
 
+    useEffect(() => {
+        const socket = io("http://localhost:4000");
+
+        socket.emit('joinProductRoom', id);
+
+        const handleProductUpdate = (updatedProduct) => {
+            console.log("Product update received:", updatedProduct);
+            toast.info("This product's details have been updated in real-time!");
+            dispatch({ 
+                type: REALTIME_PRODUCT_UPDATE,
+                payload: updatedProduct 
+            });
+        };
+
+        const handleReviewUpdate = (reviewData) => {
+            console.log("Review update received:", reviewData);
+            toast.info("A new review has been posted!");
+        };
+
+        const handleSummaryUpdate = (summary) => {
+            console.log("Summary update received:", summary);
+            toast.info("An AI summary has been generated for this product!");
+            dispatch(getProductDetails(id));
+        };
+
+        socket.on('productUpdate', handleProductUpdate);
+        socket.on('reviewUpdate', handleReviewUpdate);
+        socket.on('summaryUpdate', handleSummaryUpdate);
+
+        return () => {
+            socket.emit('leaveProductRoom', id);
+            socket.off('productUpdate', handleProductUpdate);
+            socket.off('reviewUpdate', handleReviewUpdate);
+            socket.off('summaryUpdate', handleSummaryUpdate);
+            socket.disconnect();
+        };
+    }, [dispatch, id]);
+
     return (
         <Fragment>
             {loading ? (
@@ -248,14 +288,14 @@ const ProductDetails = () => {
                         </Button>
                     )}
 
-                    {product.aiSummary && (
-                        <div className="ai-summary-card">
+                    <div className="ai-summary-card">
+                        <div className="ai-summary-card-inner">
                             <h3>🤖 AI-Powered Summary</h3>
                             <div style={{ whiteSpace: 'pre-wrap', fontFamily: 'Roboto, sans-serif' }}>
                                 {product.aiSummary}
                             </div>
                         </div>
-                    )}
+                    </div>
 
                     <Dialog
                         aria-labelledby='simple-dialog-title'
