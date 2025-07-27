@@ -43,7 +43,12 @@ import {
     SEARCH_PRODUCTS_REQUEST,
     SEARCH_PRODUCTS_SUCCESS,
     SEARCH_PRODUCTS_FAIL,
-    CLEAR_ERRORS
+    SUMMARIZE_REVIEWS_REQUEST,
+    SUMMARIZE_REVIEWS_SUCCESS,
+    SUMMARIZE_REVIEWS_FAIL,
+    SUMMARIZE_REVIEWS_RESET,
+    CLEAR_ERRORS,
+    REALTIME_PRODUCT_UPDATE
 } from '../constants/productConstants';
 
 export const productsReducer = (state = { products: [] }, action) => {
@@ -156,6 +161,11 @@ export const productReducer = (state = {}, action) => {
             return {
                 ...state,
                 isUpdated: false,
+            };
+        case REALTIME_PRODUCT_UPDATE:
+            return {
+                ...state,
+                product: action.payload, // Replace the product data with the new data from the socket
             };
         case CLEAR_ERRORS:
             return {
@@ -385,6 +395,34 @@ export const productsSearchReducer = (state = { products: [] }, action) => {
                 error: null,
             };
 
+        default:
+            return state;
+    }
+};
+
+export const summarizeReviewsReducer = (state = {}, action) => {
+    switch (action.type) {
+        case SUMMARIZE_REVIEWS_REQUEST:
+            return {
+                ...state,
+                loading: true,
+            };
+        case SUMMARIZE_REVIEWS_SUCCESS:
+            return {
+                loading: false,
+                isSummarized: action.payload,
+            };
+        case SUMMARIZE_REVIEWS_FAIL:
+            return {
+                ...state,
+                loading: false,
+                error: action.payload,
+            };
+        case SUMMARIZE_REVIEWS_RESET:
+            return {
+                ...state,
+                isSummarized: false,
+            };
         default:
             return state;
     }

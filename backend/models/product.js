@@ -70,6 +70,10 @@ const productSchema = mongoose.Schema({
             }
         }
     ],
+    aiSummary: {
+      type: String,
+      default: '',
+    },
     createdAt: {
         type: Date,
         default: Date.now

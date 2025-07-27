@@ -50,7 +50,7 @@ const Products = () => {
         ],
         [
             { key: 'range3', label: '2500 - 5000', value: [2500, 5000] },
-            { key: 'range4', label: '5000+', value: [5000, 400000] } // Adjust the upper limit
+            { key: 'range4', label: '5000+', value: [5000, 400000] } 
         ]
     ];
 
@@ -71,9 +71,9 @@ const Products = () => {
             dispatch(clearErrors());
         }
 
-        if (isAuthenticated) {
-            navigate('/products');
-        }
+        // if (isAuthenticated) {
+        //     navigate('/products');
+        // }
 
         const timer = setTimeout(() => {
             setProgress(0);
@@ -84,7 +84,7 @@ const Products = () => {
         return () => {
             clearTimeout(timer);
         };
-    }, [dispatch, navigate, isAuthenticated, keyword, currentPage, price, category, ratings, error]);
+    }, [dispatch, navigate, keyword, currentPage, price, category, ratings, error]);
 
     let count = filteredProductsCount;
 

@@ -8,15 +8,18 @@ import { toast } from 'react-toastify';
 import LoadingBar from 'react-top-loading-bar';
 import Lightbox from "yet-another-react-lightbox"; 
 import "yet-another-react-lightbox/styles.css"; 
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 
 import { addItemsToCart } from '../../actions/cartAction';
-import { addProductToWishlist, clearErrors, getProductDetails, newReview } from '../../actions/productAction';
-import { NEW_REVIEW_RESET } from '../../constants/productConstants';
+import { addProductToWishlist, clearErrors, getProductDetails, newReview, summarizeProductReviews } from '../../actions/productAction';
+import { NEW_REVIEW_RESET, REALTIME_PRODUCT_UPDATE, SUMMARIZE_REVIEWS_RESET } from '../../constants/productConstants';
 import MetaData from '../layout/MetaData';
 import ReviewCard from './ReviewCard';
 
 import './ProductDetails.css';
 import 'react-responsive-carousel/lib/styles/carousel.min.css';
+
+import io from 'socket.io-client';
 
 const ProductDetails = () => {
     const dispatch = useDispatch();
@@ -26,11 +29,19 @@ const ProductDetails = () => {
         state => state.productDetails
     );
 
+    const { user } = useSelector(state => state.user);
+
     const { wishlist } = useSelector(state => state.wishlist);
 
     const { success, error: reviewError } = useSelector(
         state => state.newReview
     );
+
+    const {
+        loading: summaryLoading,
+        error: summaryError,
+        isSummarized,
+    } = useSelector(state => state.reviewSummary);
 
     const [progress, setProgress] = useState(0);
     const [quantity, setQuantity] = useState(1);
@@ -61,6 +72,10 @@ const ProductDetails = () => {
         if (1 >= quantity) return;
         const qty = quantity - 1;
         setQuantity(qty);
+    };
+
+    const generateSummaryHandler = () => {
+        dispatch(summarizeProductReviews(id));
     };
 
     const addToCartHandler = () => {
@@ -120,13 +135,55 @@ const ProductDetails = () => {
             toast.success('Review Added Successfully');
             dispatch({ type: NEW_REVIEW_RESET });
         }
+        if (isSummarized) {
+            toast.success('AI Summary Generated!');
+            dispatch({ type: SUMMARIZE_REVIEWS_RESET });
+        }
         dispatch(getProductDetails(id));
 
         return () => {
             isMounted = false;
             clearTimeout(timer);
         }
-    }, [dispatch, id, error, reviewError, success]);
+    }, [dispatch, id, error, reviewError, success, isSummarized]);
+
+    useEffect(() => {
+        const socket = io("http://localhost:4000");
+
+        socket.emit('joinProductRoom', id);
+
+        const handleProductUpdate = (updatedProduct) => {
+            console.log("Product update received:", updatedProduct);
+            toast.info("This product's details have been updated in real-time!");
+            dispatch({ 
+                type: REALTIME_PRODUCT_UPDATE,
+                payload: updatedProduct 
+            });
+        };
+
+        const handleReviewUpdate = (reviewData) => {
+            console.log("Review update received:", reviewData);
+            toast.info("A new review has been posted!");
+        };
+
+        const handleSummaryUpdate = (summary) => {
+            console.log("Summary update received:", summary);
+            toast.info("An AI summary has been generated for this product!");
+            dispatch(getProductDetails(id));
+        };
+
+        socket.on('productUpdate', handleProductUpdate);
+        socket.on('reviewUpdate', handleReviewUpdate);
+        socket.on('summaryUpdate', handleSummaryUpdate);
+
+        return () => {
+            socket.emit('leaveProductRoom', id);
+            socket.off('productUpdate', handleProductUpdate);
+            socket.off('reviewUpdate', handleReviewUpdate);
+            socket.off('summaryUpdate', handleSummaryUpdate);
+            socket.disconnect();
+        };
+    }, [dispatch, id]);
 
     return (
         <Fragment>
@@ -218,6 +275,27 @@ const ProductDetails = () => {
                     </div>
 
                     <h3 className='reviewsHeading'>REVIEWS</h3>
+
+                    {user && user.role === 'admin' && product.reviews && product.reviews.length > 2 && (
+                        <Button
+                            variant="contained"
+                            color="secondary"
+                            onClick={generateSummaryHandler}
+                            disabled={summaryLoading}
+                            startIcon={<AutoAwesomeIcon />}
+                        >
+                            {summaryLoading ? 'Generating...' : 'Generate AI Summary'}
+                        </Button>
+                    )}
+
+                    <div className="ai-summary-card">
+                        <div className="ai-summary-card-inner">
+                            <h3>🤖 AI-Powered Summary</h3>
+                            <div style={{ whiteSpace: 'pre-wrap', fontFamily: 'Roboto, sans-serif' }}>
+                                {product.aiSummary}
+                            </div>
+                        </div>
+                    </div>
 
                     <Dialog
                         aria-labelledby='simple-dialog-title'

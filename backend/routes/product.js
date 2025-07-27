@@ -8,7 +8,9 @@ const {
    deleteReview,
    addToWishList,
    removeFromWishList,
-   getAllWishlistProducts
+   getAllWishlistProducts,
+   summerizeProductReviews,
+   updateProduct
 } = require('../controllers/product');
 
 const { isAuthUser, authRoles } = require('../middleware/auth');
@@ -24,6 +26,8 @@ router
     .post(isAuthUser, addToWishList)
     .delete(isAuthUser, removeFromWishList);
 
+router.route('/admin/update/product/:id').put(isAuthUser, authRoles('admin'), updateProduct);
+
 router
     .route('/admin/products')
     .get(isAuthUser, authRoles('admin'), getAdminProducts);
@@ -37,5 +41,7 @@ router
     .get(getProductReviews);
 
 router.route('/review/:reviewId').delete(isAuthUser, deleteReview);
+
+router.route('/:id/summerize-reviews').post(isAuthUser, authRoles('admin'), summerizeProductReviews);
 
 module.exports = router;

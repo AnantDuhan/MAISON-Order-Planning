@@ -24,7 +24,8 @@ import {
     productsReducer,
     reviewReducer,
     wishlistReducer,
-    productsSearchReducer
+    productsSearchReducer,
+    summarizeReviewsReducer
 } from './reducers/productReducer';
 import {
     allUsersReducer,
@@ -50,6 +51,7 @@ const reducer = combineReducers({
     wishlist: wishlistReducer,
     // recommendedProducts: recommendedProductsReducer,
     productsSearch: productsSearchReducer,
+    reviewSummary: summarizeReviewsReducer,
 
     // user reducer
     user: userReducer,

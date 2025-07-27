@@ -222,6 +222,73 @@
   color: rgba(0, 0, 0, 0.548);
 }
 
+.reviewsHeadingContainer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 80%;
+    margin: 2vmax auto;
+    padding-bottom: 1vmax;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.226);
+}
+
+.ai-summary-card {
+  position: relative;
+  padding: 3px; /* This padding acts as the border thickness */
+  margin: 2rem auto;
+  width: 80%;
+  max-width: 700px;
+  border-radius: 12px;
+  overflow: hidden; /* Clips the rotating pseudo-element */
+  z-index: 1;
+}
+
+/* The animated, rotating gradient background */
+.ai-summary-card::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 150%; /* Larger than the parent to ensure full coverage during rotation */
+  height: 150%;
+  z-index: -1;
+  background: conic-gradient(
+    from 0deg,
+    #845EC2,
+    #D65DB1,
+    #FF6F91,
+    #FF9671,
+    #FFC75F,
+    #F9F871,
+    #845EC2 /* Loop back to the start color */
+  );
+  animation: rotateGradient 4s linear infinite;
+  transform: translate(-50%, -50%); /* Center the gradient */
+}
+
+.ai-summary-card-inner {
+  background-color: #ffffff;
+  padding: 1.5rem;
+  border-radius: 10px; /* Slightly smaller radius than the parent */
+}
+
+.ai-summary-card-inner h3 {
+  margin-top: 0;
+  color: #333;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+@keyframes rotateGradient {
+  from {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+
 @media screen and (max-width: 600px) {
   .ProductDetails {
     flex-direction: column;
