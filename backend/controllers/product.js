@@ -1,13 +1,19 @@
-const Product = require('../models/product');
-const User = require('../models/user');
-const ApiFeatures = require('../utils/apifeatures');
-const Snowflake = require('@theinternetfolks/snowflake');
+import Product from '../models/product.js';
+import User from '../models/user.js';
+import Review from '../models/review.js';
+import ApiFeatures from '../utils/apifeatures.js';
+import { Snowflake } from '@theinternetfolks/snowflake';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 const timestamp = Date.now();
 const timestampInSeconds = Math.floor(timestamp / 1000);
 
+const genAi = new GoogleGenerativeAI({
+    apiKey: process.env.GEMINI_API_KEY
+});
+
 // get all products
-exports.getAllProducts = async (req, res, next) => {
+export const getAllProducts = async (req, res, next) => {
 
     let products;
 
@@ -36,7 +42,7 @@ exports.getAllProducts = async (req, res, next) => {
 };
 
 // Get All Product (Admin)
-exports.getAdminProducts = async (req, res, next) => {
+export const getAdminProducts = async (req, res, next) => {
 
     const products = await Product.find();
 
@@ -47,7 +53,7 @@ exports.getAdminProducts = async (req, res, next) => {
 };
 
 // get product details
-exports.getProductDetails = async (req, res, next) => {
+export const getProductDetails = async (req, res, next) => {
 
     const product = await Product.findById(req.params.id);
 
@@ -65,7 +71,7 @@ exports.getProductDetails = async (req, res, next) => {
 };
 
 // create new review or update the review
-exports.createProductReview = async (req, res, next) => {
+export const createProductReview = async (req, res, next) => {
 
     let review;
     const { rating, comment, productId } = req.body;
@@ -115,7 +121,7 @@ exports.createProductReview = async (req, res, next) => {
     });
 };
 
-exports.getAllWishlistProducts = async (req, res) => {
+export const getAllWishlistProducts = async (req, res) => {
     try {
         // Find the current user
         const user = await User.findById(req.user._id).populate(
@@ -144,7 +150,7 @@ exports.getAllWishlistProducts = async (req, res) => {
     }
 };
 
-exports.addToWishList = async (req, res) => {
+export const addToWishList = async (req, res) => {
     try {
 
         const product = await Product.findById(req.params.id);
@@ -200,7 +206,7 @@ exports.addToWishList = async (req, res) => {
     }
 };
 
-exports.removeFromWishList = async (req, res) => {
+export const removeFromWishList = async (req, res) => {
     try {
         const product = await Product.findById(req.params.id);
 
@@ -243,7 +249,7 @@ exports.removeFromWishList = async (req, res) => {
 };
 
 // Get all reviews of a product
-exports.getProductReviews = async (req, res, next) => {
+export const getProductReviews = async (req, res, next) => {
     const productId = req.query.id;
     const product = await Product.findById(productId);
 
@@ -262,7 +268,7 @@ exports.getProductReviews = async (req, res, next) => {
     });
 };
 
-exports.deleteReview = async (req, res, next) => {
+export const deleteReview = async (req, res, next) => {
     const productId = req.query.id;
     const reviewId = req.params.reviewId;
 
@@ -313,5 +319,48 @@ exports.deleteReview = async (req, res, next) => {
         success: true,
         message: 'Review deleted successfully'
     });
+};
+
+export const summerizeProductReviews = async (req, res, next) => {
+    const product = await Product.findById(req.params.id);
+
+  if (!product) {
+    res.status(404);
+    throw new Error('Product not found');
+  }
+
+  // 1. Fetch all reviews for the product
+  const reviews = await Review.find({ product: product._id });
+
+  if (reviews.length < 3) {
+    res.status(400);
+    throw new Error('Not enough reviews to generate a summary.');
+  }
+
+  // 2. Concatenate review text
+  const reviewsText = reviews.map((r) => r.comment).join('\n');
+
+  // 3. Create the prompt for the AI
+  const prompt = `You are an e-commerce assistant. Based on the following customer reviews, generate a concise summary. The summary should be a string containing a 'Pros' list and a 'Cons' list, each with 2-3 bullet points. Use emojis like ✅ for pros and ⚠️ for cons.
+
+  Reviews:
+  ---
+  ${reviewsText}
+  ---
+  `;
+
+  // 4. Send the prompt to the Gemini API
+  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+  const result = await model.generateContent(prompt);
+  const summary = result.response.text();
+
+  // 5. Save the result to the product
+  product.aiSummary = summary;
+  await product.save();
+
+  res.status(201).json({
+    message: 'Summary generated successfully',
+    summary: product.aiSummary,
+  });
 };
 

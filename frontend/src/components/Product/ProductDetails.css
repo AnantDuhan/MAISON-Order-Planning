@@ -222,6 +222,40 @@
   color: rgba(0, 0, 0, 0.548);
 }
 
+.reviewsHeadingContainer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 80%;
+    margin: 2vmax auto;
+    padding-bottom: 1vmax;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.226);
+}
+
+.ai-summary-card {
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 1.5vmax;
+    margin: 2vmax auto;
+    width: 78%;
+    background-color: #f9f9ff;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.ai-summary-card h3 {
+    margin-top: 0;
+    color: #333;
+    display: flex;
+    align-items: center;
+    gap: 8px; 
+    font-family: "Roboto";
+}
+
+.ai-summary-card div {
+    line-height: 1.6;
+    color: #555;
+}
+
 @media screen and (max-width: 600px) {
   .ProductDetails {
     flex-direction: column;

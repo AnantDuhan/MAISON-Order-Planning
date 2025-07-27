@@ -39,6 +39,9 @@ import { ADD_PRODUCT_TO_WISHLIST_FAIL,
     SEARCH_PRODUCTS_REQUEST,
     SEARCH_PRODUCTS_SUCCESS,
     SEARCH_PRODUCTS_FAIL,
+    SUMMARIZE_REVIEWS_REQUEST,
+    SUMMARIZE_REVIEWS_SUCCESS,
+    SUMMARIZE_REVIEWS_FAIL,
     CLEAR_ERRORS
 } from '../constants/productConstants';
 
@@ -352,6 +355,36 @@ export const searchProducts = (keyword = '') => async (dispatch) => {
     } catch (error) {
         dispatch({
             type: SEARCH_PRODUCTS_FAIL,
+            payload: error.response.data.message,
+        });
+    }
+};
+
+export const summarizeProductReviews = (id) => async (dispatch) => {
+    try {
+        dispatch({ type: SUMMARIZE_REVIEWS_REQUEST });
+
+        // You might need to include the token for authentication
+        const config = {
+            headers: {
+                'Content-Type': 'application/json',
+                // Authorization: `Bearer ${token}` // If your route is protected
+            },
+        };
+
+        const { data } = await axios.post(
+            `/api/v1/products/${id}/summarize-reviews`,
+            {}, 
+            config
+        );
+
+        dispatch({
+            type: SUMMARIZE_REVIEWS_SUCCESS,
+            payload: data.success,
+        });
+    } catch (error) {
+        dispatch({
+            type: SUMMARIZE_REVIEWS_FAIL,
             payload: error.response.data.message,
         });
     }
