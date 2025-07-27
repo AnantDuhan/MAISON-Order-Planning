@@ -1,15 +1,31 @@
 .banner {
-  background-image: url("../../images/Macbook.jpeg");
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: cover;
-  height: 100vmin;
+  /* Remove the background image */
+  background: radial-gradient(#a39d58 0%, #ff7802 100%);
+  /* background-color: #f0f2f5; A light, clean background color */
+  height: 100vh; /* Changed to vh for full viewport height */
+  width: 100%;
   display: flex;
-  flex-direction: column;
-  text-align: center;
-  align-items: center;
   justify-content: center;
-  color: white;
+  align-items: center;
+  position: relative; /* Important for positioning the text overlay */
+  overflow: hidden; /* Ensures the canvas doesn't spill out */
+}
+
+/* This will ensure the canvas fills the banner div */
+.banner canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+
+/* This new container will center the text on top of the canvas */
+.banner-text {
+    position: relative; /* Ensures it sits on top of the canvas */
+    z-index: 10;
+    text-align: center;
+    color: white;
 }
 
 .banner span {
@@ -28,44 +44,18 @@
   object-fit: cover;
 }
 
-.banner>h1 {
-
+.banner-text > h1 {
   font: 500 4.4vmax "Gotham Black";
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
 }
 
-.banner>p {
+.banner-text > p {
   margin: 1vmax;
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
   font: 600 1.5vmax "Gotham";
 }
 
-.banner>a>button {
-  margin-bottom: 5vmax;
-  cursor: pointer;
-  border: 1px solid white;
-  border-radius: 0;
-  padding: 1vmax;
-  transition: all 0.5s;
-  width: 9vmax;
-  font: 500 1vmax "Roboto";
-}
-
-.banner>a>button:hover {
-  background-color: rgba(255, 255, 255, 0);
-  color: white;
-}
-
-/* .banner::after {
-  content: "";
-  width: 100vw;
-  height: 100vmin;
-  background-color: #ffffff;
-  position: absolute;
-  top: 0%;
-  left: 0;
-  max-width: 100%;
-} */
+/* --- Rest of your CSS remains the same --- */
 
 .homeHeading {
   text-align: center;
@@ -130,16 +120,13 @@
 
 .productCard:hover {
   box-shadow: 0 0 5px rgba(15, 15, 15, 0.26);
-
   transform: translateY(-1vmax);
 }
 
-/* Default styles for all screen sizes */
 .new-drop-container {
   display: flex;
   flex-wrap: wrap;
   gap: 20px;
-  /* Adjust the gap between products */
   justify-content: center;
   margin-top: 20px;
 }
@@ -147,9 +134,7 @@
 .shop-all-container {
   display: grid;
   grid-template-columns: repeat(2, 400px);
-  /* Create a 3x2 grid */
   grid-gap: 20px;
-  /* Adjust the gap between products */
   margin-top: 20px;
   justify-content: center;
 }
@@ -204,7 +189,6 @@
   background-color: #00008B;
 }
 
-/* Style for the Subscribe button */
 .subscribe-button {
   background-color: rgba(70, 117, 218, 0.932);
   color: white;
@@ -216,21 +200,14 @@
 
 .subscribe-button:hover {
   background-color: #ff6347;
-  /* Change the button color on hover to a lighter shade of rgba(70, 117, 218, 0.932) */
 }
 
-/* Media queries for responsiveness */
 @media screen and (max-width: 768px) {
-
-  /* Adjust styles for screens up to 768px wide */
   .new-drop-container {
     justify-content: flex-start;
-    /* Align items to the left */
   }
-
   .shop-all-container {
     grid-template-columns: repeat(2, 1fr);
-    /* 2x2 grid for smaller screens */
   }
 }
 
@@ -238,23 +215,18 @@
   .productCard>p {
     font-size: 1.7vmax;
   }
-
   .productCard>div {
     margin: 0vmax;
     display: block;
   }
-
   .productCard>span {
     font-size: 1.5vmax;
   }
-
   .productCard>div>span {
     margin: 0 0.5vmax;
     font: 300 1vmax "Roboto";
   }
-
   .shop-all-container {
     grid-template-columns: 1fr;
-    /* 1x1 grid for mobile */
   }
 }
