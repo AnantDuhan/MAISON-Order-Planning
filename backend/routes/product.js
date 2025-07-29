@@ -10,7 +10,9 @@ const {
    removeFromWishList,
    getAllWishlistProducts,
    summerizeProductReviews,
-   updateProduct
+   updateProduct,
+   searchProducts,
+   getAutocompleteSuggestions
 } = require('../controllers/product');
 
 const { isAuthUser, authRoles } = require('../middleware/auth');
@@ -43,5 +45,8 @@ router
 router.route('/review/:reviewId').delete(isAuthUser, deleteReview);
 
 router.route('/:id/summerize-reviews').post(isAuthUser, authRoles('admin'), summerizeProductReviews);
+
+router.route("/search").get(searchProducts);
+router.route("/autocomplete").get(getAutocompleteSuggestions);
 
 module.exports = router;

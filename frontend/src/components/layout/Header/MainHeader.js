@@ -6,12 +6,10 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import axios from 'axios'; // Import axios
 
 import { logout } from '../../../actions/userAction';
-
 import './MainHeader.css';
-// import { productsSearchReducer } from '../../../reducers/productReducer';
-import { searchProducts } from '../../../actions/productAction';
 
 const useDebounce = (value, delay) => {
     const [debouncedValue, setDebouncedValue] = useState(value);
@@ -26,13 +24,17 @@ const useDebounce = (value, delay) => {
     return debouncedValue;
 };
 
-const MainHeader =() => {
+const MainHeader = () => {
     const { isAuthenticated, user } = useSelector(state => state.user);
+    const { cartItems } = useSelector(state => state.cart);
+    const dispatch = useDispatch();
+    const navigate = useNavigate();
 
     const [keyword, setKeyword] = useState('');
-    const debouncedKeyword = useDebounce(keyword, 500);
+    const [suggestions, setSuggestions] = useState([]);
+    const [isSuggestionsVisible, setIsSuggestionsVisible] = useState(false);
 
-    const dispatch = useDispatch();
+    const debouncedKeyword = useDebounce(keyword, 300);
 
     const handleLogout = () => {
         dispatch(logout());
@@ -40,19 +42,42 @@ const MainHeader =() => {
         toast.success('Logout Successfully');
     };
 
-    const navigate = useNavigate();
-
-    const { cartItems } = useSelector(state => state.cart);
+    const handleDropDownSuggestionClick = (suggestion) => {
+        setKeyword(suggestion.name);
+        navigate(`/product/${suggestion._id}`);
+        setIsSuggestionsVisible(false);
+    };
 
     useEffect(() => {
-        if (debouncedKeyword.trim()) {
-            console.log(`✅ DISPATCHING SEARCH FOR: "${debouncedKeyword}"`);
-            dispatch(searchProducts(debouncedKeyword));
-            navigate(`products/search?keyword=${debouncedKeyword}`);
+        if (debouncedKeyword && typeof debouncedKeyword === 'string' && debouncedKeyword.trim() !== '') {
+            const fetchSuggestions = async () => {
+                try {
+                    const { data } = await axios.get(`/api/v1/autocomplete?keyword=${debouncedKeyword}`);
+                    setSuggestions(data.suggestions || []);
+                    setIsSuggestionsVisible(true);
+                } catch (error) {
+                    console.error("Error fetching suggestions:", error);
+                    setSuggestions([]);
+                }
+            };
+            fetchSuggestions();
         } else {
-            // navigate('/products');
+            setSuggestions([]);
+            setIsSuggestionsVisible(false);
         }
-    }, [debouncedKeyword, dispatch, navigate]);
+    }, [debouncedKeyword]);
+
+    const searchSubmitHandler = (e) => {
+        e.preventDefault();
+        console.log("Submitting search with keyword:", keyword); // Add this
+        if (keyword.trim()) {
+            console.log("Keyword is not empty, navigating..."); // Add this
+            navigate(`/search?keyword=${keyword}`);
+            setIsSuggestionsVisible(false);
+        } else {
+            console.log("Keyword is empty, navigation stopped."); // And this
+        }
+    };
 
     return (
         <nav className='nav'>
@@ -66,9 +91,6 @@ const MainHeader =() => {
                         />
                     </Link>
                 </div>
-                {/* <div className='toggle-collapse' onClick={toggleNav}>
-                    <p>Logo</p>
-                </div> */}
                 <div>
                     <div className='nav-items'>
                         {user?.role === 'admin' && (
@@ -92,30 +114,30 @@ const MainHeader =() => {
                 </div>
                 <div className='social'>
                     {/* Search Box */}
-                    {/* <form className='searchBox' onSubmit={searchSubmitHandler}>
+                    <form className='searchBox' onSubmit={searchSubmitHandler}>
                         <div className='searchContainer'>
                             <input
                                 type='text'
                                 placeholder='Search a Product...'
-                                onChange={e => setProduct(e.target.value)}
+                                value={keyword}
+                                onChange={(e) => setKeyword(e.target.value)}
+                                onFocus={() => setIsSuggestionsVisible(true)}
+                                onBlur={() => setTimeout(() => setIsSuggestionsVisible(false), 200)} 
                             />
-                            <FaSearch className='searchIcon' />
-                        </div>
-                    </form> */}
-
-                    <div className='social'>
-                        <form className='searchBox'>
-                            <div className='searchContainer'>
-                                <input
-                                    type='text'
-                                    placeholder='Search a Product...'
-                                    value={keyword}
-                                    onChange={e => setKeyword(e.target.value)}
-                                />
+                            <button type="submit" className="searchIcon-btn">
                                 <FaSearch className='searchIcon' />
-                            </div>
-                        </form>
-                    </div>
+                            </button>
+                        </div>
+                        {isSuggestionsVisible && suggestions.length > 0 && (
+                            <ul className="suggestions-dropdown">
+                                {suggestions.map((suggestion) => (
+                                    <li key={suggestion._id} onMouseDown={() => handleDropDownSuggestionClick(suggestion)}>
+                                        {suggestion.name}
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                    </form>
 
                     <Link to='/wishlist' className='nav-link'>
                         <div className='wishlist-container'>
@@ -138,12 +160,8 @@ const MainHeader =() => {
                         <div className='user-profile'>
                             <Link to='/account'>
                                 <img
-                                    src={
-                                        user?.avatar
-                                            ? user?.avatar
-                                            : '/Profile.png'
-                                    }
-                                    alt={`${user?.name}`}
+                                    src={user?.avatar?.url || user?.avatar || '/Profile.png'}
+                                    alt={user?.name}
                                     className='profile-photo'
                                 />
                             </Link>

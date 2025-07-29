@@ -5,13 +5,15 @@
     "main": "backend/server.js",
     "scripts": {
         "start": "node backend/server.js",
-        "dev": "nodemon backend/server.js --ignore frontend"
+        "dev": "nodemon backend/server.js --ignore frontend",
+        "sync": "node backend/config/sync-products.js"
     },
     "author": "Anant Duhan",
     "license": "ISC",
     "dependencies": {
         "@aws-sdk/client-s3": "^3.609.0",
         "@aws-sdk/s3-request-presigner": "^3.609.0",
+        "@elastic/elasticsearch": "^8.9.0",
         "@google/generative-ai": "^0.24.1",
         "@react-oauth/google": "^0.12.1",
         "@stripe/react-stripe-js": "^2.7.3",

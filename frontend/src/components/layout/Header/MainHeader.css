@@ -24,7 +24,6 @@ body {
     z-index: 100;
     box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
     transition: height 0.5s ease-in-out;
-
 }
 
 .nav-menu {
@@ -241,6 +240,40 @@ body {
     border-radius: 50%;
     padding: 4px 4px;
     font-size: 8px;
+}
+
+.searchBox {
+    display: flex;
+    align-items: center;
+    position: relative; /* <<< Add this line */
+}
+
+/* Ensure your dropdown has a background and border */
+.suggestions-dropdown {
+    position: absolute; 
+    top: 100%; /* Position it just below the parent */
+    left: 0;
+    /* Match the width of the input's container */
+    width: 310px; /* Adjust if necessary */
+    background-color: white;
+    color: black;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    list-style: none;
+    padding: 0;
+    margin: 1px 0 0 0;
+    z-index: 10;
+}
+
+/* Optional: Style for the list items */
+.suggestions-dropdown li {
+    padding: 8px 12px;
+    cursor: pointer;
+}
+
+.suggestions-dropdown li:hover {
+    background-color: rgba(70, 117, 218, 0.932);
+    color:white
 }
 
 @media (max-width: 768px) {

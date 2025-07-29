@@ -6,6 +6,8 @@ import { Snowflake } from '@theinternetfolks/snowflake';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import redisClientPromise from '../config/redisClient.js';
 import dotenv from 'dotenv';
+import { Client } from '@elastic/elasticsearch';
+const client = new Client({ node: 'http://localhost:9200' });
 
 dotenv.config({ path: '../config/config.env' });
 
@@ -486,5 +488,111 @@ export const summerizeProductReviews = async (req, res, next) => {
         success: true,
         message: 'Summary generated successfully',
         summary: product.aiSummary,
+    });
+};
+
+export const searchProducts = async (req, res, next) => {
+    const { keyword, category, price, ratings } = req.query;
+
+    const mustQueries = [];
+    if (keyword) {
+        mustQueries.push({
+            multi_match: {
+                query: keyword,
+                fields: ["name", "description"],
+                fuzziness: "AUTO"
+            }
+        });
+    }
+
+    const filterQueries = [];
+    if (category) {
+        filterQueries.push({ term: { category: category } });
+    }
+    if (price) {
+        filterQueries.push({
+            range: {
+                price: {
+                    gte: price.gte || 0,
+                    lte: price.lte || 1000000
+                }
+            }
+        });
+    }
+    if (ratings) {
+         filterQueries.push({
+            range: {
+                ratings: {
+                    gte: ratings.gte || 0
+                }
+            }
+        });
+    }
+
+    const body = await client.search({
+        index: 'products',
+        body: {
+            query: {
+                bool: {
+                    must: mustQueries,
+                    filter: filterQueries
+                }
+            },
+            // This is for faceted search (filter counts)
+            aggs: {
+                categories: {
+                    terms: {
+                        field: 'category'
+                    }
+                }
+            }
+        }
+    });
+
+    const productIds = body.hits.hits.map(hit => hit._id);
+    const products = await Product.find({ '_id': { $in: productIds } });
+
+    res.status(200).json({
+        success: true,
+        products,
+        facets: body.aggregations
+    });
+};
+
+export const getAutocompleteSuggestions = async (req, res, next) => {
+    const { keyword } = req.query;
+
+    if (!keyword) {
+        return res.status(200).json({ 
+            success: true, 
+            suggestions: [] 
+        });
+    }
+
+    const body = await client.search({
+        index: 'products',
+        body: {
+            query: {
+                multi_match: {
+                    query: keyword,
+                    type: "bool_prefix",
+                    fields: [
+                        "name",
+                        "name._2gram",
+                        "name._3gram"
+                    ]
+                }
+            }
+        }
+    });
+
+    const suggestions = body.hits.hits.map(hit => ({
+        name: hit._source.name,
+        _id: hit._id
+    }));
+    
+    res.status(200).json({
+        success: true,
+        suggestions,
     });
 };
