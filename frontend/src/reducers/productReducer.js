@@ -369,32 +369,32 @@ export const wishlistReducer = (state = initialState, action) => {
 //     }
 // };
 
-export const productsSearchReducer = (state = { products: [] }, action) => {
+export const searchResultsReducer = (state = { products: [], facets: {} }, action) => {
     switch (action.type) {
         case SEARCH_PRODUCTS_REQUEST:
             return {
                 loading: true,
-                products: [], 
+                products: [],
+                facets: {},
             };
-
         case SEARCH_PRODUCTS_SUCCESS:
             return {
                 loading: false,
                 products: action.payload.products,
+                facets: action.payload.facets,
             };
-
         case SEARCH_PRODUCTS_FAIL:
             return {
                 loading: false,
                 error: action.payload,
+                products: [],
+                facets: {},
             };
-
         case CLEAR_ERRORS:
             return {
                 ...state,
                 error: null,
             };
-
         default:
             return state;
     }

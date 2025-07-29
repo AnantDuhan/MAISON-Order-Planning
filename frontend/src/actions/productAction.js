@@ -334,28 +334,39 @@ export const removeProductFromWishlist = id => async dispatch => {
 //     }
 // };
 
-export const searchProducts = (keyword = '') => async (dispatch) => {
+export const searchProducts = (filters = {}) => async (dispatch) => {
     try {
         dispatch({ type: SEARCH_PRODUCTS_REQUEST });
-        if (!keyword) {
-            return dispatch({
-                type: SEARCH_PRODUCTS_FAIL,
-                payload: 'Search term is required'
-            });
-        }
-        let link = `/api/v1/products/search?keyword=${keyword}`;
 
-        const { data } = await axios.get(link);
+        // Destructure the filters with default values
+        const { keyword = '', price = {}, ratings = 0 } = filters;
+
+        // Use URLSearchParams to build the query string dynamically
+        const params = new URLSearchParams();
+
+        if (keyword) {
+            params.append('keyword', keyword);
+        }
+        if (price.lte) {
+            params.append('price[lte]', price.lte);
+        }
+        if (price.gte) {
+            params.append('price[gte]', price.gte);
+        }
+        if (ratings > 0) {
+            params.append('ratings[gte]', ratings);
+        }
+
+        const { data } = await axios.get(`/api/v1/search?${params.toString()}`);
 
         dispatch({
             type: SEARCH_PRODUCTS_SUCCESS,
-            payload: data, 
+            payload: data,
         });
-
     } catch (error) {
         dispatch({
             type: SEARCH_PRODUCTS_FAIL,
-            payload: error.response.data.message,
+            payload: error.response?.data?.message || 'An error occurred',
         });
     }
 };

@@ -1,12 +1,11 @@
 import { Fragment, useEffect, useState } from 'react';
-import Pagination from 'react-js-pagination';
 import { useDispatch, useSelector } from 'react-redux';
-// 1. Import useLocation to check the URL
-import { useLocation, useParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import LoadingBar from 'react-top-loading-bar';
+import { Typography, Slider } from '@mui/material';
 
-import { clearErrors, getProduct } from '../../actions/productAction';
+import { clearErrors, searchProducts } from '../../actions/productAction';
 import ProductCard from '../Home/ProductCard';
 import MetaData from '../layout/MetaData';
 
@@ -14,140 +13,98 @@ import './Products.css';
 
 const SearchResult = () => {
     const dispatch = useDispatch();
-    const location = useLocation(); // Get location object
+    const [searchParams] = useSearchParams();
+    const keyword = searchParams.get('keyword') || "";
 
-    // 2. Check if we are on the search results page
-    const isSearchPage = location.pathname === '/products/search';
-
-    const [currentPage, setCurrentPage] = useState(1);
-    const [price, setPrice] = useState([0, 40000]);
-    const [category, setCategory] = useState('');
+    const [category, setCategory] = useState("");
+    const [price, setPrice] = useState([0, 100000]);
     const [ratings, setRatings] = useState(0);
-    const [progress, setProgress] = useState(0);
 
-    const onLoaderFinished = () => setProgress(0);
-
-    const { keyword } = useParams();
-
-    // --- Data from Redux Store ---
-    // 3. Get data from BOTH state slices (for normal Browse and for search)
-    const {
-        products,
-        loading,
-        error,
-        productsCount,
-        resultPerPage,
-        filteredProductsCount
-    } = useSelector((state) => state.products);
-
-    const { products: searchResults, loading: searchLoading } = useSelector(
-        (state) => state.productsSearch
+    const { loading, error, products, facets } = useSelector(
+        (state) => state.searchResults
     );
-
-    // 4. Decide which products and loading state to use based on the page
-    const productsToDisplay = isSearchPage ? searchResults : products;
-    const isLoading = isSearchPage ? searchLoading : loading;
-
-    const setCurrentPageNo = (e) => {
-        setCurrentPage(e);
-    };
-
-    // const getUniqueCategories = (products) => {
-    //     if (!products) return [];
-    //     const categoriesSet = new Set();
-    //     products.forEach((product) => {
-    //         categoriesSet.add(product.category);
-    //     });
-    //     return Array.from(categoriesSet);
-    // };
-
-    // const priceHandler = (event, newPrice) => {
-    //     // ... (price handler logic remains the same)
-    // };
 
     useEffect(() => {
         if (error) {
             toast.error(error);
             dispatch(clearErrors());
         }
-        setProgress(100);
-        setTimeout(() => setProgress(0), 5000);
+        dispatch(searchProducts(keyword, category, price, ratings));
+    }, [dispatch, keyword, category, price, ratings, error]);
 
-        // 5. Only fetch general products if we are NOT on the search page
-        if (!isSearchPage) {
-            dispatch(getProduct(keyword, currentPage, price, category, ratings));
-        }
-    }, [
-        dispatch,
-        keyword,
-        currentPage,
-        price,
-        category,
-        ratings,
-        error,
-        isSearchPage
-    ]);
+    const categories = facets?.categories?.buckets || [];
 
-    let count = filteredProductsCount;
+    const priceHandler = (event, newPrice) => {
+        setPrice(newPrice);
+    };
 
     return (
         <Fragment>
-            {isLoading ? ( // 6. Use the combined loading state
-                (<LoadingBar
-                    color='red'
-                    progress={progress}
-                    onLoaderFinished={onLoaderFinished}
-                />)
+            {loading ? (
+                <LoadingBar color='red' progress={100} />
             ) : (
                 <Fragment>
-                    <MetaData title='PRODUCTS -- ECOMMERCE' />
-                    <h2 className='productsHeading'>
-                        {isSearchPage ? 'Search Results' : 'All Products'}
-                    </h2>
-                    <div className='products'>
-                        {/* 7. Render the correct set of products */}
-                        {productsToDisplay && productsToDisplay.length > 0 ? (
-                            productsToDisplay.map((product) => (
-                                <ProductCard
-                                    key={product._id}
-                                    product={product}
-                                />
-                            ))
-                        ) : (
-                            <p className='no-products-found'>
-                                {isSearchPage
-                                    ? 'No products found for your search.'
-                                    : 'No products available.'}
-                            </p>
-                        )}
-                    </div>
+                    <MetaData title={`Search Results for "${keyword}"`} />
+                    <h2 className='productsHeading'>Search Results</h2>
+                    
+                    <div className="search-page-container">
+                        {/* Filter Sidebar */}
+                        <div className="filterBox">
+                            <Typography>Categories</Typography>
+                            <ul className="categoryBox">
+                                {categories.map((cat) => (
+                                    <li
+                                        className="category-link"
+                                        key={cat.key}
+                                        onClick={() => setCategory(cat.key)}
+                                    >
+                                        {cat.key} ({cat.doc_count})
+                                    </li>
+                                ))}
+                            </ul>
 
-                    {!isSearchPage && (
-                        <Fragment>
-                            {resultPerPage < count && (
-                                <div className='paginationBox'>
-                                    {resultPerPage < count && (
-                                            <Pagination
-                                                activePage={currentPage}
-                                                itemsCountPerPage={resultPerPage}
-                                                totalItemsCount={productsCount}
-                                                onChange={setCurrentPageNo}
-                                                nextPageText='Next'
-                                                prevPageText='Prev'
-                                                firstPageText='1st'
-                                                lastPageText='Last'
-                                                itemClass='page-item'
-                                                linkClass='page-link'
-                                                activeClass='pageItemActive'
-                                                activeLinkClass='pageLinkActive'
-                                                hideFirstLastPages={true}
-                                                hidePrevNextPages={true}
-                                            />
-                                    )}
-                                </div>
+                            <fieldset className="filter-group">
+                                <Typography component="legend">Price</Typography>
+                                <Slider
+                                    value={price}
+                                    onChange={priceHandler}
+                                    valueLabelDisplay="auto"
+                                    aria-labelledby="range-slider"
+                                    min={0}
+                                    max={100000}
+                                />
+                            </fieldset>
+
+                            <fieldset className="filter-group">
+                                <Typography component="legend">Ratings Above</Typography>
+                                <Slider
+                                    value={ratings}
+                                    onChange={(e, newRating) => {
+                                        setRatings(newRating);
+                                    }}
+                                    aria-labelledby="continuous-slider"
+                                    valueLabelDisplay="auto"
+                                    min={0}
+                                    max={5}
+                                />
+                            </fieldset>
+                        </div>
+
+                        <div className='products'>
+                            {products && products.length > 0 ? (
+                                products.map((product) => (
+                                    <ProductCard
+                                        key={product._id}
+                                        product={product}
+                                    />
+                                ))
+                            ) : (
+                                <p className='no-products-found'>
+                                    No products found for your search.
+                                </p>
                             )}
-                        </Fragment>
-                    )}
+                        </div>
+                    </div>
                 </Fragment>
             )}
         </Fragment>
