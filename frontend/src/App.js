@@ -35,8 +35,6 @@ import ProductDetails from './components/Product/ProductDetails';
 import Products from './components/Product/Products';
 import SearchResult from './components/Product/SearchResult';
 import Wishlist from './components/Product/Wishlist';
-import PaymentPlusMembership from './components/Subscription/PaymentPlusMembership';
-import PlusMembership from './components/Subscription/PlusMembership';
 import ForgotPassword from './components/User/ForgotPassword';
 import LoginAndRegister from './components/User/LoginAndRegister';
 import Profile from './components/User/Profile';
@@ -124,10 +122,6 @@ function App() {
                         exact
                     />
                 )} */}
-
-                {/* Subscription Routes */}
-                {isAuthenticated && <Route path='/join/plus-membership' element={<PlusMembership />} exact />}
-                {isAuthenticated && <Route path='/join/plus-membership/:id/pay' element={<PaymentPlusMembership />} exact />}
 
                 {/* Admin Routes */}
                 {isAuthenticated && <Route path='/admin/dashboard' element={<Dashboard />} exact />}

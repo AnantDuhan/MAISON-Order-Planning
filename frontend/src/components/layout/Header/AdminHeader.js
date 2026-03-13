@@ -76,11 +76,11 @@ const AdminHeader = () => {
                             <Link to='/account'>
                                 <img
                                     src={
-                                        user.avatar
-                                            ? user.avatar
+                                        user?.avatar
+                                            ? user?.avatar
                                             : '/Profile.png'
                                     }
-                                    alt={`${user.name}`}
+                                    alt={`${user?.name}`}
                                     className='profile-photo'
                                 />
                             </Link>
@@ -96,12 +96,6 @@ const AdminHeader = () => {
                             Login
                         </Link>
                     )}
-                    <Link
-                        to='/join/plus-membership'
-                        className='platinum-btn'
-                    >
-                        Subscribe
-                    </Link>
                 </div>
             </div>
         </nav>

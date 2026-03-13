@@ -160,27 +160,45 @@ exports.myOrders = async (req, res, next) => {
     });
 };
 
-// get all orders --admin
 exports.getAllOrders = async (req, res, next) => {
-    let orders;
-    let totalAmount = 0;
+    try {
+        let orders;
+        let totalAmount = 0;
 
-    if (NodeCache.has('orders')) {
-        orders = JSON.parse(JSON.stringify(NodeCache.get('orders')));
-    } else {
-        orders = await Order.find();
-        NodeCache.set('orders', JSON.stringify(orders));
+        // 1. Check if it's in the cache
+        if (NodeCache.has('orders')) {
+            // Retrieve the array exactly as it was stored
+            // If you are using Redis instead of node-cache, change this line to: 
+            // orders = JSON.parse(NodeCache.get('orders'));
+            orders = NodeCache.get('orders'); 
+        } else {
+            // 2. If not in cache, get from DB
+            orders = await Order.find();
+            
+            // Save the raw array to the cache
+            NodeCache.set('orders', orders);
+        }
+
+        // 3. Calculate total amount safely
+        if (orders && Array.isArray(orders)) {
+            orders.forEach(order => {
+                totalAmount += order.totalPrice;
+            });
+        } else {
+            // Safety fallback if cache gets corrupted
+            orders = []; 
+        }
+
+        res.status(200).json({
+            success: true,
+            totalAmount,
+            orders
+        });
+        
+    } catch (error) {
+        console.error("Error fetching all orders:", error);
+        res.status(500).json({ success: false, message: "Server Error" });
     }
-
-    orders.forEach(order => {
-        totalAmount += order.totalPrice;
-    });
-
-    res.status(200).json({
-        success: true,
-        totalAmount,
-        orders
-    });
 };
 
 // update order status --admin

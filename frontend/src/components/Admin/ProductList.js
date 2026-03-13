@@ -84,14 +84,14 @@ const ProductList = () => {
                 return (
                     <Fragment>
                         <Link
-                            to={`/admin/product/${params.getValue(params.id, 'id')}`}
+                            to={`/admin/product/${params.row.id}`}
                         >
                             <EditIcon />
                         </Link>
 
                         <Button
                             onClick={() =>
-                                deleteProductHandler(params.getValue(params.id, 'id'))
+                                deleteProductHandler(params.row.id)
                             }
                         >
                             <DeleteIcon />

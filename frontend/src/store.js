@@ -37,7 +37,6 @@ import {
 import { couponReducer } from './reducers/couponReducer';
 import { contactReducer } from './reducers/contactReducer';
 import { subscribeReducer } from './reducers/subscribeReducer';
-import subscriptionReducer from './reducers/subscriptionReducer';
 
 const reducer = combineReducers({
     // product reducer
@@ -83,9 +82,6 @@ const reducer = combineReducers({
 
     // subscribe reducer
     subscribe: subscribeReducer,
-
-    // plus subscription reducer
-    plusSubscription: subscriptionReducer,
 });
 
 let initialState = {

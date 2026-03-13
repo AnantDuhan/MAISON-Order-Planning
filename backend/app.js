@@ -75,14 +75,12 @@ const userRoute = require('./routes/user');
 const orderRoute = require('./routes/order');
 const paymentRoute = require('./routes/payment');
 const couponRoute = require('./routes/coupon');
-const subscriptionRoute = require('./routes/plusMembership');
 
 app.use('/api/v1', productRoute);
 app.use('/api/v1', userRoute);
 app.use('/api/v1', orderRoute);
 app.use('/api/v1', paymentRoute);
 app.use('/api/v1', couponRoute);
-app.use('/api/v1', subscriptionRoute);
 
 // CORS
 app.use(async (req, res, next) => {

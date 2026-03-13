@@ -75,7 +75,7 @@ const MyOrders = () => {
             renderCell: params => {
                 return (
                     <div className='actions-container'>
-                        <Link onClick={() => setProgress(progress + 80)} to={`/order/${params.getValue(params.id, 'id')}`}>
+                        <Link onClick={() => setProgress(progress + 80)} to={`/order/${params.row.id}`}>
                             <LaunchIcon />
                         </Link>
                     </div>
@@ -110,7 +110,7 @@ const MyOrders = () => {
 
     return (
         <Fragment>
-            <MetaData title={`${user.name} - Orders`} />
+            <MetaData title={`${user?.name} - Orders`} />
             {loading ? (
                 <LoadingBar
                     color='red'
@@ -132,7 +132,7 @@ const MyOrders = () => {
                         />
                     </div>
                     <Typography id='myOrdersHeading'>
-                        {user.name}'s Orders
+                        {user?.name}'s Orders
                     </Typography>
                 </div>
             )}

@@ -91,8 +91,6 @@ const userSchema = new mongoose.Schema({
         }
     },
     stripeCustomerId: String,
-    plusSubscriptionId: String,
-    plusSubscriptionExpiry: Date,
     role: {
         type: String,
         default: 'user'

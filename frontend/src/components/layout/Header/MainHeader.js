@@ -177,9 +177,6 @@ const MainHeader = () => {
                             Login
                         </Link>
                     )}
-                    <Link to='/join/plus-membership' className='platinum-btn'>
-                        Subscribe
-                    </Link>
                 </div>
             </div>
         </nav>
