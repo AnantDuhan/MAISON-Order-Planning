@@ -283,11 +283,14 @@ export const loginWithGoogle = (googleToken) => async (dispatch) => {
     try {
         dispatch({ type: GOOGLE_LOGIN_REQUEST });
 
-        const config = { headers: { "Content-Type": "application/json" } };
+        const config = { 
+            headers: { "Content-Type": "application/json" },
+            credentials: true
+        };
 
         const { data } = await axios.post(
             `/api/v1/auth/google`,
-            { token: googleToken },
+            { idToken: googleToken },
             config
         );
 

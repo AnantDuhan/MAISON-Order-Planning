@@ -422,7 +422,7 @@ exports.googleLogin = async (req, res, next) => {
         });
 
         const payload = ticket.getPayload();
-        const { email, name, picture } = payload;
+        const { email, name, picture, sub: googleId } = payload;
 
         let user = await User.findOne({ email });
 
@@ -432,34 +432,34 @@ exports.googleLogin = async (req, res, next) => {
                 name,
                 email,
                 avatar: picture,
-                authProvider: 'google'
+                authProvider: 'google',
+                googleId
             });
         }
 
         let token = jwt.sign(
-            {
-                id: user._id,
-                name: user.name,
-                email: user.email,
-                avatar: user.avatar
-            },
-            process.env.JWT_SECRET_KEY
+            { id: user._id },
+            process.env.JWT_SECRET_KEY,
+            { expiresIn: '90d' }
         );
 
         const options = {
             expires: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
-            httpOnly: true
+            secure: process.env.NODE_ENV === 'production',
+            httpOnly: true,
+            sameSite: 'lax'
         };
 
         res.status(200).cookie('token', token, options).json({
             success: true,
-            user
+            user,
+            token
         });
     } catch (error) {
-        console.error('🔐 Google login error: ', error);
-        res.status(500).json({
+        console.error('🔐 Google login error: ', error.message);
+        res.status(401).json({
             success: false,
-            message: 'Internal Server Error'
+            message: 'Invalid or expired Google Token'
         });
     }
 };
