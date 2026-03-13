@@ -28,13 +28,6 @@ const userSchema = new mongoose.Schema({
         type: Number,
         unique: [true, 'This number is already in use by another account!']
     },
-    otp: {
-        code: {
-            type: Number,
-            select: false
-        },
-        expiry: Date
-    },
     authProvider: {
         type: String,
         enum: ['local', 'google'],

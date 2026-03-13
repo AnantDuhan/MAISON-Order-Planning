@@ -1,8 +1,5 @@
 const Contact = require('../../models/contact');
 const sendEmail = require('../../utils/sendEmail');
-const accountSid = process.env.ACCOUNT_SID;
-const authToken = process.env.AUTH_TOKEN;
-const client = require('twilio')(accountSid, authToken);
 
 exports.contactUs = async (req, res) => {
         const { name, email, subject, message } = req.body;
@@ -15,14 +12,6 @@ exports.contactUs = async (req, res) => {
         });
 
         await contact.save();
-
-        const whatsappMessage = `New contact form submission\n\nName: ${name}\nEmail: ${email}\nSubject: ${subject}\nMessage: ${message}`;
-
-        await client.messages.create({
-            body: whatsappMessage,
-            from: 'whatsapp:+14155238886',
-            to: `whatsapp:+918954838610`
-        });
 
         await sendEmail({
             email: 'duhananant@gmail.com',

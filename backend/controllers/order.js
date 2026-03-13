@@ -1,9 +1,6 @@
 const Order = require('../models/order');
 const Product = require('../models/product');
 const sendEmail = require('../utils/sendEmail');
-// const accountSid = process.env.ACCOUNT_SID;
-// const authToken = process.env.AUTH_TOKEN;
-// const client = require('twilio')(accountSid, authToken);
 const User = require('../models/user');
 const Coupon = require('../models/Coupon');
 const stripe = require('stripe')(
@@ -99,30 +96,6 @@ exports.newOrder = async (req, res, next) => {
         <p>Happy Shopping.😊</p>
     </body>
     </html>`;
-
-        // For WhatsApp, use the same message without HTML tags
-        //             const whatsappMessage = `Hello ${user.name}!\n
-        //    Your order📦 has been placed successfully. Your estimated Date of delivery is ${estimatedDeliveryDate.toDateString()}.\n
-        //    Your Order Details:
-        //    Order ID: ${order._id}
-        //    Items:
-        //       ${order.orderItems
-        //           .map(
-        //               item =>
-        //                   `${item.name} - Quantity: ${item.quantity} - Price: ₹${item.price}`
-        //           )
-        //           .join('\n')}
-        //    Total Price: ₹${order.totalPrice}
-
-        //    Thank you for ordering. For more please visit our website http://www.orderplanning.com.\n
-        //    Happy Shopping.😊`;
-
-        //             await client.messages.create({
-        //                 body: whatsappMessage,
-        //                 from: 'whatsapp:+14155238886',
-        //                 to: `whatsapp:+91${order.shippingInfo.phoneNumber}`,
-        //                 mediaUrl: [imageUrl]
-        //             });
 
         await sendEmail({
             email: user.email,
@@ -273,32 +246,6 @@ exports.updateOrder = async (req, res, next) => {
         <p>Happy Shopping.😊</p>
     </body>
     </html>`;
-
-        // For WhatsApp, use the same message without HTML tags
-        //     const whatsappMessage = `Hello ${user.name}!\n
-        // Your order📦 ${order._id} has been ${
-        //         order.orderStatus
-        //     }. Your estimated Date of delivery is ${estimatedDeliveryDate.toDateString()}.\n
-        // Your Order Details:
-        // Order ID: ${order._id}
-        // Items:
-        // ${order.orderItems
-        //     .map(
-        //         item =>
-        //             `${item.name} - Quantity: ${item.quantity} - Price: ₹${item.price}`
-        //     )
-        //     .join('\n')}
-        // Total Price: ₹${order.totalPrice}
-        // Thank you for ordering. For more please visit our website http://www.orderplanning.com.\n
-        // Happy Shopping.😊`;
-
-        //     await client.messages.create({
-        //         mediaUrl: [imageUrl],
-        //         body: whatsappMessage,
-        //         from: 'whatsapp:+14155238886',
-        //         to: `whatsapp:+91${order.shippingInfo.phoneNumber}`
-        //     });
-
         await sendEmail({
             email: user.email,
             subject: `Your Order📦 Status Update: ${order.orderStatus}`,

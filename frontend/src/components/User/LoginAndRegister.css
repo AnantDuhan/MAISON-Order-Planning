@@ -277,23 +277,6 @@
     text-decoration: underline;
 }
 
-.resend-otp-container {
-    margin-top: 1.5vmax;
-    text-align: center;
-    font: 400 0.8vmax "Roboto";
-    color: rgba(0, 0, 0, 0.6);
-}
-
-.resend-otp-button {
-    color: rgba(70, 117, 218, 0.932);
-    cursor: pointer;
-    transition: all 0.3s;
-}
-
-.resend-otp-button:hover {
-    text-decoration: underline;
-}
-
 @media screen and (max-width: 600px) {
     .LoginSignUpContainer {
         background-color: white;

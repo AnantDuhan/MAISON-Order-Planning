@@ -41,32 +41,14 @@ import {
     GOOGLE_LOGIN_REQUEST,
     GOOGLE_LOGIN_SUCCESS,
     GOOGLE_LOGIN_FAIL,
-    OTP_SEND_REQUEST,
-    OTP_SEND_SUCCESS,
-    OTP_SEND_FAIL,
-    OTP_LOGIN_REQUEST,
-    OTP_LOGIN_SUCCESS,
-    OTP_LOGIN_FAIL,
-    LOGIN_2FA_REQUIRED,
     CLEAR_ERRORS,
 } from '../constants/userConstants';
 export const userReducer = (state = { user: {} }, action) => {
     switch (action.type) {
-        case LOGIN_2FA_REQUIRED:
-            return {
-                ...state,
-                loading: false,
-                isAuthenticated: false,
-                twoFactorRequired: true,
-                userIdFor2fa: action.payload.userId,
-            };
-
         case LOGIN_REQUEST:
         case REGISTER_USER_REQUEST:
         case LOAD_USER_REQUEST:
         case GOOGLE_LOGIN_REQUEST:
-        case OTP_LOGIN_REQUEST: 
-        case OTP_SEND_REQUEST:  
             return {
                 loading: true,
                 isAuthenticated: false,
@@ -78,7 +60,6 @@ export const userReducer = (state = { user: {} }, action) => {
         case REGISTER_USER_SUCCESS:
         case LOAD_USER_SUCCESS:
         case GOOGLE_LOGIN_SUCCESS:
-        case OTP_LOGIN_SUCCESS: 
             return {
                 ...state,
                 loading: false,
@@ -86,19 +67,10 @@ export const userReducer = (state = { user: {} }, action) => {
                 user: action.payload.user,
             };
 
-        case OTP_SEND_SUCCESS:
-            return {
-                ...state,
-                loading: false,
-                message: action.payload,
-            };
-
         // ...
         case LOGIN_FAIL:
         case REGISTER_USER_FAIL:
         case GOOGLE_LOGIN_FAIL:
-        case OTP_LOGIN_FAIL: 
-        case OTP_SEND_FAIL:  
             return {
                 ...state,
                 loading: false,

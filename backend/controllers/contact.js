@@ -2,10 +2,7 @@ const Contact = require('../models/contact');
 const sendEmail = require('../utils/sendEmail');
 const accountSid = process.env.ACCOUNT_SID;
 const authToken = process.env.AUTH_TOKEN;
-const twilio = require('twilio');
 const Snowflake = require('@theinternetfolks/snowflake');
-
-const client = new twilio(accountSid, authToken, { username: 'AnantDuhan' });
 
 const timestamp = Date.now();
 const timestampInSeconds = Math.floor(timestamp / 1000);
@@ -25,14 +22,6 @@ exports.contactUs = async (req, res) => {
         });
 
         await contact.save();
-
-        const whatsappMessage = `New contact form submission\n\nName: ${name}\nEmail: ${email}\nSubject: ${subject}\nMessage: ${message}`;
-
-        await client.messages.create({
-            body: whatsappMessage,
-            from: 'whatsapp:+14155238886',
-            to: `whatsapp:+918954838610`,
-        });
 
         await sendEmail({
             email: 'duhananant@gmail.com',

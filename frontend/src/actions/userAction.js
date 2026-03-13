@@ -37,13 +37,6 @@ import {
     GOOGLE_LOGIN_REQUEST,
     GOOGLE_LOGIN_SUCCESS,
     GOOGLE_LOGIN_FAIL,
-    OTP_SEND_REQUEST,
-    OTP_SEND_SUCCESS,
-    OTP_SEND_FAIL,
-    OTP_LOGIN_REQUEST,
-    OTP_LOGIN_SUCCESS,
-    OTP_LOGIN_FAIL,
-    LOGIN_2FA_REQUIRED,
     CLEAR_ERRORS,
 } from '../constants/userConstants';
 import axios from 'axios';
@@ -62,12 +55,8 @@ export const login = (email, password) => async (dispatch) => {
             { config }
         );
 
-        if (data.twoFactorRequired) {
-            dispatch({ type: LOGIN_2FA_REQUIRED, payload: { userId: data.userId } });
-        } else {
-            dispatch({ type: LOGIN_SUCCESS, payload: data.user });
-            localStorage.setItem('authToken', data.token);
-        }
+        dispatch({ type: LOGIN_SUCCESS, payload: data.user });
+        localStorage.setItem('authToken', data.token);
 
     } catch (error) {
         dispatch({ type: LOGIN_FAIL, payload: error.response.data.message });
@@ -301,30 +290,6 @@ export const loginWithGoogle = (googleToken) => async (dispatch) => {
             type: GOOGLE_LOGIN_FAIL,
             payload: error.response.data.message,
         });
-    }
-};
-
-// Send Login OTP
-export const sendOtp = (whatsappNumber) => async (dispatch) => {
-    try {
-        dispatch({ type: OTP_SEND_REQUEST });
-        const config = { headers: { "Content-Type": "application/json" } };
-        const { data } = await axios.post(`/api/v1/otp/send`, { whatsappNumber }, config);
-        dispatch({ type: OTP_SEND_SUCCESS, payload: data.message });
-    } catch (error) {
-        dispatch({ type: OTP_SEND_FAIL, payload: error.response.data.message });
-    }
-};
-
-// Verify Login OTP
-export const loginWithOtp = (whatsappNumber, otp) => async (dispatch) => {
-    try {
-        dispatch({ type: OTP_LOGIN_REQUEST });
-        const config = { headers: { "Content-Type": "application/json" } };
-        const { data } = await axios.post(`/api/v1/otp/verify`, { whatsappNumber, otp }, config);
-        dispatch({ type: OTP_LOGIN_SUCCESS, payload: data });
-    } catch (error) {
-        dispatch({ type: OTP_LOGIN_FAIL, payload: error.response.data.message });
     }
 };
 
