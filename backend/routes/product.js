@@ -19,6 +19,8 @@ const { isAuthUser, authRoles } = require('../middleware/auth');
 
 const router = express.Router();
 
+router.get('/products/autocomplete', getAutocompleteSuggestions);
+
 router.route('/products').get(getAllProducts);
 
 router.route('/wishlist').get(isAuthUser, getAllWishlistProducts);
@@ -47,6 +49,5 @@ router.route('/review/:reviewId').delete(isAuthUser, deleteReview);
 router.route('/:id/summerize-reviews').post(isAuthUser, authRoles('admin'), summerizeProductReviews);
 
 router.route("/search").get(searchProducts);
-router.route("/autocomplete").get(getAutocompleteSuggestions);
 
 module.exports = router;

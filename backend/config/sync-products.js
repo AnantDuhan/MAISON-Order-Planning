@@ -6,18 +6,14 @@ import mongoose from 'mongoose';
 // Correctly point to your main config file
 dotenv.config({ path: 'backend/config/config.env' });
 
-const client = new Client({ node: process.env.ELASTICSEARCH_HOST || 'http://localhost:9200' });
+// const client = new Client({ node: process.env.ELASTICSEARCH_HOST || 'http://localhost:9200' });
+const client = new Client({ node: 'http://localhost:9200' });
 const indexName = 'products';
 
 const syncProducts = async () => {
     try {
-        mongoose
-                .connect(process.env.DB_HOSTED_URI)
-                .then(data => {
-                    console.log(
-                        `🚀🚀 MongoDB connected with server: ${data.connection.host}`
-                    );
-                });
+        const dbConnection = await mongoose.connect(process.env.DB_HOSTED_URI || "mongodb+srv://duhananant:Deepu0600@ecommerce.iutjhpe.mongodb.net/");
+        console.log(`🚀🚀 MongoDB connected with server: ${dbConnection.connection.host}`);
         console.log('Database connected for sync.');
 
         const indexExists = await client.indices.exists({ index: indexName });
@@ -28,17 +24,15 @@ const syncProducts = async () => {
 
         await client.indices.create({
             index: indexName,
-            body: {
-                mappings: {
-                    properties: {
-                        name: { type: 'search_as_you_type' }, // Optimized for autocomplete
-                        description: { type: 'text' },
-                        category: { type: 'keyword' },
-                        ratings: { type: 'float' },
-                        price: { type: 'float' },
-                    },
-                },
-            },
+            mappings: {
+                properties: {
+                    name: { type: 'search_as_you_type' }, 
+                    description: { type: 'text' },
+                    category: { type: 'keyword' },
+                    ratings: { type: 'float' },
+                    price: { type: 'float' },
+                }
+            }
         });
         console.log(`Index '${indexName}' created.`);
 
@@ -61,10 +55,8 @@ const syncProducts = async () => {
             }
         ]);
 
-        const bulkResponse = await client.bulk({ refresh: true, body: operations });
+        const bulkResponse = await client.bulk({ refresh: true, operations: operations });
 
-        // --- THIS IS THE FIX ---
-        // More robust error handling for the bulk response
         if (bulkResponse.errors) {
             const erroredDocuments = [];
             bulkResponse.items.forEach((action, i) => {
@@ -84,7 +76,17 @@ const syncProducts = async () => {
         }
 
     } catch (error) {
-        console.error('Error during product sync:', error);
+        if (error.meta && error.meta.body && error.meta.body.error.type === 'index_not_found_exception') {
+            console.warn("⚠️ Elasticsearch 'products' index is missing. Please run the sync script.");
+
+            return res.status(200).json({ 
+                success: true, 
+                products: [], 
+                productCount: 0 
+            });
+        }
+        console.error('Elasticsearch Search Error:', error);
+        res.status(500).json({ success: false, message: 'Search failed' });
     } finally {
         // Mongoose connection might keep the script alive, so we exit explicitly
         process.exit(0);

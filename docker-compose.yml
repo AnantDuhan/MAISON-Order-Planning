@@ -9,7 +9,7 @@ services:
       - PORT=4000
       - JWT_SECRET=5ygV>@]K-H(#\nP*$5;.H6{|v<bzsn6Vwe`EQ3)T8mvK6(x2F9
       - JWT_EXPIRE=5d
-      - ELASTICSEARCH_HOST=http://elasticsearch:9200
+      - ELASTICSEARCH_HOST=http://localhost:9200
       - REDIS_HOST=127.0.0.1
       - REDIS_PORT=6379
     depends_on:

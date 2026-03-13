@@ -559,40 +559,43 @@ export const searchProducts = async (req, res, next) => {
     });
 };
 
-export const getAutocompleteSuggestions = async (req, res, next) => {
-    const { keyword } = req.query;
+export const getAutocompleteSuggestions = async (req, res) => {
+    try {
+        const { query } = req.query;
 
-    if (!keyword) {
-        return res.status(200).json({ 
-            success: true, 
-            suggestions: [] 
-        });
-    }
+        if (!query) {
+            return res.status(400).json({ success: false, data: [] });
+        }
 
-    const body = await client.search({
-        index: 'products',
-        body: {
+        const result = await client.search({
+            index: 'products',
             query: {
                 multi_match: {
-                    query: keyword,
-                    type: "bool_prefix",
+                    query: query,
+                    type: "bool_prefix", 
                     fields: [
                         "name",
                         "name._2gram",
                         "name._3gram"
                     ]
                 }
-            }
-        }
-    });
+            },
+            size: 5
+        });
 
-    const suggestions = body.hits.hits.map(hit => ({
-        name: hit._source.name,
-        _id: hit._id
-    }));
-    
-    res.status(200).json({
-        success: true,
-        suggestions,
-    });
+        const suggestions = result.hits.hits.map(hit => ({
+            id: hit._id,
+            name: hit._source.name,
+            price: hit._source.price
+        }));
+
+        res.status(200).json({
+            success: true,
+            data: suggestions
+        });
+
+    } catch (error) {
+        console.error('Elasticsearch Query Error:', error);
+        res.status(500).json({ success: false, message: 'Search failed' });
+    }
 };

@@ -44,7 +44,7 @@ const MainHeader = () => {
 
     const handleDropDownSuggestionClick = (suggestion) => {
         setKeyword(suggestion.name);
-        navigate(`/product/${suggestion._id}`);
+        navigate(`/product/${suggestion.id}`);
         setIsSuggestionsVisible(false);
     };
 
@@ -52,8 +52,8 @@ const MainHeader = () => {
         if (debouncedKeyword && typeof debouncedKeyword === 'string' && debouncedKeyword.trim() !== '') {
             const fetchSuggestions = async () => {
                 try {
-                    const { data } = await axios.get(`/api/v1/autocomplete?keyword=${debouncedKeyword}`);
-                    setSuggestions(data.suggestions || []);
+                    const { data } = await axios.get(`/api/v1/products/autocomplete?query=${debouncedKeyword}`);
+                    setSuggestions(data.data || []);
                     setIsSuggestionsVisible(true);
                 } catch (error) {
                     console.error("Error fetching suggestions:", error);
@@ -131,7 +131,7 @@ const MainHeader = () => {
                         {isSuggestionsVisible && suggestions.length > 0 && (
                             <ul className="suggestions-dropdown">
                                 {suggestions.map((suggestion) => (
-                                    <li key={suggestion._id} onMouseDown={() => handleDropDownSuggestionClick(suggestion)}>
+                                    <li key={suggestion.id} onMouseDown={() => handleDropDownSuggestionClick(suggestion)}>
                                         {suggestion.name}
                                     </li>
                                 ))}
