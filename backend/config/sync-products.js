@@ -12,7 +12,7 @@ const indexName = 'products';
 
 const syncProducts = async () => {
     try {
-        const dbConnection = await mongoose.connect(process.env.DB_HOSTED_URI || "mongodb+srv://duhananant:Deepu0600@ecommerce.iutjhpe.mongodb.net/");
+        const dbConnection = await mongoose.connect(process.env.DB_HOSTED_URI || "mongodb+srv://duhananant:<password>@ecommerce.iutjhpe.mongodb.net/");
         console.log(`🚀🚀 MongoDB connected with server: ${dbConnection.connection.host}`);
         console.log('Database connected for sync.');
 
