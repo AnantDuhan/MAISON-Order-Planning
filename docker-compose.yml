@@ -10,6 +10,8 @@ services:
       - JWT_SECRET=5ygV>@]K-H(#\nP*$5;.H6{|v<bzsn6Vwe`EQ3)T8mvK6(x2F9
       - JWT_EXPIRE=5d
       - ELASTICSEARCH_HOST=http://elasticsearch:9200
+      - REDIS_HOST=127.0.0.1
+      - REDIS_PORT=6379
     depends_on:
       mongo:
         condition: service_healthy
@@ -50,9 +52,25 @@ services:
       retries: 5
       start_period: 40s
     restart: unless-stopped
+  
+  redis:
+    image: redis:alpine
+    container_name: my_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
 
 volumes:
   mongo-data:
     driver: local
   elasticsearch-data:
+    driver: local
+  redis-data:
     driver: local

@@ -1,0 +1,30 @@
+services:
+  # 1. The Node.js Backend
+  - type: web
+    name: my-backend-api
+    env: node
+    plan: free
+    region: singapore # Closest free region to India
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: 20.0.0
+      - key: MONGODB_URI
+        sync: false # Set this manually in Render Dashboard for security
+      - key: REDIS_URL
+        fromService:
+          type: pvt
+          name: my-redis
+          property: host
+
+  # 2. The Redis Instance (Private Service)
+  - type: pvt
+    name: my-redis
+    env: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./redis.Dockerfile # We will create this below
+    ports:
+      - port: 6379
+        protocol: TCP
