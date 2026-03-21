@@ -45,6 +45,7 @@ import store from './store';
 
 import './App.css';
 import Payment from './components/Cart/Payment';
+import BackendWaker from './components/layout/Server-Health/BackendWaker';
 
 function App() {
     const { isAuthenticated } = useSelector(state => state.user);
@@ -78,62 +79,64 @@ function App() {
 
     return (
         <Fragment>
-            {!isAdminRoute && <MainHeader />}
-            {isAdminRoute && <AdminHeader />}
+            <BackendWaker>
+                {!isAdminRoute && <MainHeader />}
+                {isAdminRoute && <AdminHeader />}
 
-            <Routes>
-                {/* General Routes */}
-                <Route path='/' element={<Home />} exact />
-                <Route path='/product/:id' element={<ProductDetails />} exact />
-                <Route path='/products' element={<Products />} exact />
-                <Route path='/products/:keyword' element={<Products />} exact />
-                <Route path='/search' element={<SearchResult />} />
-                <Route path='/about' element={<About />} exact />
-                <Route path='/contact-us' element={<Contact />} exact />
-                <Route path='/cart' element={<Cart />} exact />
+                <Routes>
+                    {/* General Routes */}
+                    <Route path='/' element={<Home />} exact />
+                    <Route path='/product/:id' element={<ProductDetails />} exact />
+                    <Route path='/products' element={<Products />} exact />
+                    <Route path='/products/:keyword' element={<Products />} exact />
+                    <Route path='/search' element={<SearchResult />} />
+                    <Route path='/about' element={<About />} exact />
+                    <Route path='/contact-us' element={<Contact />} exact />
+                    <Route path='/cart' element={<Cart />} exact />
 
-                {/* Auth Routes */}
-                <Route path='/login' element={<LoginAndRegister />} exact />
-                <Route path='/password/forgot' element={<ForgotPassword />} exact />
-                <Route path='/password/reset/:token' element={<ResetPassword />} exact />
+                    {/* Auth Routes */}
+                    <Route path='/login' element={<LoginAndRegister />} exact />
+                    <Route path='/password/forgot' element={<ForgotPassword />} exact />
+                    <Route path='/password/reset/:token' element={<ResetPassword />} exact />
 
-                {/* Authenticated User Routes */}
-                {isAuthenticated && <Route path='/account' element={<Profile />} exact />}
-                {isAuthenticated && <Route path='/me/update' element={<UpdateProfile />} exact />}
-                {isAuthenticated && <Route path='/password/update' element={<UpdatePassword />} exact />}
-                {isAuthenticated && <Route path='/shipping' element={<Shipping />} exact />}
-                {isAuthenticated && <Route path='/order/confirm' element={<ConfirmOrder />} exact />}
-                {isAuthenticated && <Route path='/success' element={<OrderSuccess />} exact />}
-                {isAuthenticated && <Route path='/orders' element={<MyOrders />} exact />}
-                {isAuthenticated && <Route path='/order/:id' element={<OrderDetails />} exact />}
-                {isAuthenticated && <Route path='/order/:id/return' element={<ReturnRequest />} exact />}
-                {isAuthenticated && <Route path='/wishlist' element={<Wishlist />} exact />}
-                
-                {/* Payment Route with Razorpay Wrapper */}
-                {isAuthenticated && (
-                    <Route
-                        path='/payment'
-                        element={<Payment />}
-                        exact
-                    />
-                )}
+                    {/* Authenticated User Routes */}
+                    {isAuthenticated && <Route path='/account' element={<Profile />} exact />}
+                    {isAuthenticated && <Route path='/me/update' element={<UpdateProfile />} exact />}
+                    {isAuthenticated && <Route path='/password/update' element={<UpdatePassword />} exact />}
+                    {isAuthenticated && <Route path='/shipping' element={<Shipping />} exact />}
+                    {isAuthenticated && <Route path='/order/confirm' element={<ConfirmOrder />} exact />}
+                    {isAuthenticated && <Route path='/success' element={<OrderSuccess />} exact />}
+                    {isAuthenticated && <Route path='/orders' element={<MyOrders />} exact />}
+                    {isAuthenticated && <Route path='/order/:id' element={<OrderDetails />} exact />}
+                    {isAuthenticated && <Route path='/order/:id/return' element={<ReturnRequest />} exact />}
+                    {isAuthenticated && <Route path='/wishlist' element={<Wishlist />} exact />}
+                    
+                    {/* Payment Route with Razorpay Wrapper */}
+                    {isAuthenticated && (
+                        <Route
+                            path='/payment'
+                            element={<Payment />}
+                            exact
+                        />
+                    )}
 
-                {/* Admin Routes */}
-                {isAuthenticated && <Route path='/admin/dashboard' element={<Dashboard />} exact />}
-                {isAuthenticated && <Route path='/admin/products' element={<ProductList />} exact />}
-                {isAuthenticated && <Route path='/admin/add-product' element={<NewProduct />} exact />}
-                {isAuthenticated && <Route path='/admin/product/:id' element={<UpdateProduct />} exact />}
-                {isAuthenticated && <Route path='/admin/orders' element={<OrderList />} exact />}
-                {isAuthenticated && <Route path='/admin/order/:id' element={<ProcessOrder />} exact />}
-                {isAuthenticated && <Route path='/admin/users' element={<UsersList />} exact />}
-                {isAuthenticated && <Route path='/admin/user/:id' element={<UpdateUser />} exact />}
-                {isAuthenticated && <Route path='/admin/reviews' element={<ProductReviews />} exact />}
-                {isAuthenticated && <Route path='/admin/returns' element={<ReturnList />} exact />}
-                {isAuthenticated && <Route path='/admin/refunds' element={<RefundList />} exact />}
+                    {/* Admin Routes */}
+                    {isAuthenticated && <Route path='/admin/dashboard' element={<Dashboard />} exact />}
+                    {isAuthenticated && <Route path='/admin/products' element={<ProductList />} exact />}
+                    {isAuthenticated && <Route path='/admin/add-product' element={<NewProduct />} exact />}
+                    {isAuthenticated && <Route path='/admin/product/:id' element={<UpdateProduct />} exact />}
+                    {isAuthenticated && <Route path='/admin/orders' element={<OrderList />} exact />}
+                    {isAuthenticated && <Route path='/admin/order/:id' element={<ProcessOrder />} exact />}
+                    {isAuthenticated && <Route path='/admin/users' element={<UsersList />} exact />}
+                    {isAuthenticated && <Route path='/admin/user/:id' element={<UpdateUser />} exact />}
+                    {isAuthenticated && <Route path='/admin/reviews' element={<ProductReviews />} exact />}
+                    {isAuthenticated && <Route path='/admin/returns' element={<ReturnList />} exact />}
+                    {isAuthenticated && <Route path='/admin/refunds' element={<RefundList />} exact />}
 
-                {/* Catch-all Not Found Route - MUST BE LAST */}
-                <Route path='*' element={<NotFound />} />
-            </Routes>
+                    {/* Catch-all Not Found Route - MUST BE LAST */}
+                    <Route path='*' element={<NotFound />} />
+                </Routes>
+            </BackendWaker>
         </Fragment>
     );
 }
