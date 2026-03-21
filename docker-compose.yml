@@ -9,9 +9,8 @@ services:
       - PORT=4000
       - JWT_SECRET=5ygV>@]K-H(#\nP*$5;.H6{|v<bzsn6Vwe`EQ3)T8mvK6(x2F9
       - JWT_EXPIRE=5d
-      - ELASTICSEARCH_HOST=http://localhost:9200
-      - REDIS_HOST=127.0.0.1
-      - REDIS_PORT=6379
+      - ELASTICSEARCH_HOST=https://493efdd9d4:3448d7567fef4dd1ceb7@order-planning-elast-1n7n3dv0.us-east-1.bonsaisearch.net
+      - REDIS_HOSTED_URL=redis://default:gQAAAAAAATdsAAIncDFhYWRlYjYwYjQyOGE0ZWE1YjUyM2YwMGI5MDAzNWIxY3AxNzk3MjQ@true-squirrel-79724.upstash.io:6379
     depends_on:
       mongo:
         condition: service_healthy
@@ -46,7 +45,7 @@ services:
     volumes:
       - elasticsearch-data:/usr/share/elasticsearch/data
     healthcheck:
-      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -vq '\"status\":\"red\"'"]
+      test: ["CMD-SHELL", "curl -s https://493efdd9d4:3448d7567fef4dd1ceb7@order-planning-elast-1n7n3dv0.us-east-1.bonsaisearch.net/_cluster/health | grep -vq '\"status\":\"red\"'"]
       interval: 10s
       timeout: 10s
       retries: 5

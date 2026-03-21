@@ -6,8 +6,8 @@ import mongoose from 'mongoose';
 // Correctly point to your main config file
 dotenv.config({ path: 'backend/config/config.env' });
 
-// const client = new Client({ node: process.env.ELASTICSEARCH_HOST || 'http://localhost:9200' });
-const client = new Client({ node: 'http://localhost:9200' });
+const client = new Client({ node: process.env.ELASTICSEARCH_HOST || 'http://localhost:9200' });
+// const client = new Client({ node: 'http://localhost:9200' });
 const indexName = 'products';
 
 const syncProducts = async () => {
@@ -33,7 +33,7 @@ const syncProducts = async () => {
                     price: { type: 'float' },
                     "embedding": {
                         "type": "dense_vector",
-                        "dims": 3072,
+                        "dims": 1024,
                         "index": true,
                         "similarity": "cosine" 
                     }
