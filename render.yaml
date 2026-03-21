@@ -1,30 +1,77 @@
-services:
-  # 1. The Node.js Backend
-  - type: web
-    name: my-backend-api
-    env: docker
-    plan: free
-    region: singapore # Closest free region to India
-    buildCommand: npm install
-    startCommand: npm start
-    envVars:
-      - key: NODE_VERSION
-        value: 20.0.0
-      - key: MONGODB_URI
-        sync: false # Set this manually in Render Dashboard for security
-      - key: REDIS_URL
-        fromService:
-          type: pvt
-          name: my-redis
-          property: host
-
-  # 2. The Redis Instance (Private Service)
-  - type: pvt
-    name: my-redis
-    env: docker
-    plan: free
-    region: singapore
-    dockerfilePath: ./redis.Dockerfile # We will create this below
-    ports:
-      - port: 6379
-        protocol: TCP
+version: "1"
+projects:
+- name: Order Planning
+  environments:
+  - name: Production
+    services:
+    - type: web
+      name: Order Planning
+      runtime: docker
+      dockerfilePath: ./Dockerfile
+      repo: https://github.com/AnantDuhan/MERN-Ecommerce
+      plan: free
+      envVars:
+      - key: config.env
+        sync: false
+      - key: ELASTIC_SEARCH_CLOUD_ID
+        sync: false
+      - key: ELASTIC_SEARCH_PASSWORD
+        sync: false
+      - key: ELASTIC_SEARCH_ENDPOINT
+        sync: false
+      - key: reCAPTCHA_SECRET_KEY
+        sync: false
+      - key: GOOGLE_OAUTH_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_OAUTH_CLIENT_ID
+        sync: false
+      - key: TWILIO_PHONE_NUMBER
+        sync: false
+      - key: AUTH_TOKEN
+        sync: false
+      - key: ACCOUNT_SID
+        sync: false
+      - key: AWS_BUCKET_REGION
+        sync: false
+      - key: AWS_BUCKET_NAME
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: RESULT_PER_PAGE
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: SMTP_MAIL
+        sync: false
+      - key: SMTP_SERVICE
+        sync: false
+      - key: SMTP_HOST
+        sync: false
+      - key: COOKIE_EXPIRES
+        sync: false
+      - key: JWT_EXPIRES_IN
+        sync: false
+      - key: JWT_SECRET_KEY
+        sync: false
+      - key: DB_HOSTED_URI
+        sync: false
+      - key: DB_URI
+        sync: false
+      - key: STRIPE_SECRET_KEY_LIVE
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_PUBLISHABLE_KEY_LIVE
+        sync: false
+      - key: STRIPE_PUBLISHABLE_KEY
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: PORT
+        sync: false
+      region: oregon
+      buildCommand: npm install
+      startCommand: npm start
+      autoDeployTrigger: commit
