@@ -2,10 +2,10 @@ services:
   # 1. The Node.js Backend
   - type: web
     name: my-backend-api
-    env: node
+    env: docker
     plan: free
     region: singapore # Closest free region to India
-    buildCommand: npm install && npm run build
+    buildCommand: npm install
     startCommand: npm start
     envVars:
       - key: NODE_VERSION
