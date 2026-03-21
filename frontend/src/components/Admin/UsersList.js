@@ -74,7 +74,7 @@ const UsersList = () => {
             minWidth: 150,
             flex: 0.3,
             cellClassName: params => {
-                return params.getValue(params.id, 'role') === 'admin'
+                return params.row.id === 'admin'
                     ? 'greenColor'
                     : 'redColor';
             }
@@ -92,10 +92,7 @@ const UsersList = () => {
                     <Fragment>
                         <div className='actions'>
                             <Link
-                                to={`/admin/user/${params.getValue(
-                                    params.id,
-                                    'id'
-                                )}`}
+                                to={`/admin/user/${params.row.id}`}
                             >
                                 <EditIcon className='editIcon' />
                             </Link>
@@ -103,7 +100,7 @@ const UsersList = () => {
                             <Button
                                 onClick={() =>
                                     deleteUserHandler(
-                                        params.getValue(params.id, 'id')
+                                        params.row.id
                                     )
                                 }
                             >

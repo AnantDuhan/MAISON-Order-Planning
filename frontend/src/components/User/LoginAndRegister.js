@@ -298,7 +298,6 @@ const LoginAndRegister = () => {
                                         <GoogleLogin
                                             onSuccess={handleGoogleLoginSuccess}
                                             onError={handleGoogleLoginError}
-                                            useOneTap
                                             theme="outline"
                                             size="large"
                                             width="280px"

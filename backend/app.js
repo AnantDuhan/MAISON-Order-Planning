@@ -19,9 +19,6 @@ const { isAuthUser, authRoles } = require('./middleware/auth');
 const User = require('./models/user');
 const Product = require('./models/product');
 const jwt = require('jsonwebtoken');
-const stripe = require('stripe')(
-    'sk_test_51K9RkSSDvITsgzEymgWGmrPCCP0Iu8b8j2AtRaZbnuXqwSLkQMSnTc6a6gQmRRzT60nP0KMhApPEpASMOPP3GgGh00rlK3KQm2'
-);
 const Snowflake = require('@theinternetfolks/snowflake');
 require('dotenv').config({ path: '/backend/config/config.env' });
 
@@ -147,11 +144,6 @@ app.post('/register', upload.single('image'), async (req, res) => {
 
         console.log('✅ Image uploaded successfully:', avatarUrl);
 
-        const customer = await stripe.customers.create({
-            email,
-            source: 'tok_visa'
-        });
-
         const user = await User.create({
             _id: Snowflake.Snowflake.generate({
                 timestamp: timestampInSeconds
@@ -160,8 +152,7 @@ app.post('/register', upload.single('image'), async (req, res) => {
             whatsappNumber,
             email,
             password,
-            avatar: avatarUrl,
-            stripeCustomerId: customer.id
+            avatar: avatarUrl
         });
 
         let token = jwt.sign(

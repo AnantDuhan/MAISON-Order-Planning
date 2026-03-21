@@ -44,6 +44,7 @@ import UpdateProfile from './components/User/UpdateProfile';
 import store from './store';
 
 import './App.css';
+import Payment from './components/Cart/Payment';
 
 function App() {
     const { isAuthenticated } = useSelector(state => state.user);
@@ -108,20 +109,14 @@ function App() {
                 {isAuthenticated && <Route path='/order/:id/return' element={<ReturnRequest />} exact />}
                 {isAuthenticated && <Route path='/wishlist' element={<Wishlist />} exact />}
                 
-                {/* Payment Route with Stripe Wrapper */}
-                {/* {isAuthenticated && (
+                {/* Payment Route with Razorpay Wrapper */}
+                {isAuthenticated && (
                     <Route
                         path='/payment'
-                        element={
-                            stripeApiKey ? (
-                                <Elements stripe={stripePromise}>
-                                    <Payment />
-                                </Elements>
-                            ) : null
-                        }
+                        element={<Payment />}
                         exact
                     />
-                )} */}
+                )}
 
                 {/* Admin Routes */}
                 {isAuthenticated && <Route path='/admin/dashboard' element={<Dashboard />} exact />}

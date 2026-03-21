@@ -62,18 +62,6 @@ const ProductDetails = () => {
         precision: 0.5
     };
 
-    const increaseQuantity = () => {
-        if (product.Stock <= quantity) return;
-        const qty = quantity + 1;
-        setQuantity(qty);
-    };
-
-    const decreaseQuantity = () => {
-        if (1 >= quantity) return;
-        const qty = quantity - 1;
-        setQuantity(qty);
-    };
-
     const generateSummaryHandler = () => {
         dispatch(summarizeProductReviews(id));
     };
@@ -195,7 +183,7 @@ const ProductDetails = () => {
                 />
             ) : (
                 <Fragment>
-                    <MetaData title={`${product.name} -- ECOMMERCE`} />
+                    <MetaData title={`${product?.name} -- ECOMMERCE`} />
                     <div className='ProductDetails'>
                         <div>
                             {product.images && product.images.length > 0 && (
@@ -240,10 +228,25 @@ const ProductDetails = () => {
                             <div className='detailsBlock-3'>
                                 <h1>{`₹${product.price}`}</h1>
                                 <div className='detailsBlock-3-1'>
-                                    <div className='detailsBlock-3-1-1'>
+                                    {/* <div className='detailsBlock-3-1-1'>
                                         <button onClick={decreaseQuantity}>-</button>
                                         <input readOnly type='number' value={quantity} />
                                         <button onClick={increaseQuantity}>+</button>
+                                    </div> */}
+                                    <div className='detailsBlock-3-1-1'>
+                                        <select 
+                                            value={quantity} 
+                                            onChange={(e) => setQuantity(Number(e.target.value))}
+                                            disabled={product.Stock < 1}
+                                            style={{ padding: '5px 15px', borderRadius: '4px', fontSize: '1rem', cursor: 'pointer' }}
+                                        >
+                                            {/* This creates an array from 1 to either 10, or the max stock, whichever is lower */}
+                                            {[...Array(Math.min(10, product.Stock || 1)).keys()].map((x) => (
+                                                <option key={x + 1} value={x + 1}>
+                                                    {x + 1}
+                                                </option>
+                                            ))}
+                                        </select>
                                     </div>
                                     <button onClick={wishlistHandler} className='submitReview'>
                                         Add to Wishlist
@@ -288,14 +291,16 @@ const ProductDetails = () => {
                         </Button>
                     )}
 
-                    <div className="ai-summary-card">
-                        <div className="ai-summary-card-inner">
-                            <h3>🤖 AI-Powered Summary</h3>
-                            <div style={{ whiteSpace: 'pre-wrap', fontFamily: 'Roboto, sans-serif' }}>
-                                {product.aiSummary}
+                    {product.reviews && product.reviews.length > 0 && product.aiSummary && (
+                        <div className="ai-summary-card">
+                            <div className="ai-summary-card-inner">
+                                <h3>🤖 AI-Powered Summary</h3>
+                                <div style={{ whiteSpace: 'pre-wrap', fontFamily: 'Roboto, sans-serif' }}>
+                                    {product.aiSummary}
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    )}
 
                     <Dialog
                         aria-labelledby='simple-dialog-title'

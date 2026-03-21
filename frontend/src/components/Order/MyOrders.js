@@ -16,7 +16,12 @@ import './MyOrders.css';
 const MyOrders = () => {
     const dispatch = useDispatch();
 
-    const { loading, error, orders } = useSelector(state => state.myOrders);
+    const { loading, error } = useSelector(state => state.myOrders);
+    const orders = useSelector(state => {
+        const value = state.myOrders.orders;
+        return Array.isArray(value) ? value : [];
+    });
+
     const { user } = useSelector(state => state.user);
 
     const [progress, setProgress] = useState(0);
@@ -110,6 +115,7 @@ const MyOrders = () => {
 
     return (
         <Fragment>
+            {console.log(user)}
             <MetaData title={`${user?.name} - Orders`} />
             {loading ? (
                 <LoadingBar

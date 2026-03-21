@@ -7,7 +7,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import redisClientPromise from '../config/redisClient.js';
 import dotenv from 'dotenv';
 import { Client } from '@elastic/elasticsearch';
-const client = new Client({ node: 'http://localhost:9200' });
+const esClient = new Client({ node: 'http://localhost:9200' });
 
 dotenv.config({ path: '../config/config.env' });
 
@@ -98,39 +98,53 @@ export const getProductDetails = async (req, res, next) => {
 };
 
 export const updateProduct = async (req, res, next) => {
-    const productId = req.params.id;
-    let product = await Product.findById(productId);
-
-    if (!product) {
-        return res.status(404).json({ message: 'Product not found' });
-    }
-
-    // Update product with new data from req.body
-    product = await Product.findByIdAndUpdate(productId, req.body, {
-        new: true,
-        runValidators: true,
-    });
-    
-    // --- Invalidate the cache after the update ---
     try {
-        const redisClient = redisClientPromise;
-        const cacheKey = `product:${productId}`;
-        await redisClient.del(cacheKey);
-    } catch (cacheError) {
-        console.error('Redis cache invalidation error:', cacheError);
+        const productId = req.params.id;
+
+        const product = await Product.findByIdAndUpdate(productId, req.body, {
+            new: true,
+            runValidators: true,
+        });
+
+        if (!product) {
+            return res.status(404).json({ message: 'Product not found' });
+        }
+        
+        const redisClient = redisClientPromise; 
+
+        try {
+            const cacheKey = `product:${productId}`; 
+            
+            await redisClient.del(cacheKey);
+            await redisClient.set(cacheKey, JSON.stringify(product), { EX: 3600 });
+        } catch (cacheError) {
+            console.error('Redis cache sync error:', cacheError);
+        }
+
+        try {
+            if (req.body.price) {
+                await esClient.update({
+                    index: 'products',
+                    id: productId,
+                    body: {
+                        doc: { price: req.body.price }
+                    }
+                });
+            }
+        } catch (esError) {
+            console.error('Elasticsearch sync error:', esError);
+        }
+        
+        res.status(200).json({
+            success: true,
+            product,
+        });
+
+    } catch (error) {
+        console.error("Product Update Error:", error);
+        res.status(500).json({ message: 'Server Error during update' });
     }
-
-    await redisClient.set(`/admin/product/${productId}`, JSON.stringify(product));
-
-    const io = req.app.get('socketio');
-    io.to(productId).emit('productUpdate', product);
-    
-    res.status(200).json({
-        success: true,
-        product,
-    });
 };
-
 // create new review or update the review
 export const createProductReview = async (req, res, next) => {
     const { rating, comment, productId } = req.body;
@@ -138,7 +152,10 @@ export const createProductReview = async (req, res, next) => {
     const product = await Product.findById(productId);
 
     if (!product) {
-        return next(new ErrorHandler("Product not found", 404));
+        return res.status(404).json({
+            success: false,
+            message: 'Product not found'
+        });
     }
 
     const isReviewed = product.reviews.find(
@@ -179,11 +196,10 @@ export const createProductReview = async (req, res, next) => {
         const redisClient = req.app.get('redisClient');
         const cacheKey = `product:${productId}`;
         await redisClient.del(cacheKey);
+        await redisClient.set(`product:${productId}`, JSON.stringify(product));
     } catch (cacheError) {
         console.error('Redis cache invalidation error:', cacheError);
     }
-
-    await redisClient.set(`product:${productId}`, JSON.stringify(product));
 
     const io = req.app.get('socketio');
     io.to(productId).emit('reviewUpdate', {
@@ -492,71 +508,79 @@ export const summerizeProductReviews = async (req, res, next) => {
 };
 
 export const searchProducts = async (req, res, next) => {
-    const { keyword, category, price, ratings } = req.query;
+    try {
+        const { keyword, category, price, ratings } = req.query;
 
-    const mustQueries = [];
-    if (keyword) {
-        mustQueries.push({
-            multi_match: {
-                query: keyword,
-                fields: ["name", "description"],
-                fuzziness: "AUTO"
-            }
-        });
-    }
+        const mustQueries = [];
+        if (keyword) {
+            mustQueries.push({
+                multi_match: {
+                    query: keyword,
+                    fields: ["name", "description"],
+                    fuzziness: "AUTO"
+                }
+            });
+        }
 
-    const filterQueries = [];
-    if (category) {
-        filterQueries.push({ term: { category: category } });
-    }
-    if (price) {
-        filterQueries.push({
-            range: {
-                price: {
-                    gte: price.gte || 0,
-                    lte: price.lte || 1000000
+        const filterQueries = [];
+        if (category) {
+            filterQueries.push({ term: { category: category } });
+        }
+        if (price) {
+            filterQueries.push({
+                range: {
+                    price: {
+                        gte: price.gte || 0,
+                        lte: price.lte || 1000000
+                    }
                 }
-            }
-        });
-    }
-    if (ratings) {
-         filterQueries.push({
-            range: {
-                ratings: {
-                    gte: ratings.gte || 0
+            });
+        }
+        if (ratings) {
+            filterQueries.push({
+                range: {
+                    ratings: {
+                        gte: ratings.gte || 0
+                    }
                 }
-            }
-        });
-    }
+            });
+        }
 
-    const body = await client.search({
-        index: 'products',
-        body: {
-            query: {
-                bool: {
-                    must: mustQueries,
-                    filter: filterQueries
-                }
-            },
-            // This is for faceted search (filter counts)
-            aggs: {
-                categories: {
-                    terms: {
-                        field: 'category'
+        const body = await esClient.search({
+            index: 'products',
+            body: {
+                query: {
+                    bool: {
+                        must: mustQueries,
+                        filter: filterQueries
+                    }
+                },
+                // This is for faceted search (filter counts)
+                aggs: {
+                    categories: {
+                        terms: {
+                            field: 'category'
+                        }
                     }
                 }
             }
-        }
-    });
+        });
 
-    const productIds = body.hits.hits.map(hit => hit._id);
-    const products = await Product.find({ '_id': { $in: productIds } });
+        const productIds = body.hits.hits.map(hit => hit._id);
+        const products = await Product.find({ '_id': { $in: productIds } });
 
-    res.status(200).json({
-        success: true,
-        products,
-        facets: body.aggregations
-    });
+        res.status(200).json({
+            success: true,
+            products,
+            facets: body.aggregations
+        });
+    } catch (error) {
+        console.error("Elasticsearch Search Error:", error.message);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Search service is currently unavailable.' 
+        });
+    }
 };
 
 export const getAutocompleteSuggestions = async (req, res) => {
@@ -567,7 +591,7 @@ export const getAutocompleteSuggestions = async (req, res) => {
             return res.status(400).json({ success: false, data: [] });
         }
 
-        const result = await client.search({
+        const result = await esClient.search({
             index: 'products',
             query: {
                 multi_match: {

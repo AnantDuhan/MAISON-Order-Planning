@@ -103,18 +103,20 @@ export const allOrdersReducer = (state = { orders: [] }, action) => {
         case ALL_ORDERS_REQUEST:
             return {
                 loading: true,
+                orders: []
             };
 
         case ALL_ORDERS_SUCCESS:
             return {
                 loading: false,
-                orders: action.payload,
+                orders: action.payload.orders ? action.payload.orders : action.payload,
             };
 
         case ALL_ORDERS_FAIL:
             return {
                 loading: false,
                 error: action.payload,
+                orders: []
             };
         case CLEAR_ERRORS:
             return {
@@ -183,6 +185,7 @@ export const orderDetailsReducer = (state = { order: {} }, action) => {
     switch (action.type) {
         case ORDER_DETAILS_REQUEST:
             return {
+                ...state,
                 loading: true,
             };
 
@@ -302,19 +305,21 @@ export const allRefundsReducer = (state = { refunds: [] }, action) => {
     switch (action.type) {
         case ALL_REFUNDS_REQUEST:
             return {
-                loading: true
+                loading: true,
+                refunds: []
             };
 
         case ALL_REFUNDS_SUCCESS:
             return {
                 loading: false,
-                refunds: action.payload
+                refunds: action.payload.refunds ? action.payload.refunds : (action.payload || [])
             };
 
         case ALL_REFUNDS_FAIL:
             return {
                 loading: false,
-                error: action.payload
+                error: action.payload,
+                refunds: []
             };
         case CLEAR_ERRORS:
             return {
@@ -331,19 +336,21 @@ export const allReturnsReducer = (state = { returns: [] }, action) => {
     switch (action.type) {
         case ALL_RETURNS_REQUEST:
             return {
+                ...state,
                 loading: true
             };
 
         case ALL_RETURNS_SUCCESS:
             return {
                 loading: false,
-                returns: action.payload
+                returns: action.payload.returns ? action.payload.returns : (action.payload || [])
             };
 
         case ALL_RETURNS_FAIL:
             return {
                 loading: false,
-                error: action.payload
+                error: action.payload,
+                returns: []
             };
         case CLEAR_ERRORS:
             return {

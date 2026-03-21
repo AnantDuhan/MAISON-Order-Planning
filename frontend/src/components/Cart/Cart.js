@@ -60,45 +60,33 @@ const Cart = () => {
                         </div>
                         {cartItems &&
                             cartItems.map((item) => (
-                                <div className="cartContainer">
+                                // FIX: Moved the key to the outermost wrapper and used the unique product ID
+                                <div className="cartContainer" key={item.product}> 
                                     <CartItemCard
-                                        key={item}
                                         item={item}
                                         deleteCartItems={deleteCartItems}
                                     />
+                                    
+                                    {/* --- NEW DROPDOWN --- */}
                                     <div className="cartInput">
-                                        <button
-                                            onClick={() =>
-                                                decreaseQuantity(
-                                                    item.product,
-                                                    item.quantity
-                                                )
-                                            }
-                                        >
-                                            -
-                                        </button>
-                                        <input
-                                            readOnly
-                                            type="number"
+                                        <select
                                             value={item.quantity}
-                                        />
-                                        <button
-                                            onClick={() =>
-                                                increaseQuantity(
-                                                    item.product,
-                                                    item.quantity,
-                                                    item.stock
-                                                )
-                                            }
+                                            onChange={(e) => dispatch(addItemsToCart(item.product, Number(e.target.value)))}
+                                            style={{ padding: '5px 15px', borderRadius: '4px', fontSize: '1rem', cursor: 'pointer' }}
                                         >
-                                            +
-                                        </button>
+                                            {/* Generates options from 1 to 10, or max stock */}
+                                            {[...Array(Math.min(10, item.stock || 1)).keys()].map((x) => (
+                                                <option key={x + 1} value={x + 1}>
+                                                    {x + 1}
+                                                </option>
+                                            ))}
+                                        </select>
                                     </div>
-                                    <p className="cartSubtotal">{`₹${
-                                        item.price * item.quantity
-                                    }`}</p>
+                                    
+                                    <p className="cartSubtotal">{`₹${item.price * item.quantity}`}</p>
                                 </div>
-                            ))}
+                            ))
+                        }
                         <div className="cartGrossTotal">
                             <div></div>
                             <div className="cartGrossTotalBox">

@@ -47,12 +47,6 @@ const AdminHeader = () => {
                         <Link to='/admin/add-product' className='nav-link'>
                             Add-Product
                         </Link>
-                        <Link to='/admin/add-subcription' className='nav-link'>
-                            Add-Subcription
-                        </Link>
-                        <Link to='/admin/subscriptions' className='nav-link'>
-                            Subcription
-                        </Link>
                         <Link to='/admin/orders' className='nav-link'>
                             Orders
                         </Link>
