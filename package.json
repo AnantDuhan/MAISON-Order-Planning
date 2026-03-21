@@ -6,7 +6,8 @@
     "scripts": {
         "start": "node backend/server.js",
         "dev": "nodemon backend/server.js --ignore frontend",
-        "sync": "node backend/config/sync-products.js"
+        "sync": "node backend/config/sync-products.js",
+        "build": "echo 'No build step required for pure Node.js backend'"
     },
     "author": "Anant Duhan",
     "license": "ISC",

@@ -1,4 +1,4 @@
-const Coupon = require('../models/Coupon');
+const Coupon = require('../models/coupon');
 const nodeCache = require('node-cache');
 const NodeCache = new nodeCache();
 const Snowflake = require('@theinternetfolks/snowflake');

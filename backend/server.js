@@ -29,8 +29,8 @@ app.set('redisClient', redisClient);
 //connecting to database
 connectDB();
 
-const server = app.listen(process.env.PORT, () => {
-    console.log(`✅ Server is working on http://localhost:${process.env.PORT}`)
+const server = app.listen(process.env.PORT || 8080, () => {
+    console.log(`✅ Server is working on http://localhost:${process.env.PORT || 8080}`)
 })
 
 // cronJob.start();

@@ -1,7 +1,7 @@
 const chai = require('chai');
 const sinon = require('sinon');
 const couponController = require('../controllers/coupon.controller');
-const Coupon = require('../../models/Coupon');
+const Coupon = require('../../models/coupon');
 
 chai.use(require('sinon-chai'));
 const expect = chai.expect;
