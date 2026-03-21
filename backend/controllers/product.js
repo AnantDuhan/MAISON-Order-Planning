@@ -8,6 +8,8 @@ import redisClientPromise from '../config/redisClient.js';
 import dotenv from 'dotenv';
 import { Client } from '@elastic/elasticsearch';
 const esClient = new Client({ node: 'http://localhost:9200' });
+import { generateEmbedding } from '../utils/generateEmbedding.js';
+import { query } from 'express';
 
 dotenv.config({ path: '../config/config.env' });
 
@@ -100,44 +102,99 @@ export const getProductDetails = async (req, res, next) => {
 export const updateProduct = async (req, res, next) => {
     try {
         const productId = req.params.id;
-
-        const product = await Product.findByIdAndUpdate(productId, req.body, {
-            new: true,
-            runValidators: true,
-        });
+        const product = await Product.findById(productId);
 
         if (!product) {
             return res.status(404).json({ message: 'Product not found' });
         }
-        
-        const redisClient = redisClientPromise; 
+
+        if (req.files && req.files.length > 0) {
+            const s3 = new S3Client({
+                region: process.env.AWS_BUCKET_REGION,
+                // Make sure your fromEnv() or credentials setup is correct here
+            });
+
+            // A. Safely Delete Old Images (Using Plural Command)
+            if (product.images && product.images.length > 0) {
+                const deleteObjects = product.images.map(image => ({
+                    Key: getImageKeyFromUrl(image.url) // Ensure this utility works!
+                }));
+
+                await s3.send(new DeleteObjectsCommand({
+                    Bucket: process.env.AWS_BUCKET_NAME,
+                    Delete: { Objects: deleteObjects, Quiet: false }
+                }));
+                console.log('✅ Old Images deleted from AWS S3');
+            }
+
+            // B. Upload New Images (Using PutObjectCommand)
+            let imageUrls = [];
+            for (const file of req.files) {
+                // Ensure a unique key using Date.now() to prevent cache collisions
+                const uniqueKey = `${productId}-${Date.now()}-${file.originalname}`;
+                
+                await s3.send(new PutObjectCommand({
+                    Bucket: process.env.AWS_BUCKET_NAME,
+                    Key: uniqueKey,
+                    Body: file.buffer,
+                    ContentType: file.mimetype
+                }));
+
+                const avatarUrl = `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_BUCKET_REGION}.amazonaws.com/${uniqueKey}`;
+                imageUrls.push({ key: uniqueKey, url: avatarUrl });
+            }
+            
+            // Attach new images to the body so MongoDB saves them
+            req.body.images = imageUrls;
+        }
+
+        if(req.body.name || req.body.description) {
+            const existingProduct = await Product.findById(productId);
+            const textForEmbedding = `${req.body.name || existingProduct.name} ${req.body.description || existingProduct.description}`;
+
+            const vector = await generateEmbedding(textForEmbedding);
+            if(vector) {
+                req.body.embedding = vector;
+            }
+        }
+
+        const updatedProduct = await Product.findByIdAndUpdate(productId, req.body, {
+            new: true,
+            runValidators: true,
+        });
 
         try {
+            const redisClient = redisClientPromise; 
             const cacheKey = `product:${productId}`; 
             
             await redisClient.del(cacheKey);
-            await redisClient.set(cacheKey, JSON.stringify(product), { EX: 3600 });
+            await redisClient.set(cacheKey, JSON.stringify(updatedProduct), { EX: 3600 });
         } catch (cacheError) {
             console.error('Redis cache sync error:', cacheError);
         }
 
         try {
-            if (req.body.price) {
+            const docToUpdate = {};
+            if (req.body.price) docToUpdate.price = req.body.price;
+            if (req.body.name) docToUpdate.name = req.body.name;
+            if (req.body.description) docToUpdate.description = req.body.description;
+            if (req.body.embedding) docToUpdate.embedding = req.body.embedding;
+
+            if (Object.keys(docToUpdate).length > 0) {
                 await esClient.update({
                     index: 'products',
                     id: productId,
-                    body: {
-                        doc: { price: req.body.price }
-                    }
+                    body: { doc: docToUpdate }
                 });
             }
-        } catch (esError) {
+        } catch (error) {
             console.error('Elasticsearch sync error:', esError);
         }
         
         res.status(200).json({
             success: true,
-            product,
+            message: '✅ Product updated successfully.',
+            product: updatedProduct,
         });
 
     } catch (error) {
@@ -145,6 +202,7 @@ export const updateProduct = async (req, res, next) => {
         res.status(500).json({ message: 'Server Error during update' });
     }
 };
+
 // create new review or update the review
 export const createProductReview = async (req, res, next) => {
     const { rating, comment, productId } = req.body;
@@ -434,92 +492,120 @@ export const deleteReview = async (req, res, next) => {
 };
 
 export const summerizeProductReviews = async (req, res, next) => {
-    if (!process.env.GEMINI_API_KEY) {
-        return res.status(500).json({
-            success: false,
-            message: 'GEMINI_API_KEY not found. Please check your server environment variables.'
-        });
-    }
-
-    const productId = req.params.id;
-
-    const product = await Product.findById(productId);
-
-    if (!product) {
-        return res.status(404).json({
-            success: false,
-            message: 'Product not found'
-        });
-    }
-    
-    if (product.numOfReviews < 3) {
-        return res.status(400).json({
-            success: false,
-            message: 'Not enough reviews to generate a summary.'
-        });
-    }
-
-    
-    // if (product.numOfReviews < 3) {
-    //     return res.status(400).json({
-    //         success: false,
-    //         message: 'Review count mismatch. Not enough reviews to summarize.'
-    //     });
-    // }
-    
-    const reviewsText = product.reviews.map((r) => r.comment).join('\n');
-
-    const prompt = `You are an e-commerce assistant. Based on the following customer reviews, generate a concise summary. The summary should be a string containing a 'Pros' list and a 'Cons' list, each with 2-3 bullet points. Use emojis like ✅ for pros and ⚠️ for cons. Reviews: --- ${reviewsText} ---`;
-
-    // Initialize the client here, inside the function, to ensure the API key is loaded.
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-pro' });
-    const result = await model.generateContent(prompt);
-    const summary = result.response.text();
-
-    product.aiSummary = summary;
-    await product.save();
-
     try {
-        const redisClient = req.app.get('redisClient');
-        if (redisClient) {
-            const cacheKey = `product:${productId}`;
-            await redisClient.del(cacheKey);
-            console.log(`CACHE INVALIDATED for product: ${productId}`);
-        } else {
-            console.log('Redis client not initialized, skipping cache invalidation.');
+        if (!process.env.GEMINI_API_KEY) {
+            return res.status(500).json({
+                success: false,
+                message: 'GEMINI_API_KEY not found. Please check your server environment variables.'
+            });
         }
-    } catch (cacheError) {
-        console.error('Redis cache invalidation error:', cacheError);
-    }
 
-    const io = req.app.get('socketio');
-    if (io) {
-        io.to(productId).emit('summaryUpdate', summary);
-    } else {
-        console.log('Socket.io not initialized, skipping emit.');
-    }
+        const productId = req.params.id;
 
-    res.status(201).json({
-        success: true,
-        message: 'Summary generated successfully',
-        summary: product.aiSummary,
-    });
+        const product = await Product.findById(productId);
+
+        if (!product) {
+            return res.status(404).json({
+                success: false,
+                message: 'Product not found'
+            });
+        }
+        
+        if (product.numOfReviews < 3) {
+            return res.status(400).json({
+                success: false,
+                message: 'Not enough reviews to generate a summary.'
+            });
+        }
+
+        
+        // if (product.numOfReviews < 3) {
+        //     return res.status(400).json({
+        //         success: false,
+        //         message: 'Review count mismatch. Not enough reviews to summarize.'
+        //     });
+        // }
+        
+        const reviewsText = product.reviews.map((r) => r.comment).join('\n');
+
+        const prompt = `You are an e-commerce assistant. Based on the following customer reviews, generate a concise summary. The summary should be a string containing a 'Pros' list and a 'Cons' list, each with 2-3 bullet points. Use emojis like ✅ for pros and ⚠️ for cons. Reviews: --- ${reviewsText} ---`;
+
+        // Initialize the client here, inside the function, to ensure the API key is loaded.
+        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+        const result = await model.generateContent(prompt);
+        const summary = result.response.text();
+
+        product.aiSummary = summary;
+        await product.save();
+
+        try {
+            const redisPromise = req.app.get('redisClient'); 
+            if (redisPromise) {
+                const redisClient = await redisPromise; 
+
+                if (typeof redisClient.del === 'function') {
+                    const cacheKey = `product:${productId}`;
+                    await redisClient.del(cacheKey);
+                    console.log(`✅ CACHE INVALIDATED for product: ${productId}`);
+                } else {
+                    console.log('⚠️ Redis client found, but .del is not available.');
+                }
+            } else {
+                console.log('Redis client not found in app, skipping cache invalidation.');
+            }
+        } catch (cacheError) {
+            console.error('Redis cache invalidation error:', cacheError);
+        }
+
+        res.status(201).json({
+            success: true,
+            message: 'Summary generated successfully',
+            summary: product.aiSummary,
+        });
+    } catch (error) {
+        console.error("AI Summarization Error:", error);
+        
+        // Gracefully handle the Rate Limit error if it happens again
+        if (error.status === 429) {
+            return res.status(429).json({ 
+                success: false, 
+                message: "The AI summary feature is currently busy. Please try again in a minute." 
+            });
+        }
+
+        res.status(500).json({ 
+            success: false, 
+            message: 'Server Error during summarization' 
+        });
+    }
 };
 
 export const searchProducts = async (req, res, next) => {
     try {
         const { keyword, category, price, ratings } = req.query;
 
+        let knnQuery = undefined;
+
         const mustQueries = [];
         if (keyword) {
-            mustQueries.push({
-                multi_match: {
-                    query: keyword,
-                    fields: ["name", "description"],
-                    fuzziness: "AUTO"
-                }
-            });
+            const queryVector = await generateEmbedding(keyword);
+            if (queryVector) {
+                knnQuery = {
+                    field: "embedding",
+                    query_vector: queryVector,
+                    k: 10,
+                    num_candidates: 50
+                };
+            } else {
+                mustQueries.push({
+                    multi_match: {
+                        query: keyword,
+                        fields: ["name", "description"],
+                        fuzziness: "AUTO"
+                    }
+                });
+            }
         }
 
         const filterQueries = [];
@@ -546,7 +632,7 @@ export const searchProducts = async (req, res, next) => {
             });
         }
 
-        const body = await esClient.search({
+        const searchPayload = {
             index: 'products',
             body: {
                 query: {
@@ -564,14 +650,21 @@ export const searchProducts = async (req, res, next) => {
                     }
                 }
             }
-        });
+        };
+
+        if (knnQuery) {
+            searchPayload.body.knn = knnQuery;
+        }
+
+        const body = await esClient.search(searchPayload);
 
         const productIds = body.hits.hits.map(hit => hit._id);
         const products = await Product.find({ '_id': { $in: productIds } });
+        const sortedProducts = productIds.map(id => products.find(p => p._id.toString() === id.toString()));
 
         res.status(200).json({
             success: true,
-            products,
+            products: sortedProducts,
             facets: body.aggregations
         });
     } catch (error) {

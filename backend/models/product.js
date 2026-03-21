@@ -77,6 +77,10 @@ const productSchema = mongoose.Schema({
     createdAt: {
         type: Date,
         default: Date.now
+    },
+    embedding: {
+        type: [Number],
+        select: false
     }
 });
 

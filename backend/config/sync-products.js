@@ -26,11 +26,17 @@ const syncProducts = async () => {
             index: indexName,
             mappings: {
                 properties: {
-                    name: { type: 'search_as_you_type' }, 
+                    name: { type: 'text' }, 
                     description: { type: 'text' },
                     category: { type: 'keyword' },
                     ratings: { type: 'float' },
                     price: { type: 'float' },
+                    "embedding": {
+                        "type": "dense_vector",
+                        "dims": 3072,
+                        "index": true,
+                        "similarity": "cosine" 
+                    }
                 }
             }
         });
