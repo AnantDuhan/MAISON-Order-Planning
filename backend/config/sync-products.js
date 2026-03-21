@@ -6,13 +6,13 @@ import mongoose from 'mongoose';
 // Correctly point to your main config file
 dotenv.config({ path: 'backend/config/config.env' });
 
-const client = new Client({ node: process.env.ELASTICSEARCH_HOST || 'http://localhost:9200' });
+const client = new Client({ node: process.env.ELASTICSEARCH_HOST });
 // const client = new Client({ node: 'http://localhost:9200' });
 const indexName = 'products';
 
 const syncProducts = async () => {
     try {
-        const dbConnection = await mongoose.connect(process.env.DB_HOSTED_URI || "mongodb+srv://duhananant:<password>@ecommerce.iutjhpe.mongodb.net/");
+        const dbConnection = await mongoose.connect(process.env.DB_HOSTED_URI);
         console.log(`🚀🚀 MongoDB connected with server: ${dbConnection.connection.host}`);
         console.log('Database connected for sync.');
 
