@@ -73,5 +73,4 @@ projects:
         sync: false
       region: oregon
       buildCommand: npm install
-      startCommand: npm start
       autoDeployTrigger: commit
