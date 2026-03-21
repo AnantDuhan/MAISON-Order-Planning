@@ -7,7 +7,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import redisClientPromise from '../config/redisClient.js';
 import dotenv from 'dotenv';
 import { Client } from '@elastic/elasticsearch';
-const esClient = new Client({ node: 'http://localhost:9200' });
+const esClient = new Client({ node: process.env.ELASTICSEARCH_HOST });
 import { generateEmbedding } from '../utils/generateEmbedding.js';
 import { query } from 'express';
 

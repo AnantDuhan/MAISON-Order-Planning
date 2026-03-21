@@ -23,7 +23,7 @@ const Snowflake = require("@theinternetfolks/snowflake");
 const { Client } = require('@elastic/elasticsearch');
 const { generateEmbedding } = require('./utils/generateEmbedding');
 const redisClientPromise = require('./config/redisClient');
-const esClient = new Client({ node: 'http://localhost:9200' });
+const esClient = new Client({ node: process.env.ELASTICSEARCH_HOST });
 require("dotenv").config({ path: "./config/config.env" });
 
 app.use(cookieParser());
