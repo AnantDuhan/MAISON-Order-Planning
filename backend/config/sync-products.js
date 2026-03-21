@@ -58,6 +58,7 @@ const syncProducts = async () => {
                 category: doc.category,
                 ratings: doc.ratings,
                 price: doc.price,
+                embedding: doc.embedding
             }
         ]);
 
@@ -92,7 +93,7 @@ const syncProducts = async () => {
             });
         }
         console.error('Elasticsearch Search Error:', error);
-        res.status(500).json({ success: false, message: 'Search failed' });
+        process.exit(1);
     } finally {
         // Mongoose connection might keep the script alive, so we exit explicitly
         process.exit(0);

@@ -668,7 +668,7 @@ export const searchProducts = async (req, res, next) => {
             facets: body.aggregations
         });
     } catch (error) {
-        console.error("Elasticsearch Search Error:", error.message);
+        console.error("FULL ELASTICSEARCH ERROR:", error.meta ? error.meta.body : error);
         res.status(500).json({ 
             success: false, 
             message: 'Search service is currently unavailable.' 
