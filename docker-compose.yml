@@ -1,16 +1,16 @@
 services:
   app:
     build: .
-    container_name: mern_ecommerce_app
+    container_name: order_planning_ecommerce
     ports:
       - "4001:4000"
     environment:
-      - DB_URI=mongodb://mongo:27017/ecommerce 
+      - DB_URI={DB_HOSTED_URI}
       - PORT=4000
-      - JWT_SECRET=5ygV>@]K-H(#\nP*$5;.H6{|v<bzsn6Vwe`EQ3)T8mvK6(x2F9
+      - JWT_SECRET={JWT_SECRET_KEY}
       - JWT_EXPIRE=5d
-      - ELASTICSEARCH_HOST=https://493efdd9d4:3448d7567fef4dd1ceb7@order-planning-elast-1n7n3dv0.us-east-1.bonsaisearch.net
-      - REDIS_HOSTED_URL=redis://default:gQAAAAAAATdsAAIncDFhYWRlYjYwYjQyOGE0ZWE1YjUyM2YwMGI5MDAzNWIxY3AxNzk3MjQ@true-squirrel-79724.upstash.io:6379
+      - ELASTICSEARCH_HOST={ELASTICSEARCH_HOST}
+      - REDIS_HOSTED_URL={REDIS_HOSTED_URL}
     depends_on:
       mongo:
         condition: service_healthy
