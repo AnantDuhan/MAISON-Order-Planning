@@ -118,7 +118,11 @@ app.get("/", (req, res) => {
 });
 
 app.get("/api/v1/health", (req, res) => {
-  res.status(200).json({ success: true, message: "Server is awake!" });
+    res.status(200).json({
+        success: true,
+        message: "Server is online and ready.",
+        timestamp: new Date().toISOString()
+    });
 });
 
 app.post("/register", upload.single("image"), async (req, res) => {
