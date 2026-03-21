@@ -16,20 +16,7 @@ const Cart = () => {
 
     const navigate = useNavigate();
     const dispatch = useDispatch();
-    const { cartItems } = useSelector((state) => state.cart);
-
-    const increaseQuantity = (id, quantity, stock) => {
-        const newQty = quantity + 1;
-        if (stock <= quantity)
-            return;
-        dispatch(addItemsToCart(id, newQty));
-    }
-
-    const decreaseQuantity = (id, quantity) => {
-        const newQty = quantity - 1;
-        if (1 >= quantity) return;
-        dispatch(addItemsToCart(id, newQty));
-    };   
+    const { cartItems } = useSelector((state) => state.cart); 
     
     const deleteCartItems = (id) => {
         dispatch(removeItemsFromCart(id));

@@ -117,6 +117,10 @@ app.get("/", (req, res) => {
   res.send("Hello, welcome to my API!");
 });
 
+app.get("/api/v1/health", (req, res) => {
+  res.status(200).json({ success: true, message: "Server is awake!" });
+});
+
 app.post("/register", upload.single("image"), async (req, res) => {
   try {
     const { name, whatsappNumber, email, password } = req.body;
