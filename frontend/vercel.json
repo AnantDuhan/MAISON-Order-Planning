@@ -1,17 +1,13 @@
 {
   "version": 2,
   "framework": "create-react-app",
-  "installCommand": "npm install",
   "buildCommand": "npm run build",
   "outputDirectory": "build",
-  "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
-    }
-  ],
   "env": {
-    "REACT_APP_API_URL": "https://order-planning-ecommerce.vercel.app/",
-    "CI": "false"
-  }
+    "CI": "false",
+    "GENERATE_SOURCEMAP": "false"
+  },
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
 }
