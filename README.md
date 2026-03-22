@@ -248,7 +248,77 @@ docker-compose up --build
 
 ## 🚀 Deployment
 
-### Heroku
+### Backend on Render
+
+1. **Connect Repository**
+   - Go to [Render](https://render.com) and sign up/login
+   - Click "New" → "Blueprint" or "Web Service"
+   - Connect your GitHub repository
+
+2. **Configure Service**
+   - **Name**: MERN-Ecommerce-Backend
+   - **Environment**: Docker
+   - **Region**: Oregon (or your preferred region)
+   - **Branch**: main
+   - **Build Command**: `npm install` (handled by Dockerfile)
+   - **Start Command**: `node backend/server.js` (handled by Dockerfile)
+
+3. **Environment Variables**
+   Set the following in Render's Environment section:
+   ```env
+   DB_URI=your_mongodb_atlas_uri
+   JWT_SECRET_KEY=your_jwt_secret
+   JWT_EXPIRES_IN=7d
+   PORT=4000
+   FRONTEND_URL=https://your-vercel-frontend-url.vercel.app
+   RESULT_PER_PAGE=10
+   STRIPE_PUBLISHABLE_KEY=pk_live_...
+   STRIPE_SECRET_KEY=sk_live_...
+   COOKIE_EXPIRES=7
+   SMTP_HOST=email-smtp.us-east-1.amazonaws.com
+   SMTP_PORT=587
+   SMTP_SERVICE=SES
+   SMTP_MAIL=your-email@example.com
+   SMTP_PASSWORD=your-smtp-password
+   AWS_ACCESS_KEY_ID=your_access_key
+   AWS_SECRET_ACCESS_KEY=your_secret_key
+   AWS_BUCKET_NAME=your_bucket_name
+   AWS_BUCKET_REGION=us-east-1
+   ```
+
+4. **Deploy**
+   - Click "Create Web Service"
+   - Render will build and deploy your backend
+   - Note the service URL (e.g., `https://mern-ecommerce-backend.onrender.com`)
+
+### Frontend on Vercel
+
+1. **Connect Repository**
+   - Go to [Vercel](https://vercel.com) and sign up/login
+   - Click "New Project"
+   - Import your GitHub repository
+
+2. **Configure Project**
+   - **Project Name**: MERN-Ecommerce-Frontend
+   - **Framework Preset**: Create React App
+   - **Root Directory**: `frontend`
+   - **Build Command**: `npm run build`
+   - **Output Directory**: `build`
+   - **Install Command**: `npm install`
+
+3. **Environment Variables**
+   Set in Vercel's Environment Variables section:
+   ```env
+   REACT_APP_API_URL=https://your-render-backend-url.onrender.com
+   ```
+
+4. **Deploy**
+   - Click "Deploy"
+   - Vercel will build and deploy your frontend
+   - Get the deployment URL (e.g., `https://mern-ecommerce-frontend.vercel.app`)
+
+### Alternative: Heroku (Legacy)
+
 1. Create a `Procfile` in the root directory:
    ```
    web: npm run start:production
@@ -262,12 +332,12 @@ docker-compose up --build
    ```
 
 ### Other Platforms
+
 The application can be deployed on any platform supporting Node.js:
-- AWS EC2
-- DigitalOcean
-- Vercel (frontend)
-- Railway
-- Render
+- **AWS EC2/ECS**: Use Docker or direct Node.js deployment
+- **DigitalOcean App Platform**: Connect repo and configure
+- **Railway**: Automatic deployment from GitHub
+- **Fly.io**: Docker-based deployment
 
 ## 🤝 Contributing
 
