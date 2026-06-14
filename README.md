@@ -1,3 +1,5 @@
+[![Netlify Status](https://api.netlify.com/api/v1/badges/bfa19719-6a66-4a86-b462-22666ef3e580/deploy-status?branch=main)](https://app.netlify.com/projects/orderplanning/deploys)
+
 # MERN Ecommerce Platform
 
 A full-stack e-commerce application built with the MERN stack (MongoDB, Express.js, React.js, Node.js) that provides a comprehensive online shopping experience. This platform offers advanced features for both customers and administrators, including secure payments, inventory management, user reviews, and more.
