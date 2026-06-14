@@ -5,7 +5,6 @@ import { Fragment, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { Route, Routes, useLocation } from 'react-router-dom';
 import WebFont from 'webfontloader';
-import { Analytics } from '@vercel/analytics/react';
 
 import { loadUser } from './actions/userAction';
 import Dashboard from './components/Admin/Dashboard';
@@ -138,7 +137,6 @@ function App() {
                     <Route path='*' element={<NotFound />} />
                 </Routes>
             </BackendWaker>
-            <Analytics />
         </Fragment>
     );
 }
