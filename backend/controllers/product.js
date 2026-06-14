@@ -7,7 +7,6 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import redisClientPromise from '../config/redisClient.js';
 import dotenv from 'dotenv';
 import { generateEmbedding } from '../utils/generateEmbedding.js';
-import { query } from 'express';
 
 dotenv.config({ path: '../config/config.env' });
 
