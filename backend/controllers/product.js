@@ -6,8 +6,6 @@ import { Snowflake } from '@theinternetfolks/snowflake';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import redisClientPromise from '../config/redisClient.js';
 import dotenv from 'dotenv';
-import { Client } from '@elastic/elasticsearch';
-const esClient = new Client({ node: process.env.ELASTICSEARCH_HOST });
 import { generateEmbedding } from '../utils/generateEmbedding.js';
 import { query } from 'express';
 
@@ -171,24 +169,6 @@ export const updateProduct = async (req, res, next) => {
             await redisClient.set(cacheKey, JSON.stringify(updatedProduct), { EX: 3600 });
         } catch (cacheError) {
             console.error('Redis cache sync error:', cacheError);
-        }
-
-        try {
-            const docToUpdate = {};
-            if (req.body.price) docToUpdate.price = req.body.price;
-            if (req.body.name) docToUpdate.name = req.body.name;
-            if (req.body.description) docToUpdate.description = req.body.description;
-            if (req.body.embedding) docToUpdate.embedding = req.body.embedding;
-
-            if (Object.keys(docToUpdate).length > 0) {
-                await esClient.update({
-                    index: 'products',
-                    id: productId,
-                    body: { doc: docToUpdate }
-                });
-            }
-        } catch (error) {
-            console.error('Elasticsearch sync error:', esError);
         }
         
         res.status(200).json({
@@ -578,141 +558,5 @@ export const summerizeProductReviews = async (req, res, next) => {
             success: false, 
             message: 'Server Error during summarization' 
         });
-    }
-};
-
-export const searchProducts = async (req, res, next) => {
-    try {
-        const { keyword, category, price, ratings } = req.query;
-
-        let knnQuery = undefined;
-
-        const mustQueries = [];
-        if (keyword) {
-            const queryVector = await generateEmbedding(keyword);
-            if (queryVector) {
-                knnQuery = {
-                    field: "embedding",
-                    query_vector: queryVector,
-                    k: 10,
-                    num_candidates: 50
-                };
-            } else {
-                mustQueries.push({
-                    multi_match: {
-                        query: keyword,
-                        fields: ["name", "description"],
-                        fuzziness: "AUTO"
-                    }
-                });
-            }
-        }
-
-        const filterQueries = [];
-        if (category) {
-            filterQueries.push({ term: { category: category } });
-        }
-        if (price) {
-            filterQueries.push({
-                range: {
-                    price: {
-                        gte: price.gte || 0,
-                        lte: price.lte || 1000000
-                    }
-                }
-            });
-        }
-        if (ratings) {
-            filterQueries.push({
-                range: {
-                    ratings: {
-                        gte: ratings.gte || 0
-                    }
-                }
-            });
-        }
-
-        const searchPayload = {
-            index: 'products',
-            body: {
-                query: {
-                    bool: {
-                        must: mustQueries,
-                        filter: filterQueries
-                    }
-                },
-                // This is for faceted search (filter counts)
-                aggs: {
-                    categories: {
-                        terms: {
-                            field: 'category'
-                        }
-                    }
-                }
-            }
-        };
-
-        if (knnQuery) {
-            searchPayload.body.knn = knnQuery;
-        }
-
-        const body = await esClient.search(searchPayload);
-
-        const productIds = body.hits.hits.map(hit => hit._id);
-        const products = await Product.find({ '_id': { $in: productIds } });
-        const sortedProducts = productIds.map(id => products.find(p => p._id.toString() === id.toString()));
-
-        res.status(200).json({
-            success: true,
-            products: sortedProducts,
-            facets: body.aggregations
-        });
-    } catch (error) {
-        console.error("FULL ELASTICSEARCH ERROR:", error.meta ? error.meta.body : error);
-        res.status(500).json({ 
-            success: false, 
-            message: 'Search service is currently unavailable.' 
-        });
-    }
-};
-
-export const getAutocompleteSuggestions = async (req, res) => {
-    try {
-        const { query } = req.query;
-
-        if (!query) {
-            return res.status(400).json({ success: false, data: [] });
-        }
-
-        const result = await esClient.search({
-            index: 'products',
-            query: {
-                multi_match: {
-                    query: query,
-                    type: "bool_prefix", 
-                    fields: [
-                        "name",
-                        "name._2gram",
-                        "name._3gram"
-                    ]
-                }
-            },
-            size: 5
-        });
-
-        const suggestions = result.hits.hits.map(hit => ({
-            id: hit._id,
-            name: hit._source.name,
-            price: hit._source.price
-        }));
-
-        res.status(200).json({
-            success: true,
-            data: suggestions
-        });
-
-    } catch (error) {
-        console.error('Elasticsearch Query Error:', error);
-        res.status(500).json({ success: false, message: 'Search failed' });
     }
 };

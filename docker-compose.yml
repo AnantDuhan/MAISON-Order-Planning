@@ -9,7 +9,6 @@ services:
       - PORT=4000
       - JWT_SECRET={JWT_SECRET_KEY}
       - JWT_EXPIRE=5d
-      - ELASTICSEARCH_HOST={ELASTICSEARCH_HOST}
       - REDIS_HOSTED_URL={REDIS_HOSTED_URL}
     depends_on:
       mongo:
@@ -27,25 +26,6 @@ services:
       - mongo-data:/data/db
     healthcheck:
       test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
-      interval: 10s
-      timeout: 10s
-      retries: 5
-      start_period: 40s
-    restart: unless-stopped
-
-  elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.9.0
-    container_name: my_elasticsearch
-    environment:
-      - "discovery.type=single-node"
-      - "xpack.security.enabled=false"
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
-    ports:
-      - "9200:9200"
-    volumes:
-      - elasticsearch-data:/usr/share/elasticsearch/data
-    healthcheck:
-      test: ["CMD-SHELL", "curl -s https://493efdd9d4:3448d7567fef4dd1ceb7@order-planning-elast-1n7n3dv0.us-east-1.bonsaisearch.net/_cluster/health | grep -vq '\"status\":\"red\"'"]
       interval: 10s
       timeout: 10s
       retries: 5
