@@ -96,7 +96,7 @@ app.use(async (req, res, next) => {
 });
 
 const corsOptions = {
-  origin: "http://localhost:3000",
+  origin: ["http://localhost:3000", "https://orderplanning.netlify.app/"],
   optionsSuccessStatus: 200, // some legacy browsers (IE11, various SmartTVs) choke on 204
   credentials: true,
 };
