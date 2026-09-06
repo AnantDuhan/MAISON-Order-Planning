@@ -61,6 +61,9 @@
     },
     "proxy": "https://mern-ecommerce-7ojo.onrender.com/",
     "devDependencies": {
-        "@redux-devtools/extension": "^3.3.0"
+        "@redux-devtools/extension": "^3.3.0",
+        "autoprefixer": "^10.5.5",
+        "postcss": "^8.5.28",
+        "tailwindcss": "^3.4.17"
     }
 }
