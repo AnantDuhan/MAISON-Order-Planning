@@ -90,7 +90,6 @@ const userSchema = new mongoose.Schema({
             default: false,
         }
     },
-    stripeCustomerId: String,
     role: {
         type: String,
         default: 'user'

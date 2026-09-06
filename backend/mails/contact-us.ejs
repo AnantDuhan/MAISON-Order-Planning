@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>New Contact Form Submission</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style type="text/css">
+      body {
+        margin: 0;
+        padding: 0;
+        min-width: 100%;
+        font-family: Arial, sans-serif;
+        font-size: 16px;
+        line-height: 1.5;
+        background-color: #fafafa;
+        color: #222222;
+      }
+      .email-wrapper {
+        max-width: 600px;
+        margin: 0 auto;
+      }
+      .email-header {
+        background-color: #0070f3;
+        padding: 24px;
+        color: #ffffff;
+      }
+      .email-body {
+        padding: 24px;
+        background-color: #ffffff;
+      }
+      .email-footer {
+        background-color: #f6f6f6;
+        padding: 24px;
+      }
+      .field-label {
+        color: #666666;
+        font-size: 13px;
+        font-weight: 700;
+        text-transform: uppercase;
+      }
+      .message {
+        white-space: pre-wrap;
+      }
+    </style>
+</head>
+<body>
+    <div class="email-wrapper">
+        <div class="email-header">
+            <h1>New Contact Form Submission</h1>
+        </div>
+        <div class="email-body">
+            <p>You have received a new message through the contact form.</p>
+            <p><span class="field-label">Name</span><br><%= name %></p>
+            <p><span class="field-label">Email</span><br><%= email %></p>
+            <p><span class="field-label">Subject</span><br><%= subject %></p>
+            <p><span class="field-label">Message</span></p>
+            <p class="message"><%= message %></p>
+        </div>
+        <div class="email-footer">
+            <p>This message was sent from the website contact form.</p>
+        </div>
+    </div>
+</body>
+</html>

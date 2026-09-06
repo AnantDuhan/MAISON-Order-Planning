@@ -1,7 +1,4 @@
 const User = require('../../models/user');
-const stripe = require('stripe')(
-    'sk_test_51K9RkSSDvITsgzEymgWGmrPCCP0Iu8b8j2AtRaZbnuXqwSLkQMSnTc6a6gQmRRzT60nP0KMhApPEpASMOPP3GgGh00rlK3KQm2'
-);
 const AWS = require('aws-sdk');
 
 AWS.config.update({
@@ -43,11 +40,6 @@ async function registerUser(req) {
         Body: file.buffer
     };
 
-    const customer = await stripe.customers.create({
-        email,
-        source: 'tok_visa'
-    });
-
     const avatarUrl = await s3.upload(uploadParams).promise();
 
     const user = await User.create({
@@ -56,7 +48,6 @@ async function registerUser(req) {
         email,
         password,
         avatar: avatarUrl.Location,
-        stripeCustomerId: customer.id
     });
 
     return user;

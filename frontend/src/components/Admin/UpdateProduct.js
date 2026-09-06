@@ -70,7 +70,7 @@ const UpdateProduct = () => {
         myForm.set('description', description);
         myForm.set('category', category);
         myForm.set('Stock', Stock);
-        images.forEach(image => myForm.append('images', image));
+        images.forEach(image => myForm.append('product', image));
         dispatch(updateProduct(productId, myForm));
     };
 

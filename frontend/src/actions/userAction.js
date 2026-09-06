@@ -67,16 +67,14 @@ export const login = (email, password) => async (dispatch) => {
 };
 
 // Register
-export const register = (name, email, password, avatar) => async dispatch => {
+export const register = formData => async dispatch => {
     try {
         dispatch({ type: REGISTER_USER_REQUEST });
 
-        const config = { headers: { 'Content-Type': 'multipart/form-data' } };
-
         const { data } = await axios.post(
             `/api/v1/register`,
-            { name, email, password, avatar },
-            { config }
+            formData,
+            { headers: { 'Content-Type': 'multipart/form-data' } }
         );
 
         dispatch({ type: REGISTER_USER_SUCCESS, payload: data.user });
@@ -158,9 +156,7 @@ export const forgotPassword = email => async dispatch => {
 
         const config = { headers: { 'Content-Type': 'application/json' } };
 
-        const { data } = await axios.post(`/api/v1/password/forgot`, email, {
-            config
-        });
+        const { data } = await axios.post(`/api/v1/password/forgot`, email, config);
 
         dispatch({ type: FORGOT_PASSWORD_SUCCESS, payload: data.message });
     } catch (error) {

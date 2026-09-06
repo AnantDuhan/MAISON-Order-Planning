@@ -138,13 +138,7 @@ export const updateProduct = (id, productData) => async dispatch => {
     try {
         dispatch({ type: UPDATE_PRODUCT_REQUEST });
 
-        const config = {
-            headers: { 'Content-Type': 'application/json' }
-        };
-
-        const { data } = await axios.put(`/admin/product/${id}`, productData, {
-            config
-        });
+        const { data } = await axios.put(`/admin/product/${id}`, productData);
 
         dispatch({
             type: UPDATE_PRODUCT_SUCCESS,

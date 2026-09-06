@@ -5,20 +5,18 @@ services:
     ports:
       - "4001:4000"
     environment:
-      - DB_URI={DB_HOSTED_URI}
+      - DB_HOSTED_URI=mongodb://mongo:27017/e-commerce
       - PORT=4000
-      - JWT_SECRET={JWT_SECRET_KEY}
+      - JWT_SECRET=development-secret
       - JWT_EXPIRE=5d
-      - REDIS_HOSTED_URL={REDIS_HOSTED_URL}
+      - REDIS_URL=redis://redis:6379
     depends_on:
       mongo:
-        condition: service_healthy
-      elasticsearch:
         condition: service_healthy
     restart: unless-stopped
 
   mongo:
-    image: mongo:latest
+    image: mongo:7.0
     container_name: my_mongodb
     ports:
       - "27017:27017"
@@ -48,8 +46,6 @@ services:
 
 volumes:
   mongo-data:
-    driver: local
-  elasticsearch-data:
     driver: local
   redis-data:
     driver: local

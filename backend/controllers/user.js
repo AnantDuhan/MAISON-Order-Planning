@@ -50,11 +50,6 @@ exports.registerUser = async (req, res, next) => {
 
         console.log('✅ Image uploaded successfully:', avatarUrl);
 
-        const customer = await stripe.customers.create({
-            email,
-            source: 'tok_visa'
-        });
-
         const user = await User.create({
             _id: Snowflake.Snowflake.generate({
                 timestamp: timestampInSeconds
@@ -63,8 +58,7 @@ exports.registerUser = async (req, res, next) => {
             whatsappNumber,
             email,
             password,
-            avatar: avatarUrl,
-            stripeCustomerId: customer.id
+            avatar: avatarUrl
         });
 
         let token = jwt.sign(
@@ -175,43 +169,42 @@ exports.logout = async (req, res, next) => {
 
 // forgot password
 exports.forgotPassword = async (req, res, next) => {
-    const user = await User.findOne({ email: req.body.email });
-
-    if (!user) {
-        return res.status(404).json({
-            success: false,
-            message: 'User not found'
-        });
-    }
-
-    // get reset password token
-    const resetToken = user.getResetPasswordToken();
-
-    await user.save({ validateBeforeSave: false });
-
-    const resetPasswordURL = `${process.env.FRONTEND_URL}/password/reset/${resetToken}`;
-
     try {
+        const email = req.body.email?.trim().toLowerCase();
+        const user = await User.findOne({ email });
+
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found'
+            });
+        }
+
+        // get reset password token
+        const resetToken = user.getResetPasswordToken();
+
+        await user.save({ validateBeforeSave: false });
+
+        const resetPasswordURL = `${process.env.FRONTEND_URL}/password/reset/${resetToken}`;
+        const emailMessage = await ejs.renderFile(
+            path.join(__dirname, '../mails/forgot-password.ejs'),
+            {
+                name: user.name,
+                activationCode: resetPasswordURL
+            }
+        );
+
         await sendEmail({
             email: user.email,
             subject: `Password Recovery - Ecommerce`,
-            html: `Your password reset token is:- \n\n ${resetPasswordURL} \n\n If you have not requested this email then, please ignore it.`
+            html: emailMessage
         });
-
-        const message = `Your password reset token is:- \n\n ${resetPasswordURL} \n\n If you have not requested this email then, please ignore it.`;
-
-        console.log('message', message);
 
         res.status(200).json({
             success: true,
             message: `Email sent to ${user.email} successfully.`
         });
     } catch (error) {
-        user.resetPasswordToken = undefined;
-        user.resetPasswordExpire = undefined;
-
-        await user.save({ validateBeforeSave: false });
-
         return res.status(500).json({
             success: false,
             message: error.message

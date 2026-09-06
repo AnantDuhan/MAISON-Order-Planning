@@ -1,6 +1,7 @@
 import BadgeIcon from '@mui/icons-material/Badge';
 import LockOpenIcon from '@mui/icons-material/LockOpen';
 import MailOutlineIcon from '@mui/icons-material/MailOutline';
+import PhoneAndroidIcon from '@mui/icons-material/PhoneAndroid';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import React, { Fragment, useEffect, useState } from 'react';
@@ -26,11 +27,11 @@ const LoginAndRegister = () => {
     const [progress, setProgress] = useState(0);
     const onLoaderFinished = () => setProgress(0);
 
-    const [user, setUser] = useState({ name: '', email: '', password: '' });
-    const { name, email, password } = user;
+    const [user, setUser] = useState({ name: '', whatsappNumber: '', email: '', password: '' });
+    const { name, whatsappNumber, email, password } = user;
     const [showRegisterPassword, setShowRegisterPassword] = useState(false);
 
-    const [avatar, setAvatar] = useState('/Profile.png');
+    const [avatarFile, setAvatarFile] = useState(null);
     const [avatarPreview, setAvatarPreview] = useState('/Profile.png');
 
     const registerSubmit = e => {
@@ -38,9 +39,12 @@ const LoginAndRegister = () => {
         setProgress(50);
         const myForm = new FormData();
         myForm.set('name', name);
+        myForm.set('whatsappNumber', whatsappNumber);
         myForm.set('email', email);
         myForm.set('password', password);
-        myForm.set('avatar', avatar);
+        if (avatarFile) {
+            myForm.set('image', avatarFile);
+        }
         dispatch(register(myForm));
     };
 
@@ -65,9 +69,9 @@ const LoginAndRegister = () => {
             reader.onload = () => {
                 if (reader.readyState === 2) {
                     setAvatarPreview(reader.result);
-                    setAvatar(reader.result);
                 }
             };
+            setAvatarFile(e.target.files[0]);
             reader.readAsDataURL(e.target.files[0]);
         } else {
             setUser({ ...user, [e.target.name]: e.target.value });
@@ -185,6 +189,17 @@ const LoginAndRegister = () => {
                                     <div className='field-row'>
                                         <MailOutlineIcon />
                                         <input type='email' placeholder='Email' required name='email' value={email} onChange={registerDataChange} />
+                                    </div>
+                                    <div className='field-row'>
+                                        <PhoneAndroidIcon />
+                                        <input
+                                            type='tel'
+                                            placeholder='WhatsApp Number'
+                                            required
+                                            name='whatsappNumber'
+                                            value={whatsappNumber}
+                                            onChange={registerDataChange}
+                                        />
                                     </div>
                                     <div className='field-row'>
                                         <LockOpenIcon />
