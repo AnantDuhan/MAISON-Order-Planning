@@ -17,9 +17,7 @@ export const submitContactForm = myForm => async dispatch => {
             }
         };
 
-        const { data } = await axios.post('/api/v1/contact-us', myForm, {
-            config
-        });
+        const { data } = await axios.post('/api/v1/contact-us', myForm, config);
 
         dispatch({ type: CONTACT_SUCCESS, payload: data });
     } catch (error) {

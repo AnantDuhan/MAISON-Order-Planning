@@ -262,10 +262,7 @@ export const createProductReview = async (req, res, next) => {
 
 export const getAllWishlistProducts = async (req, res) => {
     try {
-        // Find the current user
-        const user = await User.findById(req.user._id).populate(
-            'wishlist.product'
-        );
+        const user = await User.findById(req.user._id);
 
         if (!user) {
             return res.status(404).json({
@@ -274,7 +271,12 @@ export const getAllWishlistProducts = async (req, res) => {
             });
         }
 
-        const wishlistProducts = user.wishlist.map(item => item.product);
+        // Wishlist entries already contain the product snapshot needed by the UI.
+        // Expose the product id as _id so wishlist cards can use the same shape as products.
+        const wishlistProducts = user.wishlist.map(item => ({
+            ...item.toObject(),
+            _id: item.product
+        }));
 
         res.status(200).json({
             success: true,
@@ -331,10 +333,15 @@ export const addToWishList = async (req, res) => {
         const io = req.app.get('socketio');
         io.to(req.user._id.toString()).emit('wishlistUpdate', user.wishlist);
 
+        const wishlistProducts = user.wishlist.map(item => ({
+            ...item.toObject(),
+            _id: item.product
+        }));
+
         res.status(200).json({
             success: true,
             message: 'Product added to wishlist successfully',
-            wishlist: user.wishlist
+            wishlist: wishlistProducts
         });
     } catch (error) {
         console.error(error);

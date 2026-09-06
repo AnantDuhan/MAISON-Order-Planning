@@ -200,30 +200,30 @@ app.put("/me/update", isAuthUser, upload.single("image"), async (req, res) => {
     const { name, email } = req.body;
     const file = req.file;
 
-    // Upload the avatar image to AWS S3
-    const uploadParams = {
-      Bucket: process.env.AWS_BUCKET_NAME,
-      Key: `${userId}-${file.originalname}`,
-      Body: file.buffer,
-      ContentType: file.mimetype,
-    };
+    const updateData = { name, email };
+    if (file) {
+      const uploadParams = {
+        Bucket: process.env.AWS_BUCKET_NAME,
+        Key: `${userId}-${file.originalname}`,
+        Body: file.buffer,
+        ContentType: file.mimetype,
+      };
 
-    const s3 = new S3Client({
-      region: process.env.AWS_BUCKET_REGION,
-      credentials: fromEnv(),
-    });
+      const s3 = new S3Client({
+        region: process.env.AWS_BUCKET_REGION,
+        credentials: fromEnv(),
+      });
 
-    // Upload the file to S3
-    const uploadCommand = new PutObjectCommand(uploadParams);
-    await s3.send(uploadCommand);
+      await s3.send(new PutObjectCommand(uploadParams));
 
-    const cacheBuster = Date.now();
-    const avatarUrl = `https://${uploadParams.Bucket}.s3.${process.env.AWS_BUCKET_REGION}.amazonaws.com/${uploadParams.Key}?cacheBuster=${cacheBuster}`;
+      const cacheBuster = Date.now();
+      updateData.avatar = `https://${uploadParams.Bucket}.s3.${process.env.AWS_BUCKET_REGION}.amazonaws.com/${uploadParams.Key}?cacheBuster=${cacheBuster}`;
+    }
 
     // Update the user profile in the database
     const updatedUser = await User.findByIdAndUpdate(
       userId,
-      { name, email, avatar: avatarUrl },
+      updateData,
       { new: true },
     );
 

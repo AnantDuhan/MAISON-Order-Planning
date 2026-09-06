@@ -29,7 +29,9 @@ const UpdateProfile = () => {
         const myForm = new FormData();
         myForm.set('name', name);
         myForm.set('email', email);
-        myForm.set('avatar', avatar);
+        if (avatar) {
+            myForm.set('image', avatar);
+        }
         dispatch(updateProfile(myForm));
         setProgress(50);
     };
@@ -39,7 +41,7 @@ const UpdateProfile = () => {
         reader.onload = () => {
             if (reader.readyState === 2) {
                 setAvatarPreview(reader.result);
-                setAvatar(reader.result);
+                setAvatar(e.target.files[0]);
             }
         };
         reader.readAsDataURL(e.target.files[0]);

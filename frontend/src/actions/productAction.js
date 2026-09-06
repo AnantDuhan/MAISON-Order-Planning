@@ -281,7 +281,7 @@ export const fetchWishlist = () => async dispatch => {
     } catch (error) {
         dispatch({
             type: ALL_WISHLIST_PRODUCTS_FAIL,
-            payload: error.response.data.message
+            payload: error.response?.data?.message || error.message
         });
     }
 };
@@ -300,7 +300,7 @@ export const addProductToWishlist = (id) => async dispatch => {
     } catch (error) {
         dispatch({
             type: ADD_PRODUCT_TO_WISHLIST_FAIL,
-            payload: error.response.data.message
+            payload: error.response?.data?.message || error.message
         });
     }
 };

@@ -7,6 +7,8 @@ const nodeCache = require('node-cache');
 const NodeCache = new nodeCache({ useClones: false });
 const Reorder = require('../models/reorder');
 const Snowflake = require('@theinternetfolks/snowflake');
+const ejs = require('ejs');
+const path = require('path');
 
 const timestamp = Date.now();
 const timestampInSeconds = Math.floor(timestamp / 1000);
@@ -81,18 +83,15 @@ exports.newOrder = async (req, res, next) => {
             currentDate.getDate() + randomDays
         ); // Add random days
 
-        const imageUrl = order.orderItems.image;
-
-        const emailMessage = `<html>
-    <body>
-        <p>Hello ${user.name}!</p>
-        <p>Your order📦 has been placed successfully. Your estimated Date of delivery is ${estimatedDeliveryDate.toDateString()}.</p>
-        <img src="${imageUrl}" alt="Ordered Items">
-        <p>Thank you for ordering. For more please visit our website <a href="http://www.orderplanning.com">www.orderplanning.com</a>.</p>
-        <p>Here's the image of your ordered items:</p>
-        <p>Happy Shopping.😊</p>
-    </body>
-    </html>`;
+        const emailMessage = await ejs.renderFile(
+            path.join(__dirname, '../mails/order-confirmation.ejs'),
+            {
+                order,
+                user,
+                status: 'placed',
+                estimatedDeliveryDate: estimatedDeliveryDate.toDateString()
+            }
+        );
 
         await sendEmail({
             email: user.email,
@@ -237,6 +236,8 @@ exports.updateOrder = async (req, res, next) => {
 
         // Clear the cache for the updated order
         NodeCache.del(orderId);
+        NodeCache.del(`order:${orderId}`);
+        NodeCache.del('orders');
 
         const randomDays = Math.floor(Math.random() * 8); // Generate random number between 0 and 7
         const currentDate = new Date();
@@ -246,20 +247,15 @@ exports.updateOrder = async (req, res, next) => {
             currentDate.getDate() + randomDays
         ); // Add random days
 
-        const imageUrl = order.orderItems.image;
-
-        const emailMessage = `<html>
-    <body>
-        <p>Hello ${user.name}!</p>
-        <p>Your order📦 ${order._id} has been ${
-            order.orderStatus
-        }. Your estimated Date of delivery is ${estimatedDeliveryDate.toDateString()}.</p>
-        <img src="${imageUrl}" alt="Ordered Items">
-        <p>Thank you for ordering. For more please visit our website <a href="http://www.orderplanning.com">www.orderplanning.com</a>.</p>
-        <p>Here's the image of your ordered items:</p>
-        <p>Happy Shopping.😊</p>
-    </body>
-    </html>`;
+        const emailMessage = await ejs.renderFile(
+            path.join(__dirname, '../mails/order-confirmation.ejs'),
+            {
+                order,
+                user,
+                status: order.orderStatus,
+                estimatedDeliveryDate: estimatedDeliveryDate.toDateString()
+            }
+        );
         await sendEmail({
             email: user.email,
             subject: `Your Order📦 Status Update: ${order.orderStatus}`,
@@ -282,7 +278,8 @@ exports.updateOrder = async (req, res, next) => {
 
 async function getOrderFromCache(orderId) {
     // Check if order data is in the cache
-    let order = NodeCache.get(orderId);
+    const cacheKey = `order:${orderId}`;
+    let order = NodeCache.get(cacheKey);
 
     // If not in the cache, fetch from the database
     if (!order) {
@@ -290,7 +287,7 @@ async function getOrderFromCache(orderId) {
 
         // Cache the order data for future use
         if (order) {
-            NodeCache.set(orderId, order);
+            NodeCache.set(cacheKey, order);
         }
     }
 

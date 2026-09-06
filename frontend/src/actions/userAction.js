@@ -116,17 +116,11 @@ export const logout = () => async dispatch => {
 };
 
 // Update Profile
-export const updateProfile = (name, email, avatar) => async dispatch => {
+export const updateProfile = userData => async dispatch => {
     try {
         dispatch({ type: UPDATE_PROFILE_REQUEST });
 
-        const config = { headers: { 'Content-Type': 'multipart/form-data' } };
-
-        const { data } = await axios.put(
-            `/api/me/update`,
-            { name, email, avatar },
-            { config }
-        );
+        const { data } = await axios.put('/me/update', userData);
 
         dispatch({ type: UPDATE_PROFILE_SUCCESS, payload: data.success });
     } catch (error) {

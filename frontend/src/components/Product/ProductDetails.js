@@ -62,7 +62,7 @@ const ProductDetails = () => {
     };
 
     const wishlistHandler = () => {
-        const isProductInWishlist = wishlist.some(item => item.product === id);
+        const isProductInWishlist = wishlist.some(item => (item.product || item._id) === id);
         if (isProductInWishlist) {
             toast.info('Product is already in the wishlist');
         } else {
@@ -128,7 +128,7 @@ const ProductDetails = () => {
         socket.emit('joinProductRoom', id);
 
         const handleProductUpdate = (updatedProduct) => {
-            toast.info("This product's details have been updated in real-time!");
+            toast.info("This product's details have been updated!");
             dispatch({ type: REALTIME_PRODUCT_UPDATE, payload: updatedProduct });
         };
         const handleReviewUpdate = () => {

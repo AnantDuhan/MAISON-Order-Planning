@@ -41,7 +41,7 @@ const OrderSummary = ({ order }) => {
                 {order.orderItems.map(item => (
                     <div key={item._id} className='w-32 shrink-0'>
                         <img
-                            src={item.image}
+                            src={item.images?.[0]?.url || item.image}
                             alt={item.name}
                             className='aspect-square w-full border object-cover'
                         />
@@ -150,7 +150,7 @@ const ProcessOrder = () => {
                                             <div key={item.product} className='flex flex-col gap-5 p-6 sm:flex-row'>
                                                 <div className='w-full shrink-0 overflow-hidden border border-line bg-surface-2 sm:w-32'>
                                                     <img
-                                                        src={item.image}
+                                                        src={item.images?.[0]?.url || item.image}
                                                         alt='Product'
                                                         className='aspect-square w-full object-cover'
                                                     />

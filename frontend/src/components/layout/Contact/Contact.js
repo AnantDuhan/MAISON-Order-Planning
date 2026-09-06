@@ -36,12 +36,7 @@ const ContactForm = () => {
 
     const submitFormHandler = e => {
         e.preventDefault();
-        const myForm = new FormData();
-        myForm.set('name', name);
-        myForm.set('email', email);
-        myForm.set('subject', subject);
-        myForm.set('message', message);
-        dispatch(submitContactForm(myForm));
+        dispatch(submitContactForm({ name, email, subject, message }));
     };
 
     return (

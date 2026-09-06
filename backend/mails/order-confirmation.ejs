@@ -74,23 +74,17 @@
             <h1>Order Confirmation</h1>
         </div>
         <div class="email-body">
-            <p>Hello <%= order.name %>,</p>
-            <p>Your order with Id <strong><%= order._id %></strong>> has been confirmed. Here are the details:</p>
-            <table>
-                <tr>
-                    <td><strong>Course Name:</strong></td>
-                    <td><%= order.name %></td>
-                </tr>
-                <tr>
-                    <td><strong>Total Price:</strong></td>
-                    <td>₹<%= order.price %></td>
-                </tr>
-                <tr>
-                    <td><strong>Order Date:</strong></td>
-                    <td><%= order.date %></td>
-                </tr>
-            </table>
-            <p>Thank you for choosing our Order Planning platform. Enjoy your learning experience!</p>
+            <p>Hello <%= user.name %>!</p>
+            <p>Your order📦 <strong><%= order._id %></strong> has been <%= status %>. Your estimated date of delivery is <%= estimatedDeliveryDate %>.</p>
+            <% order.orderItems.forEach(item => { %>
+              <% const imageUrl = item.images && item.images[0] && item.images[0].url; %>
+              <% if (imageUrl) { %>
+                <p><img src="<%= imageUrl %>" alt="<%= item.name %>" style="max-width: 240px; height: auto;"></p>
+              <% } %>
+              <p><strong><%= item.name %></strong> &middot; Quantity: <%= item.quantity %> &middot; Price: ₹<%= item.price %></p>
+            <% }); %>
+            <p>Thank you for ordering. For more please visit our website <a href="http://www.orderplanning.com">www.orderplanning.com</a>.</p>
+            <p>Happy Shopping.😊</p>
         </div>
         <div class="email-footer">
             <p>If you have any questions, please don't hesitate to contact us at <a href="mailto:support@orderplanning.com">support@orderplanning.com</a></p>
