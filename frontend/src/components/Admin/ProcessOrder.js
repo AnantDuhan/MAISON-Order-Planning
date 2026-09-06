@@ -56,8 +56,10 @@ const OrderSummary = ({ order }) => {
 };
 
 const ProcessOrder = () => {
-    const { order, error, loading } = useSelector(state => state.orderDetails);
+    const { order: fetchedOrder, error, loading } = useSelector(state => state.orderDetails);
     const { error: updateError, isUpdated } = useSelector(state => state.order);
+
+    const order = fetchedOrder || {};
 
     const dispatch = useDispatch();
     const { id } = useParams();
