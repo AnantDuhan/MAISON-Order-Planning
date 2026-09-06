@@ -2,46 +2,55 @@
 
 # MERN Ecommerce Platform
 
-A full-stack e-commerce application built with the MERN stack (MongoDB, Express.js, React.js, Node.js) that provides a comprehensive online shopping experience. This platform offers advanced features for both customers and administrators, including secure payments, inventory management, user reviews, and more.
+A full-stack e-commerce application built with MongoDB, Express, React, and Node.js. It includes customer shopping flows, an admin workspace, Stripe payments, AWS S3 image storage, transactional email, Redis caching, AI-assisted product features, and real-time product updates.
 
 ## 🚀 Features
 
 ### 🛒 Customer Features
 - **User Authentication & Security**
   - Secure registration and login with JWT tokens
-  - Google OAuth integration
-  - Two-factor authentication (2FA) support
-  - Password reset functionality
-  - Role-based access (User/Admin)
+ `POST /api/v1/register` - User registration (`multipart/form-data`, image field: `image`)
+ `POST /api/v1/login` - User login
+ `GET /api/v1/logout` - User logout
+ `POST /api/v1/password/forgot` - Password reset request
+ `PUT /api/v1/password/reset/:token` - Reset password
+ `GET /api/v1/me` - Current user details
 
 - **Product Discovery**
-  - Browse products by categories
-  - Advanced search and filtering (price, rating, category)
-  - Product reviews and ratings
-  - AI-powered product summaries
-  - Image galleries for products
+ `POST /admin/add-product` - Create product (Admin, multipart image field: `product`)
+ `PUT /api/v1/admin/update/product/:id` - Update product (Admin)
+ `DELETE /admin/product/:id` - Delete product (Admin)
+ `POST /api/v1/review` - Create a review
+ `POST /api/v1/:id/summerize-reviews` - Generate an admin AI review summary
 
 - **Shopping Experience**
-  - Add products to wishlist
-  - Shopping cart management
-  - Secure checkout with Stripe payment integration
-  - Coupon code discounts
+ `POST /api/v1/order/:id/return` - Request a return
+ `POST /api/v1/reorder` - Reorder a previous order
+ `GET /api/v1/admin/orders` - List all orders (Admin)
+ `GET /api/v1/admin/returns` - List returns (Admin)
+ `GET /api/v1/admin/refunds` - List refunds (Admin)
   - Order tracking and history
 
-- **Customer Support**
+ `POST /api/v1/payment` - Process payment
   - Contact form for inquiries
   - Return and refund request system
-  - Order status updates via email
-
-- **Personalization**
+ `POST /api/v1/coupon` - Create coupon (Admin)
+ `GET /api/v1/coupons/all` - Get all coupons
   - User profiles with avatar upload
   - Wishlist management
+ `GET /api/v1/admin/analytics?range=7d|30d|90d|12m|all` - Aggregated dashboard analytics (Admin)
+ `GET /api/v1/admin/stats` - Lightweight product, order, user, return, refund, and stock counts (Admin)
   - Order history and reordering
   - Personalized recommendations (AI-powered embeddings)
+ `GET /api/v1/health` - Backend health check
+ `GET /api-docs` - Swagger UI
+ `GET /api-docs.json` - OpenAPI JSON
+  - WhatsApp number captured during registration
 
 ### 👨‍💼 Admin Features
 - **Dashboard Management**
-  - Comprehensive admin dashboard
+  - Lightweight product, order, user, return, refund, and stock statistics
+  - Date-range analytics with revenue, order, product, return, refund, and coupon metrics
   - User management and analytics
   - Order management and fulfillment
   - Product inventory control
@@ -50,7 +59,7 @@ A full-stack e-commerce application built with the MERN stack (MongoDB, Express.
   - Create, update, and delete products
   - Category management
   - Stock level monitoring
-  - Image upload to AWS S3
+  - PNG, JPEG/JPG, and WebP image uploads to AWS S3
 
 - **Order Processing**
   - View and update order status
@@ -63,9 +72,10 @@ A full-stack e-commerce application built with the MERN stack (MongoDB, Express.
 
 ### 🔧 Technical Features
 - **Performance Optimization**
-  - Redis caching for 85% performance improvement
-  - Image optimization and CDN integration
-  - Database query optimization
+  - Redis and Upstash Redis caching for product and user-specific order data
+  - Aggregation-based admin analytics
+  - Route-level frontend code splitting with React lazy loading
+  - Database query and cache invalidation improvements
 
 - **Security**
   - Input validation and sanitization
@@ -77,11 +87,16 @@ A full-stack e-commerce application built with the MERN stack (MongoDB, Express.
   - Email notifications via Amazon SES
   - Automated order confirmations
   - Password reset emails
+  - Socket.IO events for product, review, and AI-summary updates
 
 - **Testing & Quality**
-  - Unit tests with Mocha and Chai
+  - Backend controller and unit tests with Mocha and Sinon
   - Code quality assurance
-  - Error handling and logging
+  - Error handling, logging, and a React render-error boundary
+
+- **API Documentation**
+  - Swagger UI at `/api-docs`
+  - OpenAPI JSON at `/api-docs.json`
 
 ### 🌟 Premium Features
 - **Plus Membership**
@@ -112,7 +127,9 @@ A full-stack e-commerce application built with the MERN stack (MongoDB, Express.
 - **Redux Thunk** - Async actions
 - **React Router** - Client-side routing
 - **Axios** - HTTP client
-- **CSS/Bootstrap** - Styling
+- **Tailwind CSS and CSS** - Styling
+- **Socket.IO Client** - Real-time updates
+- **Material UI and React Icons** - Interface components
 
 ### DevOps & Tools
 - **Docker** - Containerization
@@ -124,7 +141,7 @@ A full-stack e-commerce application built with the MERN stack (MongoDB, Express.
 
 - Node.js (v14 or higher)
 - MongoDB
-- Redis (optional, for caching)
+- Redis or Upstash Redis (optional, for caching)
 - AWS account (for S3 and SES)
 - Stripe account (for payments)
 
@@ -151,102 +168,137 @@ A full-stack e-commerce application built with the MERN stack (MongoDB, Express.
    ```
 
 3. **Environment Setup**
-   Create `backend/config/config.env` with the following variables:
+  Create `backend/config/config.env` locally. Never commit credentials or copy real secrets into documentation.
    ```env
-   # Database
-   DB_URI=mongodb://localhost:27017/mern-ecommerce
-
-   # JWT
+  DB_URI=mongodb://localhost:27017/e-commerce
+  DB_HOSTED_URI=mongodb+srv://<user>:<password>@<cluster>/<database>
    JWT_SECRET_KEY=your_jwt_secret
    JWT_EXPIRES_IN=7d
-
-   # Server
    PORT=4000
    FRONTEND_URL=http://localhost:3000
-   RESULT_PER_PAGE=10
-
-   # Stripe Payment
+  RESULT_PER_PAGE=12
+  COOKIE_EXPIRES=1
    STRIPE_PUBLISHABLE_KEY=pk_test_...
    STRIPE_SECRET_KEY=sk_test_...
-
-   # Cookies
-   COOKIE_EXPIRES=7
-
-   # Email (Amazon SES)
-   SMTP_HOST=email-smtp.us-east-1.amazonaws.com
+  SMTP_HOST=smtp.example.com
    SMTP_PORT=587
-   SMTP_SERVICE=SES
+  SMTP_SERVICE=gmail-or-ses
    SMTP_MAIL=your-email@example.com
    SMTP_PASSWORD=your-smtp-password
-
-   # AWS S3
    AWS_ACCESS_KEY_ID=your_access_key
    AWS_SECRET_ACCESS_KEY=your_secret_key
    AWS_BUCKET_NAME=your_bucket_name
    AWS_BUCKET_REGION=us-east-1
+  UPSTASH_REDIS_REST_URL=https://<instance>.upstash.io
+  UPSTASH_REDIS_REST_TOKEN=your_token
+  GOOGLE_OAUTH_CLIENT_ID=your_client_id
+  GOOGLE_OAUTH_CLIENT_SECRET=your_client_secret
+  GEMINI_API_KEY=your_gemini_key
    ```
+
+  Optional integrations include Stripe live keys, Twilio, reCAPTCHA, Elastic Cloud, and `REDIS_URL` for a local Redis instance. The frontend uses the proxy configured in `frontend/package.json` during local development; set `REACT_APP_API_URL` when deploying it separately.
 
 ## 🏃‍♂️ Running the Application
 
 ### Development Mode
 ```bash
-# Start backend server
+# Terminal 1: backend on port 4000
 npm run dev
 
-# Start frontend (in another terminal)
+# Terminal 2: frontend on port 3000
 cd frontend
 npm start
 ```
 
 ### Production Build
 ```bash
-# Build frontend
 cd frontend
 npm run build
 cd ..
+npm start
+```
 
-# Start production server
-npm run production
+The backend health check is available at `GET http://localhost:4000/api/v1/health`.
+
+## 🧪 Tests
+
+```bash
+# Backend tests
+npm test
+
+# Frontend production build
+cd frontend
+npm run build
 ```
 
 ## 🐳 Docker Deployment
 
-The project includes Docker support for easy deployment.
-
 ```bash
-# Build and run with Docker Compose
 docker-compose up --build
 ```
+
+The Compose setup starts the application, MongoDB, and Redis. The application is exposed on port `4001` while the container listens on port `4000`.
 
 ## 📡 API Endpoints
 
 ### Authentication
-- `POST /api/v1/user/register` - User registration
-- `POST /api/v1/user/login` - User login
-- `POST /api/v1/user/logout` - User logout
-- `POST /api/v1/user/forgot-password` - Password reset request
+- `POST /api/v1/register` - User registration (`multipart/form-data`, image field: `image`)
+- `POST /api/v1/login` - User login
+- `GET /api/v1/logout` - User logout
+- `POST /api/v1/password/forgot` - Password reset request
+- `PUT /api/v1/password/reset/:token` - Reset password
+- `GET /api/v1/me` - Current user details
 
 ### Products
-- `GET /api/v1/products` - Get all products
-- `POST /api/v1/product/new` - Create product (Admin)
+- `GET /api/v1/products` - Get products with search, filters, and pagination
 - `GET /api/v1/product/:id` - Get product details
-- `PUT /api/v1/product/:id` - Update product (Admin)
-- `DELETE /api/v1/product/:id` - Delete product (Admin)
+- `POST /admin/add-product` - Create product (Admin, multipart image field: `product`)
+- `PUT /api/v1/admin/update/product/:id` - Update product (Admin)
+- `DELETE /admin/product/:id` - Delete product (Admin)
+- `POST /api/v1/review` - Create a review
+- `POST /api/v1/:id/summerize-reviews` - Generate an admin AI review summary
 
 ### Orders
 - `POST /api/v1/order/new` - Create new order
 - `GET /api/v1/orders/me` - Get user's orders
 - `GET /api/v1/order/:id` - Get order details
-- `PUT /api/v1/order/:id` - Update order status (Admin)
+- `POST /api/v1/order/:id/return` - Request a return
+- `POST /api/v1/reorder` - Reorder a previous order
+- `GET /api/v1/admin/orders` - List all orders (Admin)
+- `GET /api/v1/admin/returns` - List returns (Admin)
+- `GET /api/v1/admin/refunds` - List refunds (Admin)
 
-### Payments
-- `POST /api/v1/payment/process` - Process payment
+### Payments and coupons
+- `POST /api/v1/payment` - Process payment
 - `GET /api/v1/stripeapikey` - Get Stripe API key
+- `POST /api/v1/coupon` - Create coupon (Admin)
+- `GET /api/v1/coupons/all` - Get all coupons
 
-### Coupons
-- `POST /api/v1/coupon/new` - Create coupon (Admin)
-- `GET /api/v1/coupons` - Get all coupons (Admin)
-- `DELETE /api/v1/coupon/:id` - Delete coupon (Admin)
+### Admin analytics
+- `GET /api/v1/admin/analytics?range=7d|30d|90d|12m|all` - Aggregated dashboard analytics (Admin)
+- `GET /api/v1/admin/stats` - Lightweight product, order, user, return, refund, and stock counts (Admin)
+
+### Documentation and health
+- `GET /api/v1/health` - Backend health check
+- `GET /api-docs` - Swagger UI
+- `GET /api-docs.json` - OpenAPI JSON
+
+## 🖼️ Uploads and real-time updates
+
+Product and profile uploads use Multer memory storage before being written to AWS S3. Product forms upload the original `File` objects rather than base64 strings, avoiding multipart field-size errors. Accepted image types are PNG, JPEG/JPG, and WebP.
+
+Product pages connect to the backend Socket.IO server on port 4000. Product, review, and generated-summary events can update the page in real time. The React development server also opens its own hot-reload WebSocket on port 3000; browser messages about a page entering the Back-Forward Cache are normal during navigation.
+
+## 🗃️ Data migration
+
+Several reference fields were corrected from numeric to string types to match the string-based Snowflake document IDs. Existing databases can be repaired with:
+
+```bash
+node backend/scripts/fixRefTypes.js          # dry run
+node backend/scripts/fixRefTypes.js --apply  # apply conversions
+```
+
+Back up the database before using `--apply`.
 
 ## 🚀 Deployment
 
@@ -319,20 +371,6 @@ docker-compose up --build
    - Vercel will build and deploy your frontend
    - Get the deployment URL (e.g., `https://mern-ecommerce-frontend.vercel.app`)
 
-### Alternative: Heroku (Legacy)
-
-1. Create a `Procfile` in the root directory:
-   ```
-   web: npm run start:production
-   ```
-
-2. Set environment variables in Heroku dashboard
-
-3. Deploy:
-   ```bash
-   git push heroku main
-   ```
-
 ### Other Platforms
 
 The application can be deployed on any platform supporting Node.js:
@@ -348,15 +386,6 @@ The application can be deployed on any platform supporting Node.js:
 3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
-
-## 📝 Upcoming Features
-
-- [ ] Advanced filtering functionalities
-- [ ] Multilingual support
-- [ ] AI-powered recommendation system
-- [ ] Mobile app development
-- [ ] Advanced analytics dashboard
-- [ ] Social media integration
 
 ## 📄 License
 
@@ -378,87 +407,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 ⭐ If you found this project helpful, please give it a star!
-
-## Install
-
-Some basic git commands are:
-
-```git
-$ git clone https://github.com/AnantDuhan/MERN-Ecommerce.git
-$ cd MERN-Ecommerce
-$ npm install
-```
-
-**For Backend** - `npm install`
-**For Frontend** - `cd frontend` `npm install`
-
-## Env Variables
-
-Make Sure to Create a config.env file in backend/config directory that include:
-
-- DB_URI & JWT_SECRET_KEY & JWT_EXPIRES_IN
-- PORT, FRONTEND_URL & RESULT_PER_PAGE
-- STRIPE_PUBLISHABLE_KEY & STRIPE_SECRET_KEY
-- COOKIE_EXPIRES
-- SMTP_HOST, SMTP_PORT & SMTP_SERVICE
-- SMTP_MAIL & SMTP_PASSWORD
-- AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_BUCKET_NAME & AWS_BUCKET_REGION
-
-## Heroku Deployment
-
-```
-> Create a Procfile in the root directory of your application with the following command **web: npm run start:production**
-```
-
-## Simple build for production
-
-```
-$ npm run production
-```
-
-## Run the application for development
-
-**for frontend**
-
-```
-$ npm start
-```
-
-**for backend**
-
-```
-$ npm run dev
-```
-
-## Run the application for production
-
-```
-$ npm run start:production
-```
-
-## Languages & tools
-
-- [Mongoose](https://mongoosejs.com/)
-- [Express](https://expressjs.com/)
-- [React](https://reactjs.org/)
-- [Node](https://nodejs.org/en/)
-- [AWS-S3](https://aws.amazon.com/s3/)
-- [Stripe](https://dashboard.stripe.com/dashboard)
-
-## Code Formatter
-
-- Add a `.vscode` directory
-- Create a file `settings.json` inside `.vscode`
-- Install Prettier - Code formatter in VSCode
-- Add the following snippet:
-
-```json
-{
-    "editor.formatOnSave": true,
-    "prettier.singleQuote": true,
-    "prettier.arrowParens": "avoid",
-    "prettier.jsxSingleQuote": true,
-    "prettier.trailingComma": "none",
-    "javascript.preferences.quoteStyle": "single"
-}
-```
