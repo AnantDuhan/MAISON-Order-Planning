@@ -2,123 +2,85 @@ import React, { Fragment, useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { DataGrid } from '@mui/x-data-grid';
 import LaunchIcon from '@mui/icons-material/Launch';
-import { clearErrors, allRefunds } from '../../actions/orderAction';
-// import Loader from '../layout/Loader/Loader';
 import LoadingBar from 'react-top-loading-bar';
-import MetaData from '../layout/MetaData';
 
-import './RefundList.css';
+import { clearErrors, allRefunds } from '../../actions/orderAction';
+import MetaData from '../layout/MetaData';
+import AdminPage from './shared/AdminPage';
+import AdminTable from './shared/AdminTable';
 
 const RefundList = () => {
     const dispatch = useDispatch();
-
     const { loading, error, refunds } = useSelector(state => state.allRefunds);
 
     const [progress, setProgress] = useState(0);
-
     const onLoaderFinished = () => setProgress(0);
-
-    const columns = [
-        { field: 'id', headerName: 'Refund ID', minWidth: 150, flex: 0.4 },
-        { field: 'orderID', headerName: 'Order ID', minWidth: 150, flex: 0.4 },
-        { field: 'customer', headerName: 'Customer', minWidth: 110, flex: 0.4 },
-        {
-            field: 'status',
-            headerName: 'Status',
-            minWidth: 120,
-            flex: 0.4,
-            cellClassName: params => {
-                const status = params.row.status;
-                return status === 'Completed' ? 'greenColor' : 'redColor';
-            }
-        },
-        {
-            field: 'requestDate',
-            headerName: 'Request Date',
-            type: 'date',
-            minWidth: 130,
-            flex: 0.5
-        },
-        {
-            field: 'refundAmount',
-            headerName: 'Refund Amount',
-            type: 'number',
-            minWidth: 150,
-            flex: 0.5
-        },
-        {
-            field: 'actions',
-            flex: 0.2,
-            headerName: 'Actions',
-            minWidth: 120,
-            type: 'number',
-            sortable: false,
-            renderCell: params => {
-                return (
-                    <div className='actions-container'>
-                        <Link to={`/order/${params.getValue(params.id, 'id')}`}>
-                            <LaunchIcon />
-                        </Link>
-                    </div>
-                );
-            }
-        }
-    ];
-
-    const rows = [];
-
-    console.log("REFUNDS", refunds);
-
-    refunds &&
-        refunds.forEach((item, index) => {
-            rows.push({
-                id: item._id,
-                orderID: item.order._id,
-                customer: item.order.user.name,
-                status: item.status,
-                requestDate: item.order.refundRequestedAt,
-                refundAmount: item.order.totalPrice
-            });
-        });
-
-    console.log('rows', refunds);
 
     useEffect(() => {
         if (error) {
             toast.error(error);
             dispatch(clearErrors());
         }
-
         dispatch(allRefunds());
         setProgress(100);
         setTimeout(() => setProgress(0), 5000);
     }, [dispatch, error]);
 
+    const rows = (refunds || []).map(item => ({
+        id: item._id,
+        orderID: item.order?._id,
+        customer: item.order?.user?.name,
+        status: item.status,
+        requestDate: item.order?.refundRequestedAt,
+        refundAmount: item.order?.totalPrice,
+    }));
+
+    const columns = [
+        { key: 'id', label: 'Refund ID', width: '1.2fr' },
+        { key: 'orderID', label: 'Order ID', width: '1.2fr' },
+        { key: 'customer', label: 'Customer', width: '1fr' },
+        {
+            key: 'status',
+            label: 'Status',
+            width: '0.8fr',
+            tone: row => (row.status === 'Completed' ? 'text-success' : 'text-danger'),
+        },
+        {
+            key: 'requestDate',
+            label: 'Requested',
+            width: '1fr',
+            render: row => (row.requestDate ? String(row.requestDate).substring(0, 10) : '—'),
+        },
+        {
+            key: 'refundAmount',
+            label: 'Amount',
+            align: 'right',
+            width: '0.8fr',
+            render: row => `₹${row.refundAmount ?? 0}`,
+        },
+        {
+            key: 'actions',
+            label: 'Actions',
+            align: 'right',
+            width: '0.5fr',
+            render: row => (
+                <Link to={`/order/${row.orderID}`} className='text-ink-soft hover:text-brass' title='View order'>
+                    <LaunchIcon fontSize='small' />
+                </Link>
+            ),
+        },
+    ];
+
     return (
         <Fragment>
-            <MetaData title='All Refunds' />
+            <MetaData title='All Refunds · Admin' />
             {loading ? (
-                <LoadingBar
-                    color='red'
-                    progress={progress}
-                    onLoaderFinished={onLoaderFinished}
-                />
+                <LoadingBar color='#A07C4B' progress={progress} onLoaderFinished={onLoaderFinished} />
             ) : (
-                <div className='allReturnsPage'>
-                    <h1 id='returnsListHeading'>ALL REFUNDS</h1>
-                    <div className='table-container'>
-                        <DataGrid
-                            rows={rows}
-                            columns={columns}
-                            pageSize={10}
-                            rowsPerPageOptions={[10, 20, 30]}
-                            className='allReturnsTable'
-                            autoHeight
-                        />
-                    </div>
-                </div>
+                <AdminPage title='All Refunds'>
+                    <AdminTable columns={columns} rows={rows} emptyMessage='No refunds requested.' />
+                </AdminPage>
             )}
         </Fragment>
     );

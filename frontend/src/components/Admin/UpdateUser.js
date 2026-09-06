@@ -1,4 +1,3 @@
-import { Button } from '@mui/material';
 import MailOutlineIcon from '@mui/icons-material/MailOutline';
 import PersonIcon from '@mui/icons-material/Person';
 import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
@@ -8,10 +7,10 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 
 import { clearErrors, getUserDetails, updateUser } from '../../actions/userAction';
-// import SideBar from './Sidebar';
 import { UPDATE_USER_RESET } from '../../constants/userConstants';
 import Loader from '../layout/Loader/Loader';
 import MetaData from '../layout/MetaData';
+import AdminPage from './shared/AdminPage';
 
 const UpdateUser = () => {
     const dispatch = useDispatch();
@@ -19,24 +18,17 @@ const UpdateUser = () => {
     const { id } = useParams();
 
     const { loading, error, user } = useSelector(state => state.userDetails);
-
-    const {
-        loading: updateLoading,
-        error: updateError,
-        isUpdated
-    } = useSelector(state => state.profile);
+    const { loading: updateLoading, error: updateError, isUpdated } =
+        useSelector(state => state.profile);
 
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [role, setRole] = useState('');
 
-    console.log("ID", id);
-    console.log('userId', user);
-
     useEffect(() => {
         if (user && user._id !== id) {
             dispatch(getUserDetails(id));
-        } else {
+        } else if (user) {
             setName(user.name);
             setEmail(user.email);
             setRole(user.role);
@@ -45,12 +37,10 @@ const UpdateUser = () => {
             toast.error(error);
             dispatch(clearErrors());
         }
-
         if (updateError) {
             toast.error(updateError);
             dispatch(clearErrors());
         }
-
         if (isUpdated) {
             toast.success('User Updated Successfully');
             navigate('/admin/users');
@@ -60,32 +50,26 @@ const UpdateUser = () => {
 
     const updateUserSubmitHandler = e => {
         e.preventDefault();
-
         const myForm = new FormData();
-
         myForm.set('name', name);
         myForm.set('email', email);
         myForm.set('role', role);
-
         dispatch(updateUser(id, myForm));
     };
 
     return (
         <Fragment>
-            <MetaData title='Update User' />
-            {/* <div className='dashboard'> */}
-                {/* <SideBar /> */}
-                <div className='newProductContainer'>
-                    {loading ? (
-                        <Loader />
-                    ) : (
-                        <form
-                            className='createProductForm'
-                            onSubmit={updateUserSubmitHandler}
-                        >
-                            <h1>Update User</h1>
-
-                            <div>
+            <MetaData title='Update User · Admin' />
+            <AdminPage title='Update User'>
+                {loading ? (
+                    <Loader />
+                ) : (
+                    <form
+                        className='mx-auto max-w-lg border border-line bg-surface p-8 sm:p-10'
+                        onSubmit={updateUserSubmitHandler}
+                    >
+                        <div className='flex flex-col gap-6'>
+                            <div className='field-row'>
                                 <PersonIcon />
                                 <input
                                     type='text'
@@ -95,7 +79,7 @@ const UpdateUser = () => {
                                     onChange={e => setName(e.target.value)}
                                 />
                             </div>
-                            <div>
+                            <div className='field-row'>
                                 <MailOutlineIcon />
                                 <input
                                     type='email'
@@ -105,36 +89,26 @@ const UpdateUser = () => {
                                     onChange={e => setEmail(e.target.value)}
                                 />
                             </div>
-
-                            <div>
+                            <div className='field-row'>
                                 <VerifiedUserIcon />
-                                <select
-                                    value={role}
-                                    onChange={e => setRole(e.target.value)}
-                                >
+                                <select value={role} onChange={e => setRole(e.target.value)}>
                                     <option value=''>Choose Role</option>
                                     <option value='admin'>Admin</option>
                                     <option value='user'>User</option>
                                 </select>
                             </div>
 
-                            <Button
-                                id='createProductBtn'
+                            <button
                                 type='submit'
-                                disabled={
-                                    updateLoading
-                                        ? true
-                                        : false || role === ''
-                                        ? true
-                                        : false
-                                }
+                                disabled={updateLoading || role === ''}
+                                className='btn-solid w-full disabled:opacity-40'
                             >
-                                Update User
-                            </Button>
-                        </form>
-                    )}
-                </div>
-            {/* </div> */}
+                                {updateLoading ? 'Updating…' : 'Update User'}
+                            </button>
+                        </div>
+                    </form>
+                )}
+            </AdminPage>
         </Fragment>
     );
 };

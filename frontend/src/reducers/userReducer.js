@@ -64,7 +64,8 @@ export const userReducer = (state = { user: {} }, action) => {
                 ...state,
                 loading: false,
                 isAuthenticated: true,
-                user: action.payload.user,
+                // every auth action dispatches the user object itself
+                user: action.payload,
             };
 
         // ...

@@ -56,13 +56,25 @@ export const getProduct = (
     try {
         dispatch({ type: ALL_PRODUCT_REQUEST });
 
-        let link = `/api/v1/products?keyword=${keyword}&page=${currentPage}&price[gte]=${price[0]}&price[lte]=${price[1]}&ratings[gte]=${ratings}`;
+        // Only send filters the user actually set. A "no-op" filter such as
+        // ratings[gte]=0 is NOT harmless: in MongoDB a range query does not
+        // match documents where the field is absent, so sending it would hide
+        // every product that has no ratings/price field stored.
+        const params = new URLSearchParams();
 
-        if (category) {
-            link = `/api/v1/products?keyword=${keyword}&page=${currentPage}&price[gte]=${price[0]}&price[lte]=${price[1]}&category=${category}&ratings[gte]=${ratings}`;
+        if (keyword) params.set('keyword', keyword);
+        params.set('page', currentPage);
+
+        const [minPrice, maxPrice] = price || [];
+        if (Number(minPrice) > 0) params.set('price[gte]', minPrice);
+        if (maxPrice !== undefined && maxPrice !== null && Number(maxPrice) < 400000) {
+            params.set('price[lte]', maxPrice);
         }
 
-        const { data } = await axios.get(link);
+        if (category) params.set('category', category);
+        if (Number(ratings) > 0) params.set('ratings[gte]', ratings);
+
+        const { data } = await axios.get(`/api/v1/products?${params.toString()}`);
 
         dispatch({
             type: ALL_PRODUCT_SUCCESS,
@@ -339,7 +351,7 @@ export const searchProducts = (filters = {}) => async (dispatch) => {
         dispatch({ type: SEARCH_PRODUCTS_REQUEST });
 
         // Destructure the filters with default values
-        const { keyword = '', price = {}, category = '', ratings = 0 } = filters;
+        const { keyword = '', price = {}, ratings = 0 } = filters;
 
         // Use URLSearchParams to build the query string dynamically
         const params = new URLSearchParams();
@@ -353,21 +365,15 @@ export const searchProducts = (filters = {}) => async (dispatch) => {
         if (price.gte) {
             params.append('price[gte]', price.gte);
         }
-        if (category) {
-            params.append('category', category);
-        }
         if (ratings > 0) {
             params.append('ratings[gte]', ratings);
         }
 
-        const { data } = await axios.get(`/api/v1/products?${params.toString()}`);
+        const { data } = await axios.get(`/api/v1/search?${params.toString()}`);
 
         dispatch({
             type: SEARCH_PRODUCTS_SUCCESS,
-            payload: {
-                products: data.products,
-                facets: {},
-            },
+            payload: data,
         });
     } catch (error) {
         dispatch({

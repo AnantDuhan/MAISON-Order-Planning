@@ -286,7 +286,7 @@ export const loginWithGoogle = (googleToken) => async (dispatch) => {
             config
         );
 
-        dispatch({ type: GOOGLE_LOGIN_SUCCESS, payload: data });
+        dispatch({ type: GOOGLE_LOGIN_SUCCESS, payload: data.user });
 
     } catch (error) {
         dispatch({

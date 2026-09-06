@@ -46,7 +46,7 @@ exports.registerUser = async (req, res, next) => {
         await s3.send(uploadCommand);
 
         const cacheBuster = Date.now();
-        const avatarUrl = `https://${uploadParams.Bucket}.s3.${s3.region}.amazonaws.com/${uploadParams.Key}?cacheBuster=${cacheBuster}`;
+        const avatarUrl = `https://${uploadParams.Bucket}.s3.${process.env.AWS_BUCKET_REGION}.amazonaws.com/${uploadParams.Key}?cacheBuster=${cacheBuster}`;
 
         console.log('✅ Image uploaded successfully:', avatarUrl);
 

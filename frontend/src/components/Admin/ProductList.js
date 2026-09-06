@@ -1,5 +1,3 @@
-import { Button } from '@mui/material';
-import { DataGrid } from '@mui/x-data-grid';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import React, { Fragment, useEffect } from 'react';
@@ -8,131 +6,92 @@ import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 
 import { clearErrors, deleteProduct, getAdminProduct } from '../../actions/productAction';
-// import Sidebar from './Sidebar.js';
 import { DELETE_PRODUCT_RESET } from '../../constants/productConstants';
 import MetaData from '../layout/MetaData';
-
-import './ProductList.css';
+import AdminPage from './shared/AdminPage';
+import AdminTable from './shared/AdminTable';
 
 const ProductList = () => {
     const dispatch = useDispatch();
     const navigate = useNavigate();
 
     const { error, products } = useSelector(state => state.products);
+    const { error: deleteError, isDeleted } = useSelector(state => state.product);
 
-    const { error: deleteError, isDeleted } = useSelector(
-        state => state.product
-    );
-
-    const deleteProductHandler = id => {
-        dispatch(deleteProduct(id));
-    };
+    const deleteProductHandler = id => dispatch(deleteProduct(id));
 
     useEffect(() => {
         if (error) {
             toast.error(error);
             dispatch(clearErrors());
         }
-
         if (deleteError) {
             toast.error(deleteError);
             dispatch(clearErrors());
         }
-
         if (isDeleted) {
             toast.success('Product Deleted Successfully');
             navigate('/admin/dashboard');
             dispatch({ type: DELETE_PRODUCT_RESET });
         }
-
         dispatch(getAdminProduct());
     }, [dispatch, error, deleteError, navigate, isDeleted]);
 
+    const rows = (products || []).map(item => ({
+        id: item._id,
+        name: item.name,
+        stock: item.Stock,
+        price: item.price,
+    }));
+
     const columns = [
-        { field: 'id', headerName: 'Product ID', minWidth: 200, flex: 0.5 },
-
+        { key: 'id', label: 'Product ID', width: '1.4fr' },
+        { key: 'name', label: 'Name', width: '2fr' },
         {
-            field: 'name',
-            headerName: 'Name',
-            minWidth: 350,
-            flex: 1
+            key: 'stock',
+            label: 'Stock',
+            align: 'center',
+            width: '0.6fr',
+            tone: row => (row.stock === 0 ? 'text-danger' : 'text-ink'),
         },
         {
-            field: 'stock',
-            headerName: 'Stock',
-            type: 'number',
-            minWidth: 150,
-            flex: 0.3
+            key: 'price',
+            label: 'Price',
+            align: 'right',
+            width: '0.8fr',
+            render: row => `₹${row.price}`,
         },
-
         {
-            field: 'price',
-            headerName: 'Price',
-            type: 'number',
-            minWidth: 270,
-            flex: 0.5
+            key: 'actions',
+            label: 'Actions',
+            align: 'right',
+            width: '0.7fr',
+            render: row => (
+                <span className='inline-flex items-center gap-4'>
+                    <Link to={`/admin/product/${row.id}`} className='text-ink-soft hover:text-brass' title='Edit'>
+                        <EditIcon fontSize='small' />
+                    </Link>
+                    <button
+                        onClick={() => deleteProductHandler(row.id)}
+                        className='text-ink-soft hover:text-danger'
+                        title='Delete'
+                    >
+                        <DeleteIcon fontSize='small' />
+                    </button>
+                </span>
+            ),
         },
-
-        {
-            field: 'actions',
-            flex: 0.3,
-            headerName: 'Actions',
-            minWidth: 150,
-            type: 'number',
-            sortable: false,
-            renderCell: (params) => {
-                return (
-                    <Fragment>
-                        <Link
-                            to={`/admin/product/${params.row.id}`}
-                        >
-                            <EditIcon />
-                        </Link>
-
-                        <Button
-                            onClick={() =>
-                                deleteProductHandler(params.row.id)
-                            }
-                        >
-                            <DeleteIcon />
-                        </Button>
-                    </Fragment>
-                );
-            }
-        }
     ];
-
-    const rows = [];
-
-    products &&
-        products.forEach(item => {
-            rows.push({
-                id: item._id,
-                stock: item.Stock,
-                price: item.price,
-                name: item.name
-            });
-        });
 
     return (
         <Fragment>
-            <MetaData title={`ALL PRODUCTS - Admin`} />
-            {/* <div className="dashboard"> */}
-            {/* <Sidebar /> */}
-                <div className='productListContainer'>
-                    <h1 id='productListHeading'>ALL PRODUCTS</h1>
-
-                    <DataGrid
-                        rows={rows}
-                        columns={columns}
-                        pageSize={10}
-                        rowsPerPageOptions={[10]}
-                        disableSelectionOnClick
-                        className='productListTable'
-                        autoHeight
-                    />
-                </div>
-            {/* </div> */}
+            <MetaData title='All Products · Admin' />
+            <AdminPage
+                title='All Products'
+                action={<Link to='/admin/product' className='btn-solid'>New Product</Link>}
+            >
+                <AdminTable columns={columns} rows={rows} emptyMessage='No products yet.' />
+            </AdminPage>
         </Fragment>
     );
 };

@@ -38,6 +38,7 @@ import { couponReducer } from './reducers/couponReducer';
 import { contactReducer } from './reducers/contactReducer';
 import { subscribeReducer } from './reducers/subscribeReducer';
 import { serverReducer } from './reducers/serverReducer';
+import { analyticsReducer } from './reducers/analyticsReducer';
 
 const reducer = combineReducers({
     // product reducer
@@ -86,6 +87,9 @@ const reducer = combineReducers({
 
     // server reducer
     server: serverReducer,
+
+    // analytics reducer
+    analytics: analyticsReducer,
 
 });
 

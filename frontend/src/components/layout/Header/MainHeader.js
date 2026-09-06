@@ -119,8 +119,17 @@ const MainHeader = () => {
                     <ul className='hidden items-center gap-8 lg:flex'>
                         {user?.role === 'admin' && (
                             <li>
-                                <Link to='/admin/dashboard' className='eyebrow !tracking-wide hover:text-brass'>
-                                    Dashboard
+                                <Link
+                                    to='/admin/dashboard'
+                                    className='inline-flex items-center gap-2 border border-brass px-3 py-1.5 font-sans text-[0.68rem] uppercase tracking-luxe text-brass transition-all duration-500 ease-luxe hover:bg-brass hover:text-white'
+                                >
+                                    <svg width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='1.7'>
+                                        <rect x='3' y='3' width='7' height='9' />
+                                        <rect x='14' y='3' width='7' height='5' />
+                                        <rect x='14' y='12' width='7' height='9' />
+                                        <rect x='3' y='16' width='7' height='5' />
+                                    </svg>
+                                    Admin
                                 </Link>
                             </li>
                         )}
@@ -229,8 +238,12 @@ const MainHeader = () => {
                     <ul className='flex flex-col gap-4'>
                         {user?.role === 'admin' && (
                             <li>
-                                <Link to='/admin/dashboard' onClick={() => setMenuOpen(false)} className='font-sans text-sm uppercase tracking-luxe text-ink'>
-                                    Dashboard
+                                <Link
+                                    to='/admin/dashboard'
+                                    onClick={() => setMenuOpen(false)}
+                                    className='inline-flex items-center gap-2 border border-brass px-3 py-1.5 font-sans text-sm uppercase tracking-luxe text-brass'
+                                >
+                                    Admin Dashboard
                                 </Link>
                             </li>
                         )}
