@@ -1,41 +1,32 @@
 import LockIcon from '@mui/icons-material/Lock';
 import LockOpenIcon from '@mui/icons-material/LockOpen';
 import React, { Fragment, useEffect, useState } from 'react';
-// import Loader from '../layout/Loader/Loader';
 import { useDispatch, useSelector } from 'react-redux';
-import { useNavigate } from 'react-router';
+import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import LoadingBar from 'react-top-loading-bar';
 
 import { clearErrors, resetPassword } from '../../actions/userAction';
 import MetaData from '../layout/MetaData';
 
-import './ResetPassword.css';
-
-const ResetPassword = ({ match }) => {
+const ResetPassword = () => {
     const dispatch = useDispatch();
     const navigate = useNavigate();
+    const { token } = useParams();
 
-    const { error, success, loading } = useSelector(
-        state => state.forgotPassword
-    );
+    const { error, success, loading } = useSelector(state => state.forgotPassword);
 
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
-
     const [progress, setProgress] = useState(0);
-
     const onLoaderFinished = () => setProgress(0);
 
     const resetPasswordSubmit = e => {
         e.preventDefault();
-
         const myForm = new FormData();
-
         myForm.set('password', password);
         myForm.set('confirmPassword', confirmPassword);
-
-        dispatch(resetPassword(match.params.token, myForm));
+        dispatch(resetPassword(token, myForm));
         setProgress(50);
     };
 
@@ -44,10 +35,8 @@ const ResetPassword = ({ match }) => {
             toast.error(error);
             dispatch(clearErrors());
         }
-
         if (success) {
             toast.success('Password Updated Successfully');
-
             navigate('/login');
         }
         setProgress(100);
@@ -57,54 +46,39 @@ const ResetPassword = ({ match }) => {
     return (
         <Fragment>
             {loading ? (
-                <LoadingBar
-                    color='red'
-                    progress={progress}
-                    onLoaderFinished={onLoaderFinished}
-                />
+                <LoadingBar color='#A07C4B' progress={progress} onLoaderFinished={onLoaderFinished} />
             ) : (
                 <Fragment>
-                    <MetaData title='Change Password' />
-                    <div className='resetPasswordContainer'>
-                        <div className='resetPasswordBox'>
-                            <h2 className='resetPasswordHeading'>
-                                Update Profile
-                            </h2>
+                    <MetaData title='Reset Password · Maison' />
+                    <div className='form-shell'>
+                        <div className='form-card'>
+                            <p className='eyebrow'>Almost There</p>
+                            <h2 className='heading-display mt-2 text-3xl'>New Password</h2>
 
-                            <form
-                                className='resetPasswordForm'
-                                onSubmit={resetPasswordSubmit}
-                            >
-                                <div>
+                            <form className='mt-8 flex flex-col gap-6' onSubmit={resetPasswordSubmit}>
+                                <div className='field-row'>
                                     <LockOpenIcon />
                                     <input
                                         type='password'
                                         placeholder='New Password'
                                         required
                                         value={password}
-                                        onChange={e =>
-                                            setPassword(e.target.value)
-                                        }
+                                        onChange={e => setPassword(e.target.value)}
                                     />
                                 </div>
-                                <div className='loginPassword'>
+                                <div className='field-row'>
                                     <LockIcon />
                                     <input
                                         type='password'
                                         placeholder='Confirm Password'
                                         required
                                         value={confirmPassword}
-                                        onChange={e =>
-                                            setConfirmPassword(e.target.value)
-                                        }
+                                        onChange={e => setConfirmPassword(e.target.value)}
                                     />
                                 </div>
-                                <input
-                                    type='submit'
-                                    value='Update'
-                                    className='resetPasswordBtn'
-                                    onClick={() => setProgress(progress + 80)}
-                                />
+                                <button type='submit' onClick={() => setProgress(progress + 80)} className='btn-solid w-full'>
+                                    Update Password
+                                </button>
                             </form>
                         </div>
                     </div>

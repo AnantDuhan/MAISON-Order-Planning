@@ -1,4 +1,7 @@
 const { createClient } = require('redis');
+const dotenv = require("dotenv");
+
+dotenv.config({ path: './backend/config/config.env' });
 
 const redisClient = createClient({
     url: process.env.REDIS_HOSTED_URL 

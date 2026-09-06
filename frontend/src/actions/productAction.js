@@ -339,7 +339,7 @@ export const searchProducts = (filters = {}) => async (dispatch) => {
         dispatch({ type: SEARCH_PRODUCTS_REQUEST });
 
         // Destructure the filters with default values
-        const { keyword = '', price = {}, ratings = 0 } = filters;
+        const { keyword = '', price = {}, category = '', ratings = 0 } = filters;
 
         // Use URLSearchParams to build the query string dynamically
         const params = new URLSearchParams();
@@ -353,15 +353,21 @@ export const searchProducts = (filters = {}) => async (dispatch) => {
         if (price.gte) {
             params.append('price[gte]', price.gte);
         }
+        if (category) {
+            params.append('category', category);
+        }
         if (ratings > 0) {
             params.append('ratings[gte]', ratings);
         }
 
-        const { data } = await axios.get(`/api/v1/search?${params.toString()}`);
+        const { data } = await axios.get(`/api/v1/products?${params.toString()}`);
 
         dispatch({
             type: SEARCH_PRODUCTS_SUCCESS,
-            payload: data,
+            payload: {
+                products: data.products,
+                facets: {},
+            },
         });
     } catch (error) {
         dispatch({

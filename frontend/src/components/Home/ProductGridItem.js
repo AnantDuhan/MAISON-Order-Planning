@@ -1,58 +1,29 @@
-import React, { useState } from 'react';
-import './ProductGridItem.css';
-import { Rating } from '@mui/material';
+import React from 'react';
 import { Link } from 'react-router-dom';
 
 const ProductGridItem = ({ product }) => {
-    const [hovered, setHovered] = useState(false);
+    if (!product) return null;
 
-    const handleMouseEnter = () => {
-        setHovered(true);
-    };
-
-    const handleMouseLeave = () => {
-        setHovered(false);
-    };
-
-    const options = {
-        size: 'large',
-        value: product.ratings,
-        readOnly: false,
-        precision: 0.5
-    };
-
-    if (!product) {
-        return null;
-    }
-
-    const defaultImageUrl = "https://ecommerce-bucket-sdk.s3.ap-south-1.amazonaws.com/default.jpg";
-
-    const imageUrl = product.images && product.images.length > 0 
-        ? product.images[0]?.url 
-        : defaultImageUrl;
-
-    
+    const defaultImageUrl = 'https://ecommerce-bucket-sdk.s3.ap-south-1.amazonaws.com/default.jpg';
+    const imageUrl =
+        product.images && product.images.length > 0 ? product.images[0]?.url : defaultImageUrl;
 
     return (
-        <Link to={`/product/${product._id}`}>
-            <div
-                className='productGridItem'
-                onMouseEnter={handleMouseEnter}
-                onMouseLeave={handleMouseLeave}
-            >
-                <img src={imageUrl} alt={product.name} />
+        <Link to={`/product/${product._id}`} className='group relative block overflow-hidden bg-surface-2'>
+            <div className='aspect-[3/4] w-full overflow-hidden'>
+                <img
+                    src={imageUrl}
+                    alt={product.name}
+                    className='h-full w-full object-cover transition-transform duration-700 ease-luxe group-hover:scale-105'
+                />
+            </div>
 
-                {hovered && (
-                    <div className='productGridItemContent'>
-                        <p>{product.name}</p>
-                        <span>{`${product.description}`}</span>
-                        <span>{`₹${product.price}`}</span>
-                        <Rating {...options} />
-                        <span className='productCardSpan'>
-                            ({product.numOfReviews} Reviews)
-                        </span>
-                    </div>
-                )}
+            {/* Overlay */}
+            <div className='absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-ink/85 via-ink/20 to-transparent p-6 opacity-0 transition-opacity duration-500 ease-luxe group-hover:opacity-100'>
+                <span className='eyebrow !text-brass-soft'>New Arrival</span>
+                <h3 className='mt-2 font-display text-2xl font-medium text-white'>{product.name}</h3>
+                <p className='mt-1 line-clamp-2 font-sans text-sm text-white/70'>{product.description}</p>
+                <p className='mt-3 font-sans text-sm tracking-wide text-white'>{`₹${product.price}`}</p>
             </div>
         </Link>
     );

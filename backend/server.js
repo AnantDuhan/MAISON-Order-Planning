@@ -4,7 +4,7 @@ const dotenv = require('dotenv');
 const connectDB = require('./config/database');
 const http = require('http');
 const { Server } = require('socket.io');
-const redisClient = require('./config/redisClient');
+// const redisClient = require('./config/redisClientUpstash');
 
 // Handling Uncaught Exceptions
 // process.on('uncaughtException', (err) => {
@@ -23,13 +23,23 @@ const io = new Server(createServer, {
     }
 });
 
+io.on('connection', socket => {
+    socket.on('joinProductRoom', productId => {
+        socket.join(productId);
+    });
+
+    socket.on('leaveProductRoom', productId => {
+        socket.leave(productId);
+    });
+});
+
 app.set('socketio', io);
-app.set('redisClient', redisClient);
+// app.set('redisClient', redisClient);
 
 //connecting to database
 connectDB();
 
-const server = app.listen(process.env.PORT || 8080, () => {
+const server = createServer.listen(process.env.PORT || 8080, () => {
     console.log(`✅ Server is working on http://localhost:${process.env.PORT || 8080}`)
 })
 

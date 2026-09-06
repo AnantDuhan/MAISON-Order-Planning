@@ -3,42 +3,30 @@ import LockOpenIcon from '@mui/icons-material/LockOpen';
 import MailOutlineIcon from '@mui/icons-material/MailOutline';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
-import React, { Fragment, useEffect, useRef, useState } from 'react';
+import React, { Fragment, useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-
-import { clearErrors, login, register, loginWithGoogle } from '../../actions/userAction';
 import LoadingBar from 'react-top-loading-bar';
 import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
 
-import './LoginAndRegister.css';
+import { clearErrors, login, register, loginWithGoogle } from '../../actions/userAction';
 
 const LoginAndRegister = () => {
     const dispatch = useDispatch();
     const navigate = useNavigate();
 
-    const { error, loading, isAuthenticated, message, twoFactorRequired, userIdFor2fa } = useSelector(
-        state => state.user
-    );
+    const { error, loading, isAuthenticated, message, twoFactorRequired, userIdFor2fa } =
+        useSelector(state => state.user);
 
-    const loginTab = useRef(null);
-    const registerTab = useRef(null);
-    const switcherTab = useRef(null);
-
+    const [tab, setTab] = useState('login');
     const [loginIdentifier, setLoginIdentifier] = useState('');
     const [loginPassword, setLoginPassword] = useState('');
     const [showLoginPassword, setShowLoginPassword] = useState(false);
     const [progress, setProgress] = useState(0);
-
     const onLoaderFinished = () => setProgress(0);
 
-    const [user, setUser] = useState({
-        name: '',
-        email: '',
-        password: ''
-    });
-
+    const [user, setUser] = useState({ name: '', email: '', password: '' });
     const { name, email, password } = user;
     const [showRegisterPassword, setShowRegisterPassword] = useState(false);
 
@@ -48,9 +36,7 @@ const LoginAndRegister = () => {
     const registerSubmit = e => {
         e.preventDefault();
         setProgress(50);
-
         const myForm = new FormData();
-
         myForm.set('name', name);
         myForm.set('email', email);
         myForm.set('password', password);
@@ -60,8 +46,7 @@ const LoginAndRegister = () => {
 
     const handleGoogleLoginSuccess = credentialResponse => {
         setProgress(50);
-        const idToken = credentialResponse.credential;
-        dispatch(loginWithGoogle(idToken));
+        dispatch(loginWithGoogle(credentialResponse.credential));
     };
 
     const handleGoogleLoginError = () => {
@@ -77,14 +62,12 @@ const LoginAndRegister = () => {
     const registerDataChange = e => {
         if (e.target.name === 'avatar') {
             const reader = new FileReader();
-
             reader.onload = () => {
                 if (reader.readyState === 2) {
                     setAvatarPreview(reader.result);
                     setAvatar(reader.result);
                 }
             };
-
             reader.readAsDataURL(e.target.files[0]);
         } else {
             setUser({ ...user, [e.target.name]: e.target.value });
@@ -93,88 +76,74 @@ const LoginAndRegister = () => {
 
     useEffect(() => {
         setProgress(100);
-
         if (error) {
             toast.error(error);
             dispatch(clearErrors());
         }
-
         if (isAuthenticated) {
             navigate('/');
         }
-
         if (message) {
             toast.success(message);
         }
-
         if (twoFactorRequired && userIdFor2fa) {
             navigate('/login/2fa', { state: { userId: userIdFor2fa } });
         }
+        const timer = setTimeout(() => setProgress(0), 5000);
+        return () => clearTimeout(timer);
+    }, [dispatch, error, navigate, isAuthenticated, message, twoFactorRequired, userIdFor2fa]);
 
-        const timer = setTimeout(() => {
-            setProgress(0);
-        }, 5000);
-
-        return () => {
-            clearTimeout(timer);
-        };
-
-    }, [dispatch, error, navigate, isAuthenticated, setProgress, message, twoFactorRequired, userIdFor2fa]);
-
-    const switchTabs = (e, tab) => {
-        if (tab === 'login') {
-            switcherTab.current.classList.add('shiftToNeutral');
-            switcherTab.current.classList.remove('shiftToRight');
-
-            registerTab.current.classList.remove('shiftToNeutralForm');
-            loginTab.current.classList.remove('shiftToLeft');
-        }
-        if (tab === 'register') {
-            switcherTab.current.classList.add('shiftToRight');
-            switcherTab.current.classList.remove('shiftToNeutral');
-
-            registerTab.current.classList.add('shiftToNeutralForm');
-            loginTab.current.classList.add('shiftToLeft');
-        }
-    };
+    const Divider = () => (
+        <div className='my-6 flex items-center gap-4'>
+            <span className='h-px flex-1 bg-line' />
+            <span className='font-sans text-[0.62rem] uppercase tracking-luxe text-ink-faint'>or</span>
+            <span className='h-px flex-1 bg-line' />
+        </div>
+    );
 
     return (
         <Fragment>
             {loading ? (
-                <LoadingBar
-                    color='red'
-                    progress={progress}
-                    onLoaderFinished={onLoaderFinished}
-                />
+                <LoadingBar color='#A07C4B' progress={progress} onLoaderFinished={onLoaderFinished} />
             ) : (
-                <Fragment>
-                    <GoogleOAuthProvider clientId={process.env.REACT_APP_GOOGLE_CLIENT_ID}>
-                        <div className='LoginSignUpContainer'>
-                            <div className='LoginSignUpBox'>
-                                <div>
-                                    <div className='login_signUp_toggle'>
-                                        <div className='login_signUp_toggle'>
-                                            <p onClick={e => switchTabs(e, 'login')}>LOGIN</p>
-                                            <p onClick={e => switchTabs(e, 'register')}>REGISTER</p>
-                                        </div>
-                                    </div>
-                                    <button ref={switcherTab}></button>
-                                </div>
-                                
-                                {/* --- LOGIN FORM --- */}
-                                <form className='loginForm' ref={loginTab} onSubmit={loginSubmit}>
-                                    <div className='loginEmail'>
+                <GoogleOAuthProvider clientId={process.env.REACT_APP_GOOGLE_CLIENT_ID}>
+                    <div className='form-shell'>
+                        <div className='form-card'>
+                            {/* Tab switch */}
+                            <div className='relative mb-8 grid grid-cols-2'>
+                                {['login', 'register'].map(t => (
+                                    <button
+                                        key={t}
+                                        onClick={() => setTab(t)}
+                                        className={`pb-3 font-sans text-[0.72rem] uppercase tracking-luxe transition-colors ${
+                                            tab === t ? 'text-ink' : 'text-ink-faint hover:text-ink-soft'
+                                        }`}
+                                    >
+                                        {t === 'login' ? 'Login' : 'Register'}
+                                    </button>
+                                ))}
+                                <span className='absolute bottom-0 h-px w-full bg-line' />
+                                <span
+                                    className={`absolute bottom-0 h-px w-1/2 bg-brass transition-all duration-500 ease-luxe ${
+                                        tab === 'register' ? 'left-1/2' : 'left-0'
+                                    }`}
+                                />
+                            </div>
+
+                            {/* LOGIN */}
+                            {tab === 'login' && (
+                                <form className='flex flex-col gap-6 animate-fade-in' onSubmit={loginSubmit}>
+                                    <div className='field-row'>
                                         <MailOutlineIcon />
                                         <input
-                                            type="text"
-                                            placeholder="Email or Mobile Number"
+                                            type='text'
+                                            placeholder='Email or Mobile Number'
                                             required
                                             value={loginIdentifier}
                                             onChange={e => setLoginIdentifier(e.target.value)}
                                         />
                                     </div>
-
-                                    <div className='loginPassword'>
+                                    <div className='field-row'>
                                         <LockOpenIcon />
                                         <input
                                             type={showLoginPassword ? 'text' : 'password'}
@@ -183,131 +152,82 @@ const LoginAndRegister = () => {
                                             value={loginPassword}
                                             onChange={e => setLoginPassword(e.target.value)}
                                         />
-                                        <span className='password-icon' onClick={() => setShowLoginPassword(!showLoginPassword)}>
-                                            {showLoginPassword ? <VisibilityIcon /> : <VisibilityOffIcon />}
+                                        <span className='cursor-pointer text-ink-faint hover:text-ink' onClick={() => setShowLoginPassword(!showLoginPassword)}>
+                                            {showLoginPassword ? <VisibilityIcon fontSize='small' /> : <VisibilityOffIcon fontSize='small' />}
                                         </span>
                                     </div>
+                                    <Link to='/password/forgot' className='self-end font-sans text-[0.7rem] uppercase tracking-luxe text-ink-soft hover:text-brass'>
+                                        Forgot Password?
+                                    </Link>
+                                    <button type='submit' className='btn-solid w-full'>Login</button>
 
-                                    <Link to='/password/forgot'>Forget Password ?</Link>
-
-                                    <input 
-                                        type='submit' 
-                                        value='Login'
-                                        className='loginBtn' 
-                                    />
-
-                                    <div className="or-divider">
-                                        <span className="or-divider-line"></span>
-                                        <span className="or-divider-text">OR</span>
-                                        <span className="or-divider-line"></span>
-                                    </div>
-
-                                    <div className="google-login-button-container">
+                                    <Divider />
+                                    <div className='flex justify-center'>
                                         <GoogleLogin
                                             onSuccess={handleGoogleLoginSuccess}
                                             onError={handleGoogleLoginError}
                                             useOneTap
-                                            theme="outline"
-                                            size="large"
-                                            width="280px"
+                                            theme='outline'
+                                            size='large'
+                                            width='300'
                                         />
                                     </div>
                                 </form>
+                            )}
 
-                                {/* --- REGISTER FORM --- */}
-                                <form
-                                    className='signUpForm'
-                                    ref={registerTab}
-                                    encType='multipart/form-data'
-                                    onSubmit={registerSubmit}
-                                >
-                                    <div className='signUpName'>
+                            {/* REGISTER */}
+                            {tab === 'register' && (
+                                <form className='flex flex-col gap-6 animate-fade-in' encType='multipart/form-data' onSubmit={registerSubmit}>
+                                    <div className='field-row'>
                                         <BadgeIcon />
-                                        <input
-                                            type='text'
-                                            placeholder='Name'
-                                            required
-                                            name='name'
-                                            value={name}
-                                            onChange={registerDataChange}
-                                        />
+                                        <input type='text' placeholder='Name' required name='name' value={name} onChange={registerDataChange} />
                                     </div>
-                                    <div className='signUpEmail'>
+                                    <div className='field-row'>
                                         <MailOutlineIcon />
-                                        <input
-                                            type='email'
-                                            placeholder='Email'
-                                            required
-                                            name='email'
-                                            value={email}
-                                            onChange={registerDataChange}
-                                        />
+                                        <input type='email' placeholder='Email' required name='email' value={email} onChange={registerDataChange} />
                                     </div>
-                                    <div className='signUpPassword'>
+                                    <div className='field-row'>
                                         <LockOpenIcon />
                                         <input
-                                            type={
-                                                showRegisterPassword
-                                                    ? 'text'
-                                                    : 'password'
-                                            }
+                                            type={showRegisterPassword ? 'text' : 'password'}
                                             placeholder='Password'
                                             required
                                             name='password'
                                             value={password}
                                             onChange={registerDataChange}
                                         />
-                                        <span
-                                            className='password-icon'
-                                            onClick={() =>
-                                                setShowRegisterPassword(!showRegisterPassword)
-                                            }
-                                        >
-                                            {showRegisterPassword ? (
-                                                <VisibilityIcon />
-                                            ) : (
-                                                <VisibilityOffIcon />
-                                            )}
+                                        <span className='cursor-pointer text-ink-faint hover:text-ink' onClick={() => setShowRegisterPassword(!showRegisterPassword)}>
+                                            {showRegisterPassword ? <VisibilityIcon fontSize='small' /> : <VisibilityOffIcon fontSize='small' />}
                                         </span>
                                     </div>
 
-                                    <div id='registerImage'>
-                                        <img
-                                            src={avatarPreview}
-                                            alt='Avatar Preview'
-                                        />
-                                        <input
-                                            type='file'
-                                            name='avatar'
-                                            accept='image/*'
-                                            onChange={registerDataChange}
-                                        />
+                                    <div className='flex items-center gap-4'>
+                                        <img src={avatarPreview} alt='Avatar Preview' className='h-14 w-14 rounded-full border border-line object-cover' />
+                                        <label className='cursor-pointer font-sans text-[0.72rem] uppercase tracking-luxe text-brass hover:underline'>
+                                            Choose Avatar
+                                            <input type='file' name='avatar' accept='image/*' onChange={registerDataChange} className='hidden' />
+                                        </label>
                                     </div>
-                                    <input
-                                        type='submit'
-                                        value='Register'
-                                        className='signUpBtn'
-                                        onClick={() => setProgress(progress + 80)}
-                                    />
-                                    <div className="or-divider">
-                                        <span className="or-divider-line"></span>
-                                        <span className="or-divider-text">OR</span>
-                                        <span className="or-divider-line"></span>
-                                    </div>
-                                    <div className="google-login-button-container">
+
+                                    <button type='submit' onClick={() => setProgress(progress + 80)} className='btn-solid w-full'>
+                                        Register
+                                    </button>
+
+                                    <Divider />
+                                    <div className='flex justify-center'>
                                         <GoogleLogin
                                             onSuccess={handleGoogleLoginSuccess}
                                             onError={handleGoogleLoginError}
-                                            theme="outline"
-                                            size="large"
-                                            width="280px"
+                                            theme='outline'
+                                            size='large'
+                                            width='300'
                                         />
                                     </div>
                                 </form>
-                            </div>
+                            )}
                         </div>
-                    </GoogleOAuthProvider>
-                </Fragment>
+                    </div>
+                </GoogleOAuthProvider>
             )}
         </Fragment>
     );

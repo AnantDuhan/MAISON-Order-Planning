@@ -11,15 +11,15 @@ const {
    getAllWishlistProducts,
    summerizeProductReviews,
    updateProduct,
-   searchProducts,
-   getAutocompleteSuggestions
+//    searchProducts,
+//    getAutocompleteSuggestions
 } = require('../controllers/product');
 
 const { isAuthUser, authRoles } = require('../middleware/auth');
 
 const router = express.Router();
 
-router.get('/products/autocomplete', getAutocompleteSuggestions);
+// router.get('/products/autocomplete', getAutocompleteSuggestions);
 
 router.route('/products').get(getAllProducts);
 
@@ -48,7 +48,7 @@ router.route('/review/:reviewId').delete(isAuthUser, deleteReview);
 
 router.route('/:id/summerize-reviews').post(isAuthUser, authRoles('admin'), summerizeProductReviews);
 
-router.route("/search").get(searchProducts);
+// router.route("/search").get(searchProducts);
 
 // router.route('/admin/product/:productId').put(isAuthUser, authRoles('admin'), upload.array('product', 5), updateProduct);
 

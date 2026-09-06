@@ -1,0 +1,221 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Jost:wght@300;400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   LUXURY / EDITORIAL DESIGN TOKENS
+   Values are space-separated RGB channels so Tailwind's
+   `<alpha-value>` (e.g. text-ink/70) works.
+   ============================================================ */
+@layer base {
+  :root {
+    /* Light — warm ivory gallery */
+    --c-canvas: 247 244 239;      /* #F7F4EF ivory */
+    --c-surface: 255 253 250;     /* #FFFDFA near-white */
+    --c-surface-2: 240 235 227;   /* #F0EBE3 raised */
+    --c-ink: 26 24 22;            /* #1A1816 near-black */
+    --c-ink-soft: 74 69 63;       /* #4A453F */
+    --c-ink-faint: 138 130 120;   /* #8A8278 */
+    --c-line: 224 217 206;        /* #E0D9CE hairline */
+    --c-brass: 160 124 75;        /* #A07C4B brass/gold */
+    --c-brass-soft: 193 165 122;  /* #C1A57A */
+    --c-success: 79 110 84;       /* #4F6E54 */
+    --c-danger: 156 66 55;        /* #9C4237 */
+    --c-shadow: 40 34 26;
+    color-scheme: light;
+  }
+
+  .dark {
+    /* Dark — deep charcoal salon */
+    --c-canvas: 15 14 13;         /* #0F0E0D */
+    --c-surface: 25 23 21;        /* #191715 */
+    --c-surface-2: 36 33 30;      /* #24211E */
+    --c-ink: 242 237 228;         /* #F2EDE4 warm off-white */
+    --c-ink-soft: 190 182 170;    /* #BEB6AA */
+    --c-ink-faint: 138 129 116;   /* #8A8174 */
+    --c-line: 54 49 44;           /* #36312C */
+    --c-brass: 201 160 99;        /* #C9A063 lifted for contrast */
+    --c-brass-soft: 168 134 88;   /* #A88658 */
+    --c-success: 122 156 126;
+    --c-danger: 197 106 94;
+    --c-shadow: 0 0 0;
+    color-scheme: dark;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-canvas text-ink font-sans antialiased;
+    transition: background-color 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+      color 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  ::selection {
+    background: rgb(var(--c-brass) / 0.28);
+    color: rgb(var(--c-ink));
+  }
+
+  /* Refined scrollbar */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: rgb(var(--c-canvas));
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgb(var(--c-line));
+    border-radius: 9999px;
+    border: 2px solid rgb(var(--c-canvas));
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgb(var(--c-brass-soft));
+  }
+}
+
+/* ============================================================
+   EDITORIAL COMPONENT PRIMITIVES
+   Reusable classes so pages stay consistent as we migrate.
+   ============================================================ */
+@layer components {
+  /* Section wrapper */
+  .editorial-shell {
+    @apply mx-auto w-full max-w-editorial px-6 sm:px-8 lg:px-12;
+  }
+
+  /* Small caps eyebrow label */
+  .eyebrow {
+    @apply font-sans text-[0.7rem] font-medium uppercase tracking-luxe text-brass;
+  }
+
+  /* Editorial display heading */
+  .heading-display {
+    @apply font-display font-medium text-ink;
+  }
+
+  /* Thin rule with brass tick */
+  .rule-luxe {
+    @apply relative h-px w-full bg-line;
+  }
+  .rule-luxe::before {
+    content: '';
+    @apply absolute left-0 top-0 h-px w-16 bg-brass;
+  }
+
+  /* Buttons */
+  .btn-luxe {
+    @apply inline-flex items-center justify-center gap-2 font-sans text-[0.78rem] font-medium uppercase tracking-luxe
+      transition-all duration-500 ease-luxe disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-solid {
+    @apply btn-luxe bg-ink px-8 py-4 text-canvas hover:bg-brass hover:text-white;
+  }
+  .btn-outline {
+    @apply btn-luxe border border-ink px-8 py-4 text-ink hover:border-brass hover:text-brass;
+  }
+  .btn-ghost {
+    @apply btn-luxe px-4 py-2 text-ink-soft hover:text-brass;
+  }
+
+  /* Form fields */
+  .field-luxe {
+    @apply w-full border-b border-line bg-transparent py-3 font-sans text-ink placeholder:text-ink-faint
+      focus:border-brass focus:outline-none transition-colors duration-300;
+  }
+
+  /* Product-ish card */
+  .card-luxe {
+    @apply relative overflow-hidden border border-line bg-surface transition-all duration-500 ease-luxe
+      hover:shadow-luxe;
+  }
+
+  /* Link underline reveal */
+  .link-reveal {
+    @apply relative text-ink-soft transition-colors duration-300 hover:text-ink;
+  }
+  .link-reveal::after {
+    content: '';
+    @apply absolute -bottom-1 left-0 h-px w-0 bg-brass transition-all duration-500 ease-luxe;
+  }
+  .link-reveal:hover::after {
+    @apply w-full;
+  }
+}
+
+/* ============================================================
+   THIRD-PARTY OVERRIDES (MUI, pagination, carousel)
+   Kept outside @layer so they reliably beat library styles.
+   ============================================================ */
+
+/* MUI Rating → brass to match the palette */
+.MuiRating-iconFilled {
+  color: rgb(var(--c-brass)) !important;
+}
+.MuiRating-iconHover {
+  color: rgb(var(--c-brass-soft)) !important;
+}
+.MuiRating-iconEmpty {
+  color: rgb(var(--c-line)) !important;
+}
+
+/* react-js-pagination — editorial pager */
+.pagination {
+  @apply flex list-none items-center justify-center gap-1;
+}
+.pagination .page-item .page-link {
+  @apply grid h-10 min-w-[2.5rem] cursor-pointer place-items-center border border-line bg-transparent
+    px-3 font-sans text-sm text-ink-soft transition-all duration-300 hover:border-brass hover:text-brass;
+}
+.pagination .pageItemActive .page-link,
+.pagination .page-item.active .page-link {
+  @apply border-ink bg-ink text-canvas;
+}
+
+/* react-responsive-carousel — refined dots/arrows */
+.carousel .control-dots .dot {
+  background: rgb(var(--c-brass)) !important;
+  box-shadow: none !important;
+  opacity: 0.4;
+}
+.carousel .control-dots .dot.selected {
+  opacity: 1;
+}
+.carousel .control-arrow {
+  background: transparent !important;
+}
+.carousel.carousel-slider .control-arrow:hover {
+  background: rgb(var(--c-ink) / 0.08) !important;
+}
+
+/* MUI Slider → brass */
+.MuiSlider-root {
+  color: rgb(var(--c-brass)) !important;
+}
+
+/* ============================================================
+   FORM PRIMITIVES (auth + account, checkout)
+   ============================================================ */
+@layer components {
+  .form-shell {
+    @apply editorial-shell flex min-h-[70vh] items-center justify-center py-16;
+  }
+  .form-card {
+    @apply w-full max-w-md border border-line bg-surface p-8 shadow-luxe-sm sm:p-10;
+  }
+  .field-row {
+    @apply flex items-center gap-3 border-b border-line transition-colors focus-within:border-brass;
+  }
+  .field-row input,
+  .field-row select,
+  .field-row textarea {
+    @apply w-full bg-transparent py-3 font-sans text-ink placeholder:text-ink-faint focus:outline-none;
+  }
+  .field-row svg {
+    @apply shrink-0 text-ink-faint;
+    font-size: 1.15rem;
+  }
+}

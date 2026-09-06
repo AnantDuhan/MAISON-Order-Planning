@@ -28,6 +28,7 @@ import Contact from './components/layout/Contact/Contact';
 import AdminHeader from './components/layout/Header/AdminHeader';
 import MainHeader from './components/layout/Header/MainHeader';
 import NotFound from './components/layout/Not-Found/NotFound';
+import Footer from './components/layout/Footer/Footer';
 import MyOrders from './components/Order/MyOrders';
 import OrderDetails from './components/Order/OrderDetails';
 import ReturnRequest from './components/Order/ReturnRequest';
@@ -136,6 +137,8 @@ function App() {
                     {/* Catch-all Not Found Route - MUST BE LAST */}
                     <Route path='*' element={<NotFound />} />
                 </Routes>
+
+                {!isAdminRoute && <Footer />}
             </BackendWaker>
         </Fragment>
     );

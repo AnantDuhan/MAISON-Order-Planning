@@ -4,7 +4,7 @@ import Review from '../models/review.js';
 import ApiFeatures from '../utils/apifeatures.js';
 import { Snowflake } from '@theinternetfolks/snowflake';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import redisClientPromise from '../config/redisClient.js';
+import redisClientPromise from '../config/redisClientUpstash.js';
 import dotenv from 'dotenv';
 import { generateEmbedding } from '../utils/generateEmbedding.js';
 
@@ -61,13 +61,17 @@ export const getProductDetails = async (req, res, next) => {
     const cacheKey = `product:${productId}`;
 
     try {
-        const cachedProduct = await redisClient.get(cacheKey);
-        if (cachedProduct) {
-            const productData = JSON.parse(cachedProduct);
-            return res.status(200).json({
-                success: true,
-                product: productData
-            });
+        try {
+            const cachedProduct = await redisClient.get(cacheKey);
+            if (cachedProduct) {
+                const productData = JSON.parse(cachedProduct);
+                return res.status(200).json({
+                    success: true,
+                    product: productData
+                });
+            }
+        } catch (cacheError) {
+            console.error('Redis cache read error:', cacheError.message);
         }
 
         // --- 2. If Miss, Get from DB ---
@@ -80,18 +84,23 @@ export const getProductDetails = async (req, res, next) => {
             });
         }
         // --- 3. Store in Cache ---
-        await redisClient.set(cacheKey, JSON.stringify(product), {
-            EX: 3600
-        });
+        try {
+            await redisClient.set(cacheKey, JSON.stringify(product), {
+                EX: 3600
+            });
+        } catch (cacheError) {
+            console.error('Redis cache write error:', cacheError.message);
+        }
 
         res.status(200).json({
             success: true,
             product
         });
     } catch (error) {
+        console.error('Get product details error:', error);
         res.status(500).json({
             success: false,
-            message: 'Internal Server Error'
+            message: error.message || 'Internal Server Error'
         });
     }
 };

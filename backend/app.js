@@ -6,6 +6,9 @@ const cors = require("cors");
 const errorMiddleware = require("./middleware/error");
 const multer = require("multer");
 const url = require("url");
+
+app.set("query parser", "extended");
+
 const {
   S3Client,
   PutObjectCommand,
@@ -21,7 +24,7 @@ const Product = require("./models/product");
 const jwt = require("jsonwebtoken");
 const Snowflake = require("@theinternetfolks/snowflake");
 const { generateEmbedding } = require('./utils/generateEmbedding');
-const redisClientPromise = require('./config/redisClientUpstash');
+const redisClient = require('./config/redisClientUpstash');
 require("dotenv").config({ path: "./config/config.env" });
 
 app.use(cookieParser());
@@ -74,6 +77,8 @@ const userRoute = require("./routes/user");
 const orderRoute = require("./routes/order");
 const paymentRoute = require("./routes/payment");
 const couponRoute = require("./routes/coupon");
+
+app.set('redisClient', redisClient);
 
 app.use("/api/v1", productRoute);
 app.use("/api/v1", userRoute);

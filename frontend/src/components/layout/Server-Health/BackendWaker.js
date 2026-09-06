@@ -8,15 +8,24 @@ const BackendWaker = ({ children }) => {
   const dispatch = useDispatch();
   const { isAwake } = useSelector(state => state.server);
   const [dots, setDots] = useState('');
+  const isDevelopment = process.env.NODE_ENV === 'development';
 
   useEffect(() => {
+    if (isDevelopment) {
+      return undefined;
+    }
+
     dispatch(wakeUpServer());
     
     const interval = setInterval(() => {
       setDots(prev => (prev.length < 3 ? prev + '.' : ''));
     }, 500);
     return () => clearInterval(interval);
-  }, [dispatch]);
+  }, [dispatch, isDevelopment]);
+
+  if (isDevelopment) {
+    return children;
+  }
 
   if (!isAwake) {
     return (
