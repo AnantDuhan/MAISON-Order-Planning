@@ -4,7 +4,7 @@ const sendEmail = require('../utils/sendEmail');
 const User = require('../models/user');
 const Coupon = require('../models/coupon');
 const nodeCache = require('node-cache');
-const NodeCache = new nodeCache();
+const NodeCache = new nodeCache({ useClones: false });
 const Reorder = require('../models/reorder');
 const Snowflake = require('@theinternetfolks/snowflake');
 
@@ -115,14 +115,16 @@ exports.newOrder = async (req, res, next) => {
 // get single order
 exports.getSingleOrder = async (req, res, next) => {
     let order;
-    if (NodeCache.has('order')) {
-        order = JSON.parse(JSON.stringify(NodeCache.get('order')));
+    const cacheKey = `order:${req.params.id}`;
+
+    if (NodeCache.has(cacheKey)) {
+        order = NodeCache.get(cacheKey);
     } else {
         order = await Order.findById(req.params.id).populate(
             'user',
             'name email'
-        );
-        NodeCache.set('order', JSON.stringify(order));
+        ).lean();
+        NodeCache.set(cacheKey, order);
     }
 
     if (!order) {
@@ -141,14 +143,15 @@ exports.getSingleOrder = async (req, res, next) => {
 // get logged in user order
 exports.myOrders = async (req, res, next) => {
     let orders;
+    const cacheKey = `orders:${req.user._id}`;
 
-    if (NodeCache.has('orders')) {
-        orders = JSON.parse(JSON.stringify(NodeCache.get('orders')));
+    if (NodeCache.has(cacheKey)) {
+        orders = NodeCache.get(cacheKey);
     } else {
         orders = await Order.find({
             user: req.user._id
-        });
-        NodeCache.set('orders', JSON.stringify(orders));
+        }).lean();
+        NodeCache.set(cacheKey, orders);
     }
 
     res.status(200).json({
@@ -164,15 +167,11 @@ exports.getAllOrders = async (req, res, next) => {
 
         // 1. Check if it's in the cache
         if (NodeCache.has('orders')) {
-            // Retrieve the array exactly as it was stored
-            // If you are using Redis instead of node-cache, change this line to: 
-            // orders = JSON.parse(NodeCache.get('orders'));
-            orders = NodeCache.get('orders'); 
+            orders = NodeCache.get('orders');
         } else {
             // 2. If not in cache, get from DB
-            orders = await Order.find();
+            orders = await Order.find().lean();
             
-            // Save the raw array to the cache
             NodeCache.set('orders', orders);
         }
 
