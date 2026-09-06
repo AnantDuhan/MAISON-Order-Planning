@@ -200,7 +200,7 @@ exports.getAllOrders = async (req, res, next) => {
 exports.updateOrder = async (req, res, next) => {
     try {
         const orderId = req.params.id;
-        const order = await getOrderFromCache(orderId);
+        const order = await Order.findById(orderId);
 
         const user = await User.findById(req.user._id);
 
@@ -238,6 +238,7 @@ exports.updateOrder = async (req, res, next) => {
         NodeCache.del(orderId);
         NodeCache.del(`order:${orderId}`);
         NodeCache.del('orders');
+        NodeCache.del(`orders:${order.user}`);
 
         const randomDays = Math.floor(Math.random() * 8); // Generate random number between 0 and 7
         const currentDate = new Date();
