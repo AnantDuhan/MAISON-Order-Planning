@@ -11,6 +11,7 @@ import { clearErrors, createProduct } from '../../actions/productAction';
 import { NEW_PRODUCT_RESET } from '../../constants/productConstants';
 import MetaData from '../layout/MetaData';
 import AdminPage from './shared/AdminPage';
+import ButtonSpinner from '../layout/ButtonSpinner';
 
 const categories = [
     'Laptop', 'Mobile', 'Footwear', 'Bottom', 'Tops', 'Attire',
@@ -165,7 +166,14 @@ const NewProduct = () => {
                         </div>
 
                         <button type='submit' disabled={loading} className='btn-solid w-full disabled:opacity-40'>
-                            {loading ? 'Creating…' : 'Create Product'}
+                            {loading ? (
+                                        <>
+                                            <ButtonSpinner />
+                                            Creating…
+                                        </>
+                                    ) : (
+                                        'Create Product'
+                                    )}
                         </button>
                     </div>
                 </form>

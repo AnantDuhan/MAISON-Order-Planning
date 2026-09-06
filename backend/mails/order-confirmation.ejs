@@ -1,94 +1,86 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Order Confirmation</title>
-    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <style type="text/css">
-      /* Base */
-      body {
-        margin: 0;
-        padding: 0;
-        min-width: 100%;
-        font-family: Arial, sans-serif;
-        font-size: 16px;
-        line-height: 1.5;
-        background-color: #fafafa;
-        color: #222222;
-      }
-      a {
-        color: #000;
-        text-decoration: none;
-      }
-      h1 {
-        font-size: 24px;
-        font-weight: 700;
-        line-height: 1.25;
-        margin-top: 0;
-        margin-bottom: 15px;
-        text-align: center;
-      }
-      p {
-        margin-top: 0;
-        margin-bottom: 24px;
-      }
-      table td {
-        vertical-align: top;
-      }
-      /* Layout */
-      .email-wrapper {
-        max-width: 600px;
-        margin: 0 auto;
-      }
-      .email-header {
-        background-color: #0070f3;
-        padding: 24px;
-        color: #ffffff;
-      }
-      .email-body {
-        padding: 24px;
-        background-color: #ffffff;
-      }
-      .email-footer {
-        background-color: #f6f6f6;
-        padding: 24px;
-      }
-      /* Buttons */
-      .button {
-        display: inline-block;
-        background-color: #0070f3;
-        color: #ffffff;
-        font-size: 16px;
-        font-weight: 700;
-        text-align: center;
-        text-decoration: none;
-        padding: 10px 20px;
-        border-radius: 4px;
-        margin-bottom: 10px;
-      }
-    </style>
-</head>
-<body>
-    <div class="email-wrapper">
-        <div class="email-header">
-            <h1>Order Confirmation</h1>
-        </div>
-        <div class="email-body">
-            <p>Hello <%= user.name %>!</p>
-            <p>Your order📦 <strong><%= order._id %></strong> has been <%= status %>. Your estimated date of delivery is <%= estimatedDeliveryDate %>.</p>
-            <% order.orderItems.forEach(item => { %>
-              <% const imageUrl = item.images && item.images[0] && item.images[0].url; %>
-              <% if (imageUrl) { %>
-                <p><img src="<%= imageUrl %>" alt="<%= item.name %>" style="max-width: 240px; height: auto;"></p>
-              <% } %>
-              <p><strong><%= item.name %></strong> &middot; Quantity: <%= item.quantity %> &middot; Price: ₹<%= item.price %></p>
-            <% }); %>
-            <p>Thank you for ordering. For more please visit our website <a href="http://www.orderplanning.com">www.orderplanning.com</a>.</p>
-            <p>Happy Shopping.😊</p>
-        </div>
-        <div class="email-footer">
-            <p>If you have any questions, please don't hesitate to contact us at <a href="mailto:support@orderplanning.com">support@orderplanning.com</a></p>
-        </div>
-    </div>
-</body>
-</html>
+<%- include('partials/head', { title: 'Your order', preheader: 'Thank you — your Maison order is confirmed.' }) %>
+
+<p style="margin:0; font-family:Helvetica,Arial,sans-serif; font-size:10px; font-weight:bold; letter-spacing:3px; text-transform:uppercase; color:#A07C4B;">
+  Order <%= status %>
+</p>
+
+<h1 style="margin:14px 0 0 0; font-family:Georgia,'Times New Roman',serif; font-size:34px; font-weight:500; line-height:1.15; color:#1A1816;">
+  Thank you, <%= user.name %>
+</h1>
+
+<p style="margin:22px 0 0 0; font-family:Helvetica,Arial,sans-serif; font-size:15px; line-height:1.75; color:#4A453F;">
+  Your order has been <%= status %> and is being prepared with care.
+</p>
+
+<!-- Meta -->
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:28px 0 0 0;">
+  <tr>
+    <td style="background-color:#F7F4EF; border:1px solid #E0D9CE; padding:20px 22px;">
+      <p style="margin:0; font-family:Helvetica,Arial,sans-serif; font-size:10px; letter-spacing:2px; text-transform:uppercase; color:#8A8278;">Order Reference</p>
+      <p style="margin:5px 0 0 0; font-family:Helvetica,Arial,sans-serif; font-size:14px; color:#1A1816; word-break:break-all;"><%= order._id %></p>
+
+      <p style="margin:16px 0 0 0; font-family:Helvetica,Arial,sans-serif; font-size:10px; letter-spacing:2px; text-transform:uppercase; color:#8A8278;">Estimated Delivery</p>
+      <p style="margin:5px 0 0 0; font-family:Georgia,'Times New Roman',serif; font-size:19px; color:#A07C4B;"><%= estimatedDeliveryDate %></p>
+    </td>
+  </tr>
+</table>
+
+<!-- Items -->
+<p style="margin:32px 0 0 0; font-family:Helvetica,Arial,sans-serif; font-size:10px; font-weight:bold; letter-spacing:3px; text-transform:uppercase; color:#A07C4B;">
+  Your Items
+</p>
+
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:14px 0 0 0;">
+  <% order.orderItems.forEach(item => { %>
+    <% const imageUrl = item.images && item.images[0] && item.images[0].url ? item.images[0].url : (item.image || null); %>
+    <tr>
+      <td style="padding:16px 0; border-bottom:1px solid #E0D9CE;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+          <tr>
+            <% if (imageUrl) { %>
+              <td width="72" valign="top" style="width:72px; padding-right:16px;">
+                <img src="<%= imageUrl %>" alt="<%= item.name %>" width="72"
+                     style="display:block; width:72px; height:88px; object-fit:cover; border:1px solid #E0D9CE;" />
+              </td>
+            <% } %>
+            <td valign="middle">
+              <p style="margin:0; font-family:Georgia,'Times New Roman',serif; font-size:18px; font-weight:500; color:#1A1816;">
+                <%= item.name %>
+              </p>
+              <p style="margin:6px 0 0 0; font-family:Helvetica,Arial,sans-serif; font-size:13px; color:#8A8278;">
+                Qty <%= item.quantity %> &nbsp;·&nbsp; &#8377;<%= item.price %>
+              </p>
+            </td>
+            <td valign="middle" align="right" style="white-space:nowrap;">
+              <p style="margin:0; font-family:Helvetica,Arial,sans-serif; font-size:15px; color:#1A1816;">
+                &#8377;<%= item.price * item.quantity %>
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  <% }); %>
+</table>
+
+<!-- Total -->
+<% if (order.totalPrice !== undefined) { %>
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:18px 0 0 0;">
+  <tr>
+    <td align="left" style="padding-top:6px;">
+      <p style="margin:0; font-family:Helvetica,Arial,sans-serif; font-size:11px; letter-spacing:3px; text-transform:uppercase; color:#1A1816;">Total</p>
+    </td>
+    <td align="right" style="padding-top:6px;">
+      <p style="margin:0; font-family:Georgia,'Times New Roman',serif; font-size:26px; font-weight:500; color:#1A1816;">
+        &#8377;<%= order.totalPrice %>
+      </p>
+    </td>
+  </tr>
+</table>
+<% } %>
+
+<p style="margin:30px 0 0 0; font-family:Helvetica,Arial,sans-serif; font-size:13px; line-height:1.7; color:#8A8278;">
+  We'll be in touch as soon as your parcel is on its way.
+</p>
+
+<%- include('partials/foot') %>

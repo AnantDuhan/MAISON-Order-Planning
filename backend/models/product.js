@@ -32,7 +32,7 @@ const productSchema = mongoose.Schema({
         }
     ],
     user: {
-        type: Number,
+        type: String,
         ref: 'User',
         required: true
     },
@@ -52,7 +52,7 @@ const productSchema = mongoose.Schema({
         {
             _id: String,
             user: {
-                type: Number,
+                type: String,
                 ref: 'User',
                 required: true
             },

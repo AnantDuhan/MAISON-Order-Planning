@@ -1,5 +1,6 @@
 const Contact = require('../models/contact');
 const sendEmail = require('../utils/sendEmail');
+const { sendEmailInBackground } = require('../utils/sendEmail');
 const ejs = require('ejs');
 const path = require('path');
 const accountSid = process.env.ACCOUNT_SID;
@@ -30,7 +31,7 @@ exports.contactUs = async (req, res) => {
                 { name, email, subject, message }
         );
 
-        await sendEmail({
+        sendEmailInBackground({
             email: 'duhananant@gmail.com',
             subject: `New Contact Form Submission`,
             html: emailMessage

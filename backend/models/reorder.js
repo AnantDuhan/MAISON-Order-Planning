@@ -5,7 +5,7 @@ mongoose.set('strictQuery', false);
 const reorderSchema = new mongoose.Schema({
     _id: String,
     originalOrder: {
-        type: Number,
+        type: String,
         ref: 'Order',
         required: true
     },

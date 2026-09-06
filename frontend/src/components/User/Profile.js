@@ -22,8 +22,13 @@ const Profile = () => {
 
     return (
         <Fragment>
+            <LoadingBar color='#A07C4B' progress={progress} onLoaderFinished={onLoaderFinished} />
             {loading ? (
-                <LoadingBar color='#A07C4B' progress={progress} onLoaderFinished={onLoaderFinished} />
+                <div className='editorial-shell py-32 text-center'>
+                    <p className='font-sans text-[0.72rem] uppercase tracking-luxe text-ink-faint'>
+                        Loading your profile…
+                    </p>
+                </div>
             ) : (
                 <Fragment>
                     <MetaData title={`${user?.name} · Maison`} />

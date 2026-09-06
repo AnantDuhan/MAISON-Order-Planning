@@ -53,14 +53,14 @@ const orderSchema = new mongoose.Schema({
                 }
             ],
             product: {
-                type: Number,
+                type: String,
                 ref: 'Product',
                 required: true
             }
         }
     ],
     user: {
-        type: Number,
+        type: String,
         ref: 'User',
         required: true
     },

@@ -11,6 +11,7 @@ import { clearErrors, getProductDetails, updateProduct } from '../../actions/pro
 import { UPDATE_PRODUCT_RESET } from '../../constants/productConstants';
 import MetaData from '../layout/MetaData';
 import AdminPage from './shared/AdminPage';
+import ButtonSpinner from '../layout/ButtonSpinner';
 
 const categories = [
     'Laptop', 'Footwear', 'Bottom', 'Tops', 'Attire',
@@ -208,7 +209,14 @@ const UpdateProduct = () => {
                         </div>
 
                         <button type='submit' disabled={loading} className='btn-solid w-full disabled:opacity-40'>
-                            {loading ? 'Updating…' : 'Update Product'}
+                            {loading ? (
+                                        <>
+                                            <ButtonSpinner />
+                                            Updating…
+                                        </>
+                                    ) : (
+                                        'Update Product'
+                                    )}
                         </button>
                     </div>
                 </form>

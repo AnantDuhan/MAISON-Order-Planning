@@ -8,6 +8,7 @@ import LoadingBar from 'react-top-loading-bar';
 
 import { clearErrors, resetPassword } from '../../actions/userAction';
 import MetaData from '../layout/MetaData';
+import ButtonSpinner from '../layout/ButtonSpinner';
 
 const ResetPassword = () => {
     const dispatch = useDispatch();
@@ -45,45 +46,52 @@ const ResetPassword = () => {
 
     return (
         <Fragment>
-            {loading ? (
-                <LoadingBar color='#A07C4B' progress={progress} onLoaderFinished={onLoaderFinished} />
-            ) : (
-                <Fragment>
-                    <MetaData title='Reset Password · Maison' />
-                    <div className='form-shell'>
-                        <div className='form-card'>
-                            <p className='eyebrow'>Almost There</p>
-                            <h2 className='heading-display mt-2 text-3xl'>New Password</h2>
+            <LoadingBar color='#A07C4B' progress={progress} onLoaderFinished={onLoaderFinished} />
+            <MetaData title='Reset Password · Maison' />
+            <div className='form-shell'>
+                <div className='form-card'>
+                    <p className='eyebrow'>Almost There</p>
+                    <h2 className='heading-display mt-2 text-3xl'>New Password</h2>
 
-                            <form className='mt-8 flex flex-col gap-6' onSubmit={resetPasswordSubmit}>
-                                <div className='field-row'>
-                                    <LockOpenIcon />
-                                    <input
-                                        type='password'
-                                        placeholder='New Password'
-                                        required
-                                        value={password}
-                                        onChange={e => setPassword(e.target.value)}
-                                    />
-                                </div>
-                                <div className='field-row'>
-                                    <LockIcon />
-                                    <input
-                                        type='password'
-                                        placeholder='Confirm Password'
-                                        required
-                                        value={confirmPassword}
-                                        onChange={e => setConfirmPassword(e.target.value)}
-                                    />
-                                </div>
-                                <button type='submit' onClick={() => setProgress(progress + 80)} className='btn-solid w-full'>
-                                    Update Password
-                                </button>
-                            </form>
+                    <form className='mt-8 flex flex-col gap-6' onSubmit={resetPasswordSubmit}>
+                        <div className='field-row'>
+                            <LockOpenIcon />
+                            <input
+                                type='password'
+                                placeholder='New Password'
+                                required
+                                value={password}
+                                onChange={e => setPassword(e.target.value)}
+                            />
                         </div>
-                    </div>
-                </Fragment>
-            )}
+                        <div className='field-row'>
+                            <LockIcon />
+                            <input
+                                type='password'
+                                placeholder='Confirm Password'
+                                required
+                                value={confirmPassword}
+                                onChange={e => setConfirmPassword(e.target.value)}
+                            />
+                        </div>
+                        <button
+                            type='submit'
+                            disabled={loading}
+                            onClick={() => setProgress(progress + 80)}
+                            className='btn-solid w-full disabled:opacity-40'
+                        >
+                            {loading ? (
+                                <>
+                                    <ButtonSpinner />
+                                    Updating…
+                                </>
+                            ) : (
+                                'Update Password'
+                            )}
+                        </button>
+                    </form>
+                </div>
+            </div>
         </Fragment>
     );
 };

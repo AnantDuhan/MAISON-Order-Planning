@@ -12,6 +12,7 @@ import LoadingBar from 'react-top-loading-bar';
 import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
 
 import { clearErrors, login, register, loginWithGoogle } from '../../actions/userAction';
+import ButtonSpinner from '../layout/ButtonSpinner';
 
 const LoginAndRegister = () => {
     const dispatch = useDispatch();
@@ -107,10 +108,8 @@ const LoginAndRegister = () => {
 
     return (
         <Fragment>
-            {loading ? (
-                <LoadingBar color='#A07C4B' progress={progress} onLoaderFinished={onLoaderFinished} />
-            ) : (
-                <GoogleOAuthProvider clientId={process.env.REACT_APP_GOOGLE_CLIENT_ID}>
+            <LoadingBar color='#A07C4B' progress={progress} onLoaderFinished={onLoaderFinished} />
+            <GoogleOAuthProvider clientId={process.env.REACT_APP_GOOGLE_CLIENT_ID}>
                     <div className='form-shell'>
                         <div className='form-card'>
                             {/* Tab switch */}
@@ -163,7 +162,16 @@ const LoginAndRegister = () => {
                                     <Link to='/password/forgot' className='self-end font-sans text-[0.7rem] uppercase tracking-luxe text-ink-soft hover:text-brass'>
                                         Forgot Password?
                                     </Link>
-                                    <button type='submit' className='btn-solid w-full'>Login</button>
+                                    <button type='submit' disabled={loading} className='btn-solid w-full disabled:opacity-40'>
+                                        {loading ? (
+                                        <>
+                                            <ButtonSpinner />
+                                            Signing in…
+                                        </>
+                                    ) : (
+                                        'Login'
+                                    )}
+                                    </button>
 
                                     <Divider />
                                     <div className='flex justify-center'>
@@ -224,8 +232,20 @@ const LoginAndRegister = () => {
                                         </label>
                                     </div>
 
-                                    <button type='submit' onClick={() => setProgress(progress + 80)} className='btn-solid w-full'>
-                                        Register
+                                    <button
+                                        type='submit'
+                                        disabled={loading}
+                                        onClick={() => setProgress(progress + 80)}
+                                        className='btn-solid w-full disabled:opacity-40'
+                                    >
+                                        {loading ? (
+                                        <>
+                                            <ButtonSpinner />
+                                            Creating account…
+                                        </>
+                                    ) : (
+                                        'Register'
+                                    )}
                                     </button>
 
                                     <Divider />
@@ -242,8 +262,7 @@ const LoginAndRegister = () => {
                             )}
                         </div>
                     </div>
-                </GoogleOAuthProvider>
-            )}
+            </GoogleOAuthProvider>
         </Fragment>
     );
 };

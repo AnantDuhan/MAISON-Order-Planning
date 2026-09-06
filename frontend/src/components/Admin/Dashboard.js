@@ -5,10 +5,7 @@ import { Bar, Doughnut, Line } from 'react-chartjs-2';
 import { useSelector, useDispatch } from 'react-redux';
 import { toast } from 'react-toastify';
 
-import { getAdminProduct } from '../../actions/productAction';
-import { allRefunds, allReturns, getAllOrders } from '../../actions/orderAction.js';
-import { getAllUsers } from '../../actions/userAction.js';
-import { getAnalytics, clearErrors } from '../../actions/analyticsAction';
+import { getAnalytics, getAdminStats, clearErrors } from '../../actions/analyticsAction';
 import MetaData from '../layout/MetaData';
 import { useTheme } from '../../context/ThemeContext';
 
@@ -30,26 +27,14 @@ const Dashboard = () => {
 
     const [range, setRange] = useState('30d');
 
-    const { products } = useSelector(state => state.products);
-    const { orders } = useSelector(state => state.allOrders);
-    const { users } = useSelector(state => state.allUsers);
-    const { refunds } = useSelector(state => state.allRefunds);
-    const { returns } = useSelector(state => state.allReturns);
-    const { analytics, loading: analyticsLoading, error: analyticsError } =
+    const { analytics, stats, loading: analyticsLoading, error: analyticsError } =
         useSelector(state => state.analytics);
 
-    let outOfStock = 0;
-    products &&
-        products.forEach(item => {
-            if (item.Stock === 0) outOfStock += 1;
-        });
+    const outOfStock = stats?.outOfStock ?? 0;
+    const inStock = stats?.inStock ?? 0;
 
     useEffect(() => {
-        dispatch(getAdminProduct());
-        dispatch(getAllOrders());
-        dispatch(getAllUsers());
-        dispatch(allRefunds());
-        dispatch(allReturns());
+        dispatch(getAdminStats());
     }, [dispatch]);
 
     useEffect(() => {
@@ -168,17 +153,17 @@ const Dashboard = () => {
             {
                 backgroundColor: [dim, brass],
                 borderWidth: 0,
-                data: [outOfStock, (products?.length || 0) - outOfStock],
+                data: [outOfStock, inStock],
             },
         ],
     };
 
     const counts = [
-        { label: 'Products', value: products?.length, to: '/admin/products' },
-        { label: 'Orders', value: orders?.length, to: '/admin/orders' },
-        { label: 'Users', value: users?.length, to: '/admin/users' },
-        { label: 'Returns', value: returns?.length, to: '/admin/returns' },
-        { label: 'Refunds', value: refunds?.length, to: '/admin/refunds' },
+        { label: 'Products', value: stats?.products, to: '/admin/products' },
+        { label: 'Orders', value: stats?.orders, to: '/admin/orders' },
+        { label: 'Users', value: stats?.users, to: '/admin/users' },
+        { label: 'Returns', value: stats?.returns, to: '/admin/returns' },
+        { label: 'Refunds', value: stats?.refunds, to: '/admin/refunds' },
     ];
 
     const hasData = series.length > 0 || topProducts.length > 0;

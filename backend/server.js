@@ -5,6 +5,7 @@ const connectDB = require('./config/database');
 const http = require('http');
 const { Server } = require('socket.io');
 const redisClient = require('./config/redisClientUpstash');
+const { warmUpEmailTransport } = require('./utils/sendEmail');
 
 // Handling Uncaught Exceptions
 // process.on('uncaughtException', (err) => {
@@ -38,6 +39,9 @@ app.set('redisClient', redisClient);
 
 //connecting to database
 connectDB();
+
+// Open the SMTP pool at boot so the first user-facing email is fast too.
+warmUpEmailTransport();
 
 const server = createServer.listen(process.env.PORT || 8080, () => {
     console.log(`✅ Server is working on http://localhost:${process.env.PORT || 8080}`)

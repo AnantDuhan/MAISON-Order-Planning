@@ -31,7 +31,6 @@
         "redux": "^4.1.2",
         "redux-thunk": "^2.4.1",
         "socket.io-client": "^4.8.1",
-        "three": "^0.178.0",
         "webfontloader": "^1.6.28",
         "yet-another-react-lightbox": "^3.25.0"
     },

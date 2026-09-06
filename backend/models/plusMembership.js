@@ -25,7 +25,7 @@ const subscription = new mongoose.Schema({
         required: true
     },
     user: {
-        type: Number,
+        type: String,
         ref: 'User',
         required: true
     },

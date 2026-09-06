@@ -5,7 +5,7 @@ mongoose.set('strictQuery', false);
 const refundSchema = new mongoose.Schema({
     _id: String,
     order: {
-        type: Number,
+        type: String,
         ref: 'Order',
         required: true
     },

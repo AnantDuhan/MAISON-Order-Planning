@@ -9,6 +9,7 @@ import { clearErrors, submitContactForm } from '../../../actions/contactAction';
 import { CLEAR_CONTACT } from '../../../constants/contactConstants';
 
 import MetaData from '../MetaData';
+import ButtonSpinner from '../ButtonSpinner';
 
 const ContactForm = () => {
     const dispatch = useDispatch();
@@ -105,7 +106,14 @@ const ContactForm = () => {
                             </div>
 
                             <button type='submit' disabled={loading} className='btn-solid w-full disabled:opacity-40'>
-                                {loading ? 'Sending…' : 'Submit'}
+                                {loading ? (
+                                        <>
+                                            <ButtonSpinner />
+                                            Sending…
+                                        </>
+                                    ) : (
+                                        'Submit'
+                                    )}
                             </button>
                         </form>
                     </div>

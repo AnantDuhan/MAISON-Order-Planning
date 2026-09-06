@@ -1,64 +1,56 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <title>New Contact Form Submission</title>
-    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <style type="text/css">
-      body {
-        margin: 0;
-        padding: 0;
-        min-width: 100%;
-        font-family: Arial, sans-serif;
-        font-size: 16px;
-        line-height: 1.5;
-        background-color: #fafafa;
-        color: #222222;
-      }
-      .email-wrapper {
-        max-width: 600px;
-        margin: 0 auto;
-      }
-      .email-header {
-        background-color: #0070f3;
-        padding: 24px;
-        color: #ffffff;
-      }
-      .email-body {
-        padding: 24px;
-        background-color: #ffffff;
-      }
-      .email-footer {
-        background-color: #f6f6f6;
-        padding: 24px;
-      }
-      .field-label {
-        color: #666666;
-        font-size: 13px;
-        font-weight: 700;
-        text-transform: uppercase;
-      }
-      .message {
-        white-space: pre-wrap;
-      }
-    </style>
-</head>
-<body>
-    <div class="email-wrapper">
-        <div class="email-header">
-            <h1>New Contact Form Submission</h1>
-        </div>
-        <div class="email-body">
-            <p>You have received a new message through the contact form.</p>
-            <p><span class="field-label">Name</span><br><%= name %></p>
-            <p><span class="field-label">Email</span><br><%= email %></p>
-            <p><span class="field-label">Subject</span><br><%= subject %></p>
-            <p><span class="field-label">Message</span></p>
-            <p class="message"><%= message %></p>
-        </div>
-        <div class="email-footer">
-            <p>This message was sent from the website contact form.</p>
-        </div>
-    </div>
-</body>
-</html>
+<%- include('partials/head', { title: 'New contact enquiry', preheader: 'A new message from the Maison contact form.' }) %>
+
+<p style="margin:0; font-family:Helvetica,Arial,sans-serif; font-size:10px; font-weight:bold; letter-spacing:3px; text-transform:uppercase; color:#A07C4B;">
+  Contact Form
+</p>
+
+<h1 style="margin:14px 0 0 0; font-family:Georgia,'Times New Roman',serif; font-size:34px; font-weight:500; line-height:1.15; color:#1A1816;">
+  New enquiry
+</h1>
+
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:30px 0 0 0;">
+  <tr>
+    <td style="padding:12px 0; border-bottom:1px solid #E0D9CE;">
+      <p style="margin:0; font-family:Helvetica,Arial,sans-serif; font-size:10px; letter-spacing:2px; text-transform:uppercase; color:#8A8278;">From</p>
+      <p style="margin:5px 0 0 0; font-family:Helvetica,Arial,sans-serif; font-size:15px; color:#1A1816;"><%= name %></p>
+    </td>
+  </tr>
+  <tr>
+    <td style="padding:12px 0; border-bottom:1px solid #E0D9CE;">
+      <p style="margin:0; font-family:Helvetica,Arial,sans-serif; font-size:10px; letter-spacing:2px; text-transform:uppercase; color:#8A8278;">Email</p>
+      <p style="margin:5px 0 0 0; font-family:Helvetica,Arial,sans-serif; font-size:15px;">
+        <a href="mailto:<%= email %>" style="color:#A07C4B; text-decoration:none;"><%= email %></a>
+      </p>
+    </td>
+  </tr>
+  <tr>
+    <td style="padding:12px 0; border-bottom:1px solid #E0D9CE;">
+      <p style="margin:0; font-family:Helvetica,Arial,sans-serif; font-size:10px; letter-spacing:2px; text-transform:uppercase; color:#8A8278;">Subject</p>
+      <p style="margin:5px 0 0 0; font-family:Helvetica,Arial,sans-serif; font-size:15px; color:#1A1816;"><%= subject %></p>
+    </td>
+  </tr>
+</table>
+
+<p style="margin:30px 0 0 0; font-family:Helvetica,Arial,sans-serif; font-size:10px; font-weight:bold; letter-spacing:3px; text-transform:uppercase; color:#A07C4B;">
+  Message
+</p>
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:12px 0 0 0;">
+  <tr>
+    <td style="background-color:#F7F4EF; border-left:2px solid #A07C4B; padding:20px 22px;">
+      <p style="margin:0; font-family:Helvetica,Arial,sans-serif; font-size:15px; line-height:1.75; color:#4A453F; white-space:pre-wrap;"><%= message %></p>
+    </td>
+  </tr>
+</table>
+
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:30px 0 0 0;">
+  <tr>
+    <td align="center" bgcolor="#1A1816" style="background-color:#1A1816;">
+      <a href="mailto:<%= email %>?subject=Re: <%= subject %>"
+         style="display:inline-block; padding:16px 34px; font-family:Helvetica,Arial,sans-serif; font-size:11px; font-weight:bold; letter-spacing:3px; text-transform:uppercase; color:#F7F4EF; text-decoration:none;">
+        Reply
+      </a>
+    </td>
+  </tr>
+</table>
+
+<%- include('partials/foot') %>

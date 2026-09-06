@@ -5,7 +5,7 @@ mongoose.set('strictQuery', false);
 const returnProductSchema = new mongoose.Schema({
     _id: String,
     product: {
-        type: Number,
+        type: String,
         ref: 'Product',
         required: true
     },
@@ -18,7 +18,7 @@ const returnProductSchema = new mongoose.Schema({
 const returnSchema = new mongoose.Schema({
     _id: String,
     order: {
-        type: Number,
+        type: String,
         ref: 'Order',
         required: true
     },

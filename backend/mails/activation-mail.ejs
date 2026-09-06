@@ -1,96 +1,39 @@
-<!doctype html>
-<html>
-  <head>
-    <title>E-Learning Activation Email</title>
-    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <style type="text/css">
-      /* Base */
-      body {
-        margin: 0;
-        padding: 0;
-        min-width: 100%;
-        font-family: Arial, sans-serif;
-        font-size: 16px;
-        line-height: 1.5;
-        background-color: #fafafa;
-        color: #222222;
-      }
-      a {
-        color: #000;
-        text-decoration: none;
-      }
-      h1 {
-        font-size: 24px;
-        font-weight: 700;
-        line-height: 1.25;
-        margin-top: 0;
-        margin-bottom: 15px;
-        text-align: center;
-      }
-      p {
-        margin-top: 0;
-        margin-bottom: 24px;
-      }
-      table td {
-        vertical-align: top;
-      }
-      /* Layout */
-      .email-wrapper {
-        max-width: 600px;
-        margin: 0 auto;
-      }
-      .email-header {
-        background-color: #0070f3;
-        padding: 24px;
-        color: #ffffff;
-      }
-      .email-body {
-        padding: 24px;
-        background-color: #ffffff;
-      }
-      .email-footer {
-        background-color: #f6f6f6;
-        padding: 24px;
-      }
-      /* Buttons */
-      .button {
-        display: inline-block;
-        background-color: #0070f3;
-        color: #ffffff;
-        font-size: 16px;
-        font-weight: 700;
-        text-align: center;
-        text-decoration: none;
-        padding: 12px 24px;
-        border-radius: 4px;
-      }
-    </style>
-  </head>
-  <body>
-    <div class="email-wrapper">
-      <div class="email-header">
-        <h1>Welcome to Order Planning</h1>
-      </div>
-      <div class="email-body">
-        <p>Hello <%= name %>,</p>
-        <p>
-          Thank you for choosing us. Please use the following One-Time Password (OTP) to complete your login.
-        </p>
-        <h2><%= otp %></h2>
-        <p>
-          Please enter this code on the activation page within the next 10 minutes.
-        </p>
-        <p>
-          If you did not register for a Order Planning account, please ignore this email.
-        </p>
-      </div>
-      <div class="email-footer">
-        <p>
-          If you have any questions, please don't hesitate to contact us at
-          <a href="mailto:support@orderplanning.com">support@orderplanning.com</a>
-        </p>
-      </div>
-    </div>
-  </body>
-</html>
+<%- include('partials/head', { title: 'Verify your account', preheader: 'Your Maison verification code.' }) %>
+
+<p style="margin:0; font-family:Helvetica,Arial,sans-serif; font-size:10px; font-weight:bold; letter-spacing:3px; text-transform:uppercase; color:#A07C4B;">
+  Welcome to the House
+</p>
+
+<h1 style="margin:14px 0 0 0; font-family:Georgia,'Times New Roman',serif; font-size:34px; font-weight:500; line-height:1.15; color:#1A1816;">
+  Verify your account
+</h1>
+
+<p style="margin:24px 0 0 0; font-family:Helvetica,Arial,sans-serif; font-size:15px; line-height:1.75; color:#4A453F;">
+  Hello <%= name %>,
+</p>
+
+<p style="margin:14px 0 0 0; font-family:Helvetica,Arial,sans-serif; font-size:15px; line-height:1.75; color:#4A453F;">
+  Thank you for joining Maison. Enter the code below to activate your account
+  and start exploring the collection.
+</p>
+
+<!-- OTP -->
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:32px 0 0 0;">
+  <tr>
+    <td align="center" style="background-color:#F7F4EF; border:1px solid #E0D9CE; padding:28px 20px;">
+      <p style="margin:0; font-family:Helvetica,Arial,sans-serif; font-size:10px; letter-spacing:3px; text-transform:uppercase; color:#8A8278;">
+        Verification Code
+      </p>
+      <p style="margin:12px 0 0 0; font-family:Georgia,'Times New Roman',serif; font-size:38px; font-weight:500; letter-spacing:10px; color:#A07C4B;">
+        <%= otp %>
+      </p>
+    </td>
+  </tr>
+</table>
+
+<p style="margin:28px 0 0 0; font-family:Helvetica,Arial,sans-serif; font-size:13px; line-height:1.7; color:#8A8278;">
+  This code is valid for a limited time. If you didn't create a Maison account,
+  you can ignore this email.
+</p>
+
+<%- include('partials/foot') %>

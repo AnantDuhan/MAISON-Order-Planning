@@ -117,22 +117,6 @@ const MainHeader = () => {
                         </svg>
                     </button>
                     <ul className='hidden items-center gap-8 lg:flex'>
-                        {user?.role === 'admin' && (
-                            <li>
-                                <Link
-                                    to='/admin/dashboard'
-                                    className='inline-flex items-center gap-2 border border-brass px-3 py-1.5 font-sans text-[0.68rem] uppercase tracking-luxe text-brass transition-all duration-500 ease-luxe hover:bg-brass hover:text-white'
-                                >
-                                    <svg width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='1.7'>
-                                        <rect x='3' y='3' width='7' height='9' />
-                                        <rect x='14' y='3' width='7' height='5' />
-                                        <rect x='14' y='12' width='7' height='9' />
-                                        <rect x='3' y='16' width='7' height='5' />
-                                    </svg>
-                                    Admin
-                                </Link>
-                            </li>
-                        )}
                         {navLinks.map(l => (
                             <li key={l.to}>
                                 <Link to={l.to} className='link-reveal font-sans text-[0.82rem] uppercase tracking-luxe'>
@@ -155,6 +139,24 @@ const MainHeader = () => {
 
                 {/* Right: actions */}
                 <div className='flex flex-1 items-center justify-end gap-3 sm:gap-4'>
+                    {/* Admin entry — kept in the always-visible action cluster so it
+                        does not disappear below the lg breakpoint. */}
+                    {user?.role === 'admin' && (
+                        <Link
+                            to='/admin/dashboard'
+                            title='Admin Dashboard'
+                            aria-label='Admin Dashboard'
+                            className='inline-flex shrink-0 items-center gap-2 border border-brass px-2.5 py-1.5 font-sans text-[0.66rem] uppercase tracking-luxe text-brass transition-all duration-500 ease-luxe hover:bg-brass hover:text-white sm:px-3'
+                        >
+                            <svg width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='1.7'>
+                                <rect x='3' y='3' width='7' height='9' />
+                                <rect x='14' y='3' width='7' height='5' />
+                                <rect x='14' y='12' width='7' height='9' />
+                                <rect x='3' y='16' width='7' height='5' />
+                            </svg>
+                            <span className='hidden sm:inline'>Admin</span>
+                        </Link>
+                    )}
                     <form ref={searchRef} className='relative hidden md:block' onSubmit={searchSubmitHandler}>
                         <div className='flex items-center gap-2 border-b border-line focus-within:border-brass'>
                             <FaSearch className='text-ink-faint' size={13} />

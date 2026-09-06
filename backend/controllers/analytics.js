@@ -1,5 +1,8 @@
 const Order = require('../models/order');
 const Return = require('../models/return');
+const Product = require('../models/product');
+const User = require('../models/user');
+const Refund = require('../models/refund');
 
 /**
  * Admin analytics.
@@ -224,5 +227,43 @@ exports.getAnalytics = async (req, res, next) => {
         success: false,
         message: 'Could not build analytics',
     });
+  }
+};
+
+/**
+ * Lightweight counts for the dashboard cards.
+ *
+ * Previously the dashboard dispatched getAllOrders / getAllUsers /
+ * getAdminProduct / allRefunds / allReturns and counted the arrays in the
+ * browser — every order and user document over the wire to render five
+ * integers. countDocuments() runs against the index and returns a number.
+ */
+// GET /api/v1/admin/stats
+exports.getAdminStats = async (req, res, next) => {
+  try {
+    const [products, orders, users, returns, refunds, outOfStock] = await Promise.all([
+        Product.estimatedDocumentCount(),
+        Order.estimatedDocumentCount(),
+        User.estimatedDocumentCount(),
+        Return.estimatedDocumentCount(),
+        Refund.estimatedDocumentCount(),
+        Product.countDocuments({ Stock: 0 }),
+    ]);
+
+    res.status(200).json({
+        success: true,
+        stats: {
+            products,
+            orders,
+            users,
+            returns,
+            refunds,
+            outOfStock,
+            inStock: Math.max(0, products - outOfStock),
+        },
+    });
+  } catch (error) {
+    console.error('Admin stats failed:', error);
+    res.status(500).json({ success: false, message: 'Could not load stats' });
   }
 };

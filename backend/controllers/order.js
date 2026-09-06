@@ -1,6 +1,7 @@
 const Order = require('../models/order');
 const Product = require('../models/product');
 const sendEmail = require('../utils/sendEmail');
+const { sendEmailInBackground } = require('../utils/sendEmail');
 const User = require('../models/user');
 const Coupon = require('../models/coupon');
 const nodeCache = require('node-cache');
@@ -93,7 +94,7 @@ exports.newOrder = async (req, res, next) => {
             }
         );
 
-        await sendEmail({
+        sendEmailInBackground({
             email: user.email,
             subject: `Your Order📦 has been placed successfully`,
             html: emailMessage
@@ -257,7 +258,7 @@ exports.updateOrder = async (req, res, next) => {
                 estimatedDeliveryDate: estimatedDeliveryDate.toDateString()
             }
         );
-        await sendEmail({
+        sendEmailInBackground({
             email: user.email,
             subject: `Your Order📦 Status Update: ${order.orderStatus}`,
             html: emailMessage

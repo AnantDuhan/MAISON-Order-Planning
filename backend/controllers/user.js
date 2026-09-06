@@ -1,6 +1,7 @@
 // const { s3 } = require('../app');
 const User = require('../models/user');
 const sendEmail = require('../utils/sendEmail');
+const { sendEmailInBackground } = require('../utils/sendEmail');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 require('dotenv').config({ path: 'backend/config/config.env' });
@@ -194,7 +195,7 @@ exports.forgotPassword = async (req, res, next) => {
             }
         );
 
-        await sendEmail({
+        sendEmailInBackground({
             email: user.email,
             subject: `Password Recovery - Ecommerce`,
             html: emailMessage
