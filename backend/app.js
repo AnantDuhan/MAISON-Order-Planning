@@ -22,6 +22,8 @@ const jwt = require("jsonwebtoken");
 const Snowflake = require("@theinternetfolks/snowflake");
 const { generateEmbedding } = require('./utils/generateEmbedding');
 const redisClientPromise = require('./config/redisClientUpstash');
+const swaggerUi = require('swagger-ui-express');
+const swaggerSpec = require('./config/swagger');
 require("dotenv").config({ path: "./config/config.env" });
 
 app.use(cookieParser());
@@ -75,6 +77,11 @@ const orderRoute = require("./routes/order");
 const paymentRoute = require("./routes/payment");
 const couponRoute = require("./routes/coupon");
 const analyticsRoute = require("./routes/analytics");
+
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.get('/api-docs.json', (req, res) => {
+  res.json(swaggerSpec);
+});
 
 app.use("/api/v1", productRoute);
 app.use("/api/v1", userRoute);
