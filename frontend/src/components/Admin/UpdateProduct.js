@@ -77,7 +77,7 @@ const UpdateProduct = () => {
 
     const updateProductImagesChange = e => {
         const files = Array.from(e.target.files);
-        setImages([]);
+        setImages(files);
         setImagesPreview([]);
         setOldImages([]);
         files.forEach(file => {
@@ -85,7 +85,6 @@ const UpdateProduct = () => {
             reader.onload = () => {
                 if (reader.readyState === 2) {
                     setImagesPreview(old => [...old, reader.result]);
-                    setImages(old => [...old, reader.result]);
                 }
             };
             reader.readAsDataURL(file);
@@ -164,7 +163,7 @@ const UpdateProduct = () => {
                                 <input
                                     type='file'
                                     name='avatar'
-                                    accept='image/*'
+                                    accept='image/png,image/jpeg,image/webp'
                                     onChange={updateProductImagesChange}
                                     multiple
                                     className='hidden'

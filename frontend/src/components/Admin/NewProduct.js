@@ -52,20 +52,19 @@ const NewProduct = () => {
         myForm.set('description', description);
         myForm.set('category', category);
         myForm.set('Stock', Stock);
-        images.forEach(image => myForm.append('images', image));
+        images.forEach(image => myForm.append('product', image));
         dispatch(createProduct(myForm));
     };
 
     const createProductImagesChange = e => {
         const files = Array.from(e.target.files);
-        setImages([]);
+        setImages(files);
         setImagesPreview([]);
         files.forEach(file => {
             const reader = new FileReader();
             reader.onload = () => {
                 if (reader.readyState === 2) {
                     setImagesPreview(old => [...old, reader.result]);
-                    setImages(old => [...old, reader.result]);
                 }
             };
             reader.readAsDataURL(file);
@@ -144,7 +143,7 @@ const NewProduct = () => {
                                 <input
                                     type='file'
                                     name='avatar'
-                                    accept='image/*'
+                                    accept='image/png,image/jpeg,image/webp'
                                     onChange={createProductImagesChange}
                                     multiple
                                     className='hidden'
