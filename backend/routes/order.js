@@ -11,7 +11,7 @@ const {
 const router = express.Router();
 
 const { isAuthUser, authRoles } = require('../middleware/auth');
-const { requestReturn, getAllReturns } = require('../controllers/return');
+const { requestReturn, getAllReturns, updateReturnStatus } = require('../controllers/return');
 const { initiateRefund, updateRefundStatus, getAllRefunds } = require('../controllers/refund');
 
 router.route('/order/new').post(isAuthUser, newOrder);
@@ -35,9 +35,11 @@ router
 
 router.route('/admin/order/:orderId/refund/:refundId/status').patch(isAuthUser, authRoles('admin'), updateRefundStatus);
 
-router.route('/reorder').post(isAuthUser, reorder);
+router.route('/order/reorder/:orderId').post(isAuthUser, reorder);
 
 router.route('/admin/returns').get(isAuthUser, authRoles('admin'), getAllReturns);
+
+router.route('/admin/return/:id/status').patch(isAuthUser, authRoles('admin'), updateReturnStatus);
 
 router.route('/admin/refunds').get(isAuthUser, authRoles('admin'), getAllRefunds);
 

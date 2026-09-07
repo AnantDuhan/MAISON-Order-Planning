@@ -41,7 +41,7 @@ const TARGETS = [
 ];
 
 const run = async () => {
-    const uri = process.env.DB_URI || process.env.DB_HOSTED_URI;
+    const uri = process.env.DB_HOSTED_URI || process.env.DB_URI;
     if (!uri) {
         console.error('No DB_URI / DB_HOSTED_URI found in env. Aborting.');
         process.exit(1);

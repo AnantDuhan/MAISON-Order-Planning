@@ -1,12 +1,12 @@
 import React, { Fragment, useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 
 import { Carousel } from 'react-responsive-carousel';
 import 'react-responsive-carousel/lib/styles/carousel.min.css';
 
-import { clearErrors, getOrderDetails, returnRequest } from '../../actions/orderAction';
+import { clearErrors, getOrderDetails, returnRequest, reorder } from '../../actions/orderAction';
 import {
     Button,
     Dialog,
@@ -24,8 +24,10 @@ const OrderDetails = () => {
     const { order, error, loading } = useSelector(state => state.orderDetails);
 
     const dispatch = useDispatch();
+    const navigate = useNavigate();
     const { id } = useParams();
 
+    const [reordering, setReordering] = useState(false);
     const [openDialog, setOpenDialog] = useState(false);
     const [selectedOrder, setSelectedOrder] = useState(null);
     const [selectedReturnReason, setSelectedReturnReason] = useState('');
@@ -66,6 +68,19 @@ const OrderDetails = () => {
     };
 
     const handleCloseDialog = () => setOpenDialog(false);
+
+    const handleReorder = async () => {
+        try {
+            setReordering(true);
+            await dispatch(reorder(order._id));
+            toast.success('Order placed again — added to your orders');
+            navigate('/orders');
+        } catch (error) {
+            toast.error(error?.response?.data?.message || 'Reorder failed. Please try again.');
+        } finally {
+            setReordering(false);
+        }
+    };
 
     useEffect(() => {
         if (error) {
@@ -205,6 +220,20 @@ const OrderDetails = () => {
                                     className='btn-outline w-full'
                                 >
                                     Request Return
+                                </button>
+
+                                <button
+                                    onClick={handleReorder}
+                                    disabled={reordering}
+                                    className='btn-outline mt-3 flex w-full items-center justify-center gap-2 disabled:opacity-60'
+                                >
+                                    {reordering && (
+                                        <span
+                                            className='h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent'
+                                            aria-hidden='true'
+                                        />
+                                    )}
+                                    {reordering ? 'Placing order…' : 'Reorder'}
                                 </button>
                             </div>
                         </div>

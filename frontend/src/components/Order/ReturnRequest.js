@@ -16,7 +16,7 @@ const ReturnRequest = () => {
     const { id } = useParams();
     const navigate = useNavigate();
 
-    const { loading } = useSelector(state => state.returnRequest);
+    const { error, loading } = useSelector(state => state.returnRequest);
 
     const returnReasons = [
         'Defective Product',
@@ -39,9 +39,13 @@ const ReturnRequest = () => {
     const submitReturnRequest = e => {
         e.preventDefault();
         if (id && returnReason) {
-            dispatch(returnRequest(id, returnReason));
-            toast.success('Return request submitted successfully');
-            navigate('/orders');
+            try {
+                dispatch(returnRequest(id, returnReason));
+                toast.success('Return request submitted successfully');
+                navigate('/orders');
+            } catch (requestError) {
+                toast.error(requestError.response?.data?.message || 'Unable to submit return request');
+            }
         }
     };
 

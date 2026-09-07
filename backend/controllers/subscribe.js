@@ -1,5 +1,5 @@
 const Subscribe = require('../models/subscribe');
-const Snowflake = require('@theinternetfolks/snowflake');
+const generateId = require('../utils/generateId');
 
 const timestamp = Date.now();
 const timestampInSeconds = Math.floor(timestamp / 1000);
@@ -17,9 +17,7 @@ exports.subscriber = async (req, res, next) => {
             }
 
             const newSubscriber = await Subscribe.create({
-                _id: Snowflake.Snowflake.generate({
-                    timestamp: timestampInSeconds
-                }),
+                _id: generateId(),
                 email
             });
             await newSubscriber.save();

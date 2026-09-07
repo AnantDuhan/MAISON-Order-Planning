@@ -1,4 +1,5 @@
 const cookieParser = require("cookie-parser");
+const compression = require("compression");
 const express = require("express");
 const app = express();
 const bodyParser = require("body-parser");
@@ -19,13 +20,16 @@ const { isAuthUser, authRoles } = require("./middleware/auth");
 const User = require("./models/user");
 const Product = require("./models/product");
 const jwt = require("jsonwebtoken");
-const Snowflake = require("@theinternetfolks/snowflake");
+const generateId = require('./utils/generateId');
 const { generateEmbedding } = require('./utils/generateEmbedding');
 const redisClientPromise = require('./config/redisClientUpstash');
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./config/swagger');
 require("dotenv").config({ path: "./config/config.env" });
 
+// Gzip response bodies. Registered first so every downstream response
+// (API JSON, docs, health) is compressed before it leaves the server.
+app.use(compression());
 app.use(cookieParser());
 app.use(express.json({ limit: "50mb" }));
 app.use(
@@ -165,9 +169,7 @@ app.post("/register", upload.single("image"), async (req, res) => {
     console.log("✅ Image uploaded successfully:", avatarUrl);
 
     const user = await User.create({
-      _id: Snowflake.Snowflake.generate({
-        timestamp: timestampInSeconds,
-      }),
+      _id: generateId(),
       name,
       whatsappNumber,
       email,
@@ -343,9 +345,7 @@ app.post(
 
       // Create a new product in the database
       const product = await Product.create({
-        _id: Snowflake.Snowflake.generate({
-          timestamp: timestampInSeconds,
-        }),
+        _id: generateId(),
         name,
         description,
         price,

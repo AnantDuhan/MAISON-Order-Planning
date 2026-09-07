@@ -1,6 +1,7 @@
 const Return = require('../models/return');
 const Refund = require('../models/refund');
 const Order = require('../models/order');
+const generateId = require('../utils/generateId');
 const nodeCache = require('node-cache');
 
 const NodeCache = new nodeCache();
@@ -37,14 +38,16 @@ exports.initiateRefund = async (req, res) => {
             });
         }
 
+        const returnRequests = await Return.find({ _id: { $in: order.return } });
         const refunds = [];
         const updatedReturns = [];
 
-        for (const returnDoc of order.return) {
-            if (returnDoc.status === 'Pending') {
+        for (const returnDoc of returnRequests) {
+            if (['Pending', 'Approved'].includes(returnDoc.status)) {
                 const refundAmount = order.totalPrice;
 
                 const newRefund = new Refund({
+                    _id: generateId(),
                     order: order._id,
                     amount: refundAmount,
                     initiatedAt: new Date(),
@@ -58,6 +61,13 @@ exports.initiateRefund = async (req, res) => {
                 returnDoc.resolvedAt = new Date();
                 updatedReturns.push(returnDoc);
             }
+        }
+
+        if (refunds.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'No pending or approved return found for this order'
+            });
         }
 
         if (refunds.length > 0) {
@@ -143,6 +153,9 @@ exports.updateRefundStatus = async (req, res) => {
         await order.save();
 
         refund.status = refundStatus;
+        if (refundStatus === 'Refunded') {
+            refund.completedAt = new Date();
+        }
         await refund.save();
 
         // CLEAR CACHE so the DataGrid in React updates immediately

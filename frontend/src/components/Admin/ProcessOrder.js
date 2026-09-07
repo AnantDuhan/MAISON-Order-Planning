@@ -25,7 +25,7 @@ import {
 } from '../../actions/orderAction';
 import MetaData from '../layout/MetaData';
 
-const refundOptions = ['Processing', 'Rejected', 'Pending', 'Approve', 'Refunded'];
+const refundOptions = ['Initiated', 'Pending', 'Approved', 'Rejected', 'Refunded'];
 
 /** Shared summary shown inside both refund dialogs. */
 const OrderSummary = ({ order }) => {
@@ -73,20 +73,33 @@ const ProcessOrder = () => {
 
     const onLoaderFinished = () => setProgress(0);
 
-    const submitInitiateRefund = () => {
+    const submitInitiateRefund = async () => {
         if (order) {
-            setProgress(50);
-            dispatch(initiateRefund(id));
-            toast.success('Refund request initiated successfully');
-            setInitiateOpen(false);
+            try {
+                setProgress(50);
+                await dispatch(initiateRefund(id));
+                toast.success('Refund request initiated successfully');
+                setInitiateOpen(false);
+            } catch (error) {
+                toast.error(error.response?.data?.message || error.message);
+            }
         }
     };
 
-    const submitApproveRefund = () => {
-        if (order) {
-            dispatch(updateRefundStatus(order?._id, order?.refund?.[0], selectedRefundStatus));
-            toast.success('Refund status updated successfully');
-            setApproveOpen(false);
+    const submitApproveRefund = async () => {
+        const refund = order?.refund?.[0];
+        const refundId = typeof refund === 'object' ? refund?._id : refund;
+
+        if (order && refundId) {
+            try {
+                await dispatch(updateRefundStatus(order._id, refundId, selectedRefundStatus));
+                toast.success('Refund status updated successfully');
+                setApproveOpen(false);
+            } catch (error) {
+                toast.error(error.response?.data?.message || error.message);
+            }
+        } else {
+            toast.error('Initiate the refund before updating its status');
         }
     };
 
@@ -262,7 +275,7 @@ const ProcessOrder = () => {
                                     </button>
                                     <button
                                         onClick={openApproveDialog}
-                                        disabled={order.isRefunded === false && order.isReturned === false}
+                                        disabled={!order.refund?.length || order.isRefunded === true}
                                         className='btn-solid w-full disabled:opacity-40'
                                     >
                                         Approve Refund

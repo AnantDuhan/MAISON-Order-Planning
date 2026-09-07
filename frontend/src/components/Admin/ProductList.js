@@ -88,7 +88,7 @@ const ProductList = () => {
             <MetaData title='All Products · Admin' />
             <AdminPage
                 title='All Products'
-                action={<Link to='/admin/product' className='btn-solid'>New Product</Link>}
+                action={<Link to='/admin/add-product' className='btn-solid'>New Product</Link>}
             >
                 <AdminTable columns={columns} rows={rows} emptyMessage='No products yet.' />
             </AdminPage>

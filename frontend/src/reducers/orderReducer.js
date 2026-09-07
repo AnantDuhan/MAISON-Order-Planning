@@ -195,6 +195,13 @@ export const orderDetailsReducer = (state = { order: {} }, action) => {
                 order: action.payload,
             };
 
+        case INITIATE_REFUND_SUCCESS:
+            return {
+                ...state,
+                loading: false,
+                order: action.payload,
+            };
+
         case ORDER_DETAILS_FAIL:
             return {
                 loading: false,

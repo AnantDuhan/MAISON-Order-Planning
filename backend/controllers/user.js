@@ -7,7 +7,7 @@ const jwt = require('jsonwebtoken');
 require('dotenv').config({ path: 'backend/config/config.env' });
 const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
 const { fromEnv } = require('@aws-sdk/credential-provider-env');
-const Snowflake = require('@theinternetfolks/snowflake');
+const generateId = require('../utils/generateId');
 const { OAuth2Client } = require('google-auth-library');
 const validator = require('validator'); 
 const ejs = require('ejs');
@@ -52,9 +52,7 @@ exports.registerUser = async (req, res, next) => {
         console.log('✅ Image uploaded successfully:', avatarUrl);
 
         const user = await User.create({
-            _id: Snowflake.Snowflake.generate({
-                timestamp: timestampInSeconds
-            }),
+            _id: generateId(),
             name,
             whatsappNumber,
             email,
@@ -285,6 +283,51 @@ exports.getUserDetails = async (req, res, next) => {
     });
 };
 
+// update User profile
+exports.updateProfile = async (req, res, next) => {
+    try {
+        const user = await User.findById(req.user._id);
+
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found'
+            });
+        }
+
+        user.name = req.body.name;
+        user.email = req.body.email;
+
+        if (req.file) {
+            const s3 = new S3Client({
+                region: process.env.AWS_BUCKET_REGION,
+                credentials: fromEnv()
+            });
+            const uploadParams = {
+                Bucket: process.env.AWS_BUCKET_NAME,
+                Key: req.file.originalname,
+                Body: req.file.buffer,
+                ContentType: req.file.mimetype
+            };
+
+            await s3.send(new PutObjectCommand(uploadParams));
+            user.avatar = `https://${uploadParams.Bucket}.s3.${process.env.AWS_BUCKET_REGION}.amazonaws.com/${uploadParams.Key}?cacheBuster=${Date.now()}`;
+        }
+
+        await user.save();
+
+        res.status(200).json({
+            success: true,
+            user
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
 // update User password
 exports.updatePassword = async (req, res, next) => {
     try {
@@ -416,7 +459,7 @@ exports.googleLogin = async (req, res, next) => {
 
         if (!user) {
             user = await User.create({
-                _id: Snowflake.Snowflake.generate({ timestamp: timestampInSeconds }),
+                _id: generateId(),
                 name,
                 email,
                 avatar: picture,

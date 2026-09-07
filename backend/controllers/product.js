@@ -2,7 +2,7 @@ import Product from '../models/product.js';
 import User from '../models/user.js';
 import Review from '../models/review.js';
 import ApiFeatures from '../utils/apifeatures.js';
-import { Snowflake } from '@theinternetfolks/snowflake';
+import generateId from '../utils/generateId.js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import redisClientPromise from '../config/redisClientUpstash.js';
 import dotenv from 'dotenv';
@@ -219,7 +219,7 @@ export const createProductReview = async (req, res, next) => {
         });
     } else {
         newReview = {
-            _id: Snowflake.generate(),
+            _id: generateId(),
             user: req.user._id,
             name: req.user.name,
             rating: Number(rating),
@@ -317,7 +317,7 @@ export const addToWishList = async (req, res) => {
         }
 
         const wishlistItem = {
-            _id: Snowflake.generate(),
+            _id: generateId(),
             product: req.params.id,
             name: product.name,
             description: product.description,

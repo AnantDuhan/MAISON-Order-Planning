@@ -6,6 +6,7 @@ const {
    forgotPassword,
    resetPassword,
    getUserDetails,
+    updateProfile,
    updatePassword,
    getAllUsers,
    getSingleUser,
@@ -55,6 +56,8 @@ router.route('/password/reset/:token').put(resetPassword);
 router.route('/logout').get(logout);
 
 router.route('/me').get(isAuthUser, getUserDetails);
+
+router.route('/me/update').put(isAuthUser, upload.single('image'), updateProfile);
 
 router.route('/password/update').put(isAuthUser, updatePassword);
 

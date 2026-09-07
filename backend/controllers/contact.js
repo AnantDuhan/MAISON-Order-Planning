@@ -5,7 +5,7 @@ const ejs = require('ejs');
 const path = require('path');
 const accountSid = process.env.ACCOUNT_SID;
 const authToken = process.env.AUTH_TOKEN;
-const Snowflake = require('@theinternetfolks/snowflake');
+const generateId = require('../utils/generateId');
 
 const timestamp = Date.now();
 const timestampInSeconds = Math.floor(timestamp / 1000);
@@ -15,9 +15,7 @@ exports.contactUs = async (req, res) => {
         const { name, email, subject, message } = req.body;
 
         const contact = await Contact.create({
-            _id: Snowflake.Snowflake.generate({
-                timestamp: timestampInSeconds
-            }),
+            _id: generateId(),
             name,
             email,
             subject,

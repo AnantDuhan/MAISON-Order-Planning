@@ -7,7 +7,7 @@ const Coupon = require('../models/coupon');
 const nodeCache = require('node-cache');
 const NodeCache = new nodeCache({ useClones: false });
 const Reorder = require('../models/reorder');
-const Snowflake = require('@theinternetfolks/snowflake');
+const generateId = require('../utils/generateId');
 const ejs = require('ejs');
 const path = require('path');
 
@@ -47,22 +47,24 @@ exports.newOrder = async (req, res, next) => {
         const orderItemsWithImages = await Promise.all(
             orderItems.map(async item => {
                 const product = await Product.findById(item.product);
-                if (product) {
-                    return {
-                        name: item.name,
-                        price: item.price,
-                        quantity: item.quantity,
-                        images: product.images, // Include the images from the product
-                        product: item.product
-                    };
+                if (!product) {
+                    const error = new Error(`Product ${item.product} not found`);
+                    error.statusCode = 404;
+                    throw error;
                 }
+
+                return {
+                    name: item.name,
+                    price: item.price,
+                    quantity: item.quantity,
+                    images: product.images,
+                    product: item.product
+                };
             })
         );
 
         const order = await Order.create({
-            _id: Snowflake.Snowflake.generate({
-                timestamp: timestampInSeconds
-            }),
+            _id: generateId(),
             shippingInfo,
             orderItems: orderItemsWithImages,
             paymentInfo,
@@ -220,9 +222,9 @@ exports.updateOrder = async (req, res, next) => {
         }
 
         if (req.body.status === 'Shipped') {
-            order.orderItems.forEach(async o => {
-                await updateStock(o.product, o.quantity);
-            });
+            await Promise.all(
+                order.orderItems.map(item => updateStock(item.product, item.quantity))
+            );
         }
 
         order.orderStatus = req.body.status;
@@ -298,6 +300,11 @@ async function getOrderFromCache(orderId) {
 
 async function updateStock(id, quantity) {
     const product = await Product.findById(id);
+    if (!product) {
+        const error = new Error(`Product ${id} not found for order stock update`);
+        error.statusCode = 404;
+        throw error;
+    }
     product.Stock -= quantity;
     await product.save({ validateBeforeSave: false });
 }
@@ -321,11 +328,13 @@ exports.deleteOrder = async (req, res, next) => {
     });
 };
 
+// Re-place a past order as a fresh order for the same user.
+// POST /api/v1/order/reorder/:orderId
 exports.reorder = async (req, res, next) => {
     try {
-        const { originalOrderId } = req.body;
+        const { orderId } = req.params;
 
-        const originalOrder = await Order.findById(originalOrderId);
+        const originalOrder = await Order.findById(orderId);
 
         if (!originalOrder) {
             return res.status(404).json({
@@ -334,36 +343,39 @@ exports.reorder = async (req, res, next) => {
             });
         }
 
-        const newOrder = new Order({
+        // A user may only reorder their own order.
+        if (String(originalOrder.user) !== String(req.user._id)) {
+            return res.status(403).json({
+                success: false,
+                message: 'You are not allowed to reorder this order'
+            });
+        }
+
+        // Clone the purchasable content into a brand-new order. `_id` is a
+        // required String across all models, so it must be generated
+        // explicitly. Status/refund/return flags reset to a fresh order.
+        const newOrder = await Order.create({
+            _id: generateId(),
             shippingInfo: originalOrder.shippingInfo,
             orderItems: originalOrder.orderItems,
+            user: req.user._id,
             paymentInfo: originalOrder.paymentInfo,
+            paidAt: Date.now(),
             itemsPrice: originalOrder.itemsPrice,
-            taxPrice: originalOrder.taxPrice,
             shippingPrice: originalOrder.shippingPrice,
-            totalPrice: originalOrder.totalPrice
+            totalPrice: originalOrder.totalPrice,
+            orderStatus: 'Processing'
         });
 
-        await newOrder.save();
-
-        const reorder = new Reorder({
-            originalOrder: originalOrder._id,
-            newOrderDetails: {
-                shippingInfo: newOrder.shippingInfo,
-                orderItems: newOrder.orderItems,
-                paymentInfo: newOrder.paymentInfo,
-                itemsPrice: newOrder.itemsPrice,
-                taxPrice: newOrder.taxPrice,
-                shippingPrice: newOrder.shippingPrice,
-                totalPrice: newOrder.totalPrice
-            }
+        // Audit trail linking the new order back to the one it was copied from.
+        await Reorder.create({
+            _id: generateId(),
+            originalOrder: originalOrder._id
         });
-
-        await reorder.save();
 
         res.status(200).json({
             success: true,
-            newOrder
+            order: newOrder
         });
     } catch (error) {
         console.error(error);

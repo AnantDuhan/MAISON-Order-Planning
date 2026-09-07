@@ -5,7 +5,7 @@ import { toast } from 'react-toastify';
 import LaunchIcon from '@mui/icons-material/Launch';
 import LoadingBar from 'react-top-loading-bar';
 
-import { clearErrors, allReturns } from '../../actions/orderAction';
+import { clearErrors, allReturns, updateReturnStatus } from '../../actions/orderAction';
 import MetaData from '../layout/MetaData';
 import AdminPage from './shared/AdminPage';
 import AdminTable from './shared/AdminTable';
@@ -16,6 +16,12 @@ const ReturnList = () => {
 
     const [progress, setProgress] = useState(0);
     const onLoaderFinished = () => setProgress(0);
+
+    const changeReturnStatus = (id, status) => {
+        dispatch(updateReturnStatus(id, status))
+            .then(() => toast.success('Return status updated'))
+            .catch(error => toast.error(error.response?.data?.message || error.message));
+    };
 
     useEffect(() => {
         if (error) {
@@ -29,15 +35,22 @@ const ReturnList = () => {
 
     const rows = (returns || []).map(item => {
         const products = Array.isArray(item.products) ? item.products : [];
+        const firstProduct = products[0]?.product;
+        const firstProductId = typeof firstProduct === 'object' ? firstProduct?._id : firstProduct;
         const productID =
             products.length > 1
-                ? `${String(products[0]?.product)} +${products.length - 1} more`
-                : String(products[0]?.product ?? '—');
+            ? `${String(firstProductId ?? '—')} +${products.length - 1} more`
+            : String(firstProductId ?? '—');
+        const productName =
+            products.length > 1
+                ? `${products[0]?.product?.name || 'Unknown product'} +${products.length - 1} more`
+                : products[0]?.product?.name || '—';
 
         return {
             id: item._id,
             orderID: item.order?._id,
             productID,
+            productName,
             customer: item.order?.user?.name,
             returnReason: item.reason,
             status: item.status,
@@ -49,14 +62,25 @@ const ReturnList = () => {
     const columns = [
         { key: 'id', label: 'Return ID', width: '1.1fr' },
         { key: 'orderID', label: 'Order ID', width: '1.1fr' },
-        { key: 'productID', label: 'Product', width: '1.1fr' },
+        { key: 'productName', label: 'Product', width: '1.3fr' },
+        { key: 'productID', label: 'Product ID', width: '1.1fr' },
         { key: 'customer', label: 'Customer', width: '0.9fr' },
         { key: 'returnReason', label: 'Reason', width: '1.3fr' },
         {
             key: 'status',
             label: 'Status',
             width: '0.8fr',
-            tone: row => (row.status === 'Completed' ? 'text-success' : 'text-danger'),
+            render: row => (
+                <select
+                    value={row.status}
+                    onChange={event => changeReturnStatus(row.id, event.target.value)}
+                    className='border border-line bg-transparent px-2 py-1 font-sans text-xs text-ink'
+                >
+                    {['Pending', 'Approved', 'Rejected', 'Completed'].map(status => (
+                        <option key={status} value={status}>{status}</option>
+                    ))}
+                </select>
+            ),
         },
         {
             key: 'requestDate',

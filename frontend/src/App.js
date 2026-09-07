@@ -16,6 +16,7 @@ import "./App.css";
 import BackendWaker from "./components/layout/Server-Health/BackendWaker";
 import ErrorBoundary from "./components/layout/ErrorBoundary";
 import Loader from "./components/layout/Loader/Loader";
+import ProtectedAdminRoute from "./components/route/ProtectedAdminRoute";
 
 /* Route-level code splitting.
    Home, the headers, the footer and the waker stay eager because they are
@@ -173,56 +174,107 @@ function App() {
                 <Route path="/payment" element={<Payment />} exact />
               )}
 
-              {/* Admin Routes */}
-              {isAuthenticated && (
-                <Route path="/admin/dashboard" element={<Dashboard />} exact />
-              )}
-              {isAuthenticated && (
-                <Route path="/admin/products" element={<ProductList />} exact />
-              )}
-              {isAuthenticated && (
-                <Route
-                  path="/admin/add-product"
-                  element={<NewProduct />}
-                  exact
-                />
-              )}
-              {isAuthenticated && (
-                <Route
-                  path="/admin/product/:id"
-                  element={<UpdateProduct />}
-                  exact
-                />
-              )}
-              {isAuthenticated && (
-                <Route path="/admin/orders" element={<OrderList />} exact />
-              )}
-              {isAuthenticated && (
-                <Route
-                  path="/admin/order/:id"
-                  element={<ProcessOrder />}
-                  exact
-                />
-              )}
-              {isAuthenticated && (
-                <Route path="/admin/users" element={<UsersList />} exact />
-              )}
-              {isAuthenticated && (
-                <Route path="/admin/user/:id" element={<UpdateUser />} exact />
-              )}
-              {isAuthenticated && (
-                <Route
-                  path="/admin/reviews"
-                  element={<ProductReviews />}
-                  exact
-                />
-              )}
-              {isAuthenticated && (
-                <Route path="/admin/returns" element={<ReturnList />} exact />
-              )}
-              {isAuthenticated && (
-                <Route path="/admin/refunds" element={<RefundList />} exact />
-              )}
+              {/* Admin Routes — always registered; ProtectedAdminRoute sends
+                  unauthenticated users to /login and non-admins to /. */}
+              <Route
+                path="/admin/dashboard"
+                element={
+                  <ProtectedAdminRoute>
+                    <Dashboard />
+                  </ProtectedAdminRoute>
+                }
+                exact
+              />
+              <Route
+                path="/admin/products"
+                element={
+                  <ProtectedAdminRoute>
+                    <ProductList />
+                  </ProtectedAdminRoute>
+                }
+                exact
+              />
+              <Route
+                path="/admin/add-product"
+                element={
+                  <ProtectedAdminRoute>
+                    <NewProduct />
+                  </ProtectedAdminRoute>
+                }
+                exact
+              />
+              <Route
+                path="/admin/product/:id"
+                element={
+                  <ProtectedAdminRoute>
+                    <UpdateProduct />
+                  </ProtectedAdminRoute>
+                }
+                exact
+              />
+              <Route
+                path="/admin/orders"
+                element={
+                  <ProtectedAdminRoute>
+                    <OrderList />
+                  </ProtectedAdminRoute>
+                }
+                exact
+              />
+              <Route
+                path="/admin/order/:id"
+                element={
+                  <ProtectedAdminRoute>
+                    <ProcessOrder />
+                  </ProtectedAdminRoute>
+                }
+                exact
+              />
+              <Route
+                path="/admin/users"
+                element={
+                  <ProtectedAdminRoute>
+                    <UsersList />
+                  </ProtectedAdminRoute>
+                }
+                exact
+              />
+              <Route
+                path="/admin/user/:id"
+                element={
+                  <ProtectedAdminRoute>
+                    <UpdateUser />
+                  </ProtectedAdminRoute>
+                }
+                exact
+              />
+              <Route
+                path="/admin/reviews"
+                element={
+                  <ProtectedAdminRoute>
+                    <ProductReviews />
+                  </ProtectedAdminRoute>
+                }
+                exact
+              />
+              <Route
+                path="/admin/returns"
+                element={
+                  <ProtectedAdminRoute>
+                    <ReturnList />
+                  </ProtectedAdminRoute>
+                }
+                exact
+              />
+              <Route
+                path="/admin/refunds"
+                element={
+                  <ProtectedAdminRoute>
+                    <RefundList />
+                  </ProtectedAdminRoute>
+                }
+                exact
+              />
 
               {/* Catch-all Not Found Route - MUST BE LAST */}
               <Route path="*" element={<NotFound />} />

@@ -105,13 +105,13 @@ const orderSchema = new mongoose.Schema({
     },
     return: [
         {
-            type: Number,
+            type: String,
             ref: 'Return'
         }
     ],
     refund: [
         {
-            type: Number,
+            type: String,
             ref: 'Refund',
             required: true
         }
