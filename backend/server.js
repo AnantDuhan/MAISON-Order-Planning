@@ -7,6 +7,7 @@ const { Server } = require('socket.io');
 const redisClient = require('./config/redisClientUpstash');
 const { warmUpEmailTransport } = require('./utils/sendEmail');
 const runWeeklyNewsletter = require('./newsletterJob');
+const runWishlistReminders = require('./wishlistJob');
 
 // Handling Uncaught Exceptions
 // process.on('uncaughtException', (err) => {
@@ -51,6 +52,9 @@ const server = createServer.listen(process.env.PORT || 8080, () => {
 
 // Check daily; each subscriber is eligible only once every seven days.
 setInterval(() => runWeeklyNewsletter().catch(error => console.error('Newsletter job failed:', error.message)), 24 * 60 * 60 * 1000);
+
+// Daily wishlist reminders for users with saved items.
+setInterval(() => runWishlistReminders().catch(error => console.error('Wishlist job failed:', error.message)), 24 * 60 * 60 * 1000);
 
 // Unhandeled Promise Rejection
 // process.on("unhandledRejection", err => {

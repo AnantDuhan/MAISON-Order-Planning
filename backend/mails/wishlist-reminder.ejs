@@ -1,0 +1,51 @@
+<%- include('partials/head', { title: 'Your wishlist awaits', preheader: 'The pieces you saved are still here.' }) %>
+
+<p style="margin:0; font-family:Helvetica,Arial,sans-serif; font-size:10px; font-weight:bold; letter-spacing:3px; text-transform:uppercase; color:#A07C4B;">
+  Saved for later
+</p>
+
+<h1 style="margin:14px 0 0 0; font-family:Georgia,'Times New Roman',serif; font-size:34px; font-weight:500; line-height:1.15; color:#1A1816;">
+  Still thinking it over?
+</h1>
+
+<p style="margin:24px 0 0 0; font-family:Helvetica,Arial,sans-serif; font-size:15px; line-height:1.75; color:#4A453F;">
+  Hello <%= name %>,
+</p>
+
+<p style="margin:14px 0 0 0; font-family:Helvetica,Arial,sans-serif; font-size:15px; line-height:1.75; color:#4A453F;">
+  The pieces you saved to your wishlist are still waiting for you:
+</p>
+
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:22px 0 0 0;">
+  <% items.forEach(item => { %>
+    <% const imageUrl = item.images && item.images[0] && item.images[0].url ? item.images[0].url : null; %>
+    <tr>
+      <td style="padding:12px 0; border-bottom:1px solid #ECE7DF;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+          <tr>
+            <% if (imageUrl) { %>
+              <td width="80" valign="top">
+                <img src="<%= imageUrl %>" alt="<%= item.name %>" width="72"
+                     style="display:block; border:1px solid #ECE7DF; width:72px; height:auto;" />
+              </td>
+            <% } %>
+            <td valign="top" style="padding-left:<%= imageUrl ? '16px' : '0' %>;">
+              <p style="margin:0; font-family:Georgia,'Times New Roman',serif; font-size:17px; line-height:1.3; color:#1A1816;">
+                <%= item.name %>
+              </p>
+              <p style="margin:6px 0 0 0; font-family:Helvetica,Arial,sans-serif; font-size:14px; color:#A07C4B;">
+                &#8377;<%= item.price %>
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  <% }); %>
+</table>
+
+<p style="margin:28px 0 0 0; font-family:Helvetica,Arial,sans-serif; font-size:13px; line-height:1.7; color:#8A8278;">
+  Sign in to your account to complete your order — before they're gone.
+</p>
+
+<%- include('partials/foot') %>
