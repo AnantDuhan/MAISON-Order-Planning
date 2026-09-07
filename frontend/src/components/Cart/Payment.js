@@ -4,10 +4,15 @@ import { useNavigate } from 'react-router';
 import { toast } from 'react-toastify';
 import { CircularProgress } from '@mui/material';
 import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
+import axios from 'axios';
 
 import CheckoutSteps from '../Cart/CheckoutSteps';
 import MetaData from '../layout/MetaData';
 import { createOrder, clearErrors } from '../../actions/orderAction';
+
+const cashfree = window.Cashfree
+    ? window.Cashfree({ mode: process.env.REACT_APP_CASHFREE_MODE || 'sandbox' })
+    : null;
 
 const Payment = () => {
     const orderInfo = JSON.parse(sessionStorage.getItem('orderInfo'));
@@ -20,34 +25,55 @@ const Payment = () => {
 
     const [isProcessing, setIsProcessing] = useState(false);
 
-    const submitHandler = e => {
+    const submitHandler = async e => {
         e.preventDefault();
         setIsProcessing(true);
 
-        // Simulated gateway — mimics a 3s bank round-trip
-        setTimeout(() => {
-            try {
-                const order = {
-                    shippingInfo,
-                    orderItems: cartItems,
-                    itemsPrice: orderInfo.subtotal,
-                    taxPrice: orderInfo.tax,
-                    shippingPrice: orderInfo.shippingCharges,
-                    totalPrice: orderInfo.totalPrice,
-                    paymentInfo: {
-                        id: `mock_pay_${Math.random().toString(36).substr(2, 9)}`,
-                        status: 'succeeded',
-                    },
-                };
-
-                dispatch(createOrder(order));
-                toast.success('Payment Processed Successfully!');
-                navigate('/success');
-            } catch (error) {
-                setIsProcessing(false);
-                toast.error('Simulated Payment Failed.');
+        try {
+            if (!cashfree) {
+                throw new Error('Cashfree checkout is unavailable. Please refresh and try again.');
             }
-        }, 3000);
+
+            const { data } = await axios.post('/api/v1/cashfree/order', {
+                amount: orderInfo.totalPrice,
+                phoneNumber: shippingInfo.phoneNumber,
+            });
+            const result = await cashfree.checkout({
+                paymentSessionId: data.paymentSessionId,
+                redirectTarget: '_modal',
+            });
+
+            if (result?.error || !result?.paymentDetails) {
+                setIsProcessing(false);
+                toast.info('Payment was not completed. You can try again.');
+                return;
+            }
+
+            const verification = await axios.get(`/api/v1/cashfree/order/${data.orderId}/verify`);
+            if (verification.data.status !== 'PAID') {
+                throw new Error('Payment could not be verified. Please try again.');
+            }
+
+            await dispatch(createOrder({
+                shippingInfo,
+                orderItems: cartItems,
+                itemsPrice: orderInfo.subtotal,
+                taxPrice: orderInfo.tax || 0,
+                shippingPrice: orderInfo.shippingCharges,
+                totalPrice: orderInfo.totalPrice,
+                couponCode: orderInfo.selectedCoupon?.code,
+                paymentInfo: {
+                    id: data.orderId,
+                    provider: 'cashfree',
+                    status: 'PAID',
+                },
+            }));
+            toast.success('Payment processed successfully.');
+            navigate('/success');
+        } catch (error) {
+            setIsProcessing(false);
+            toast.error(error.response?.data?.message || error.message || 'Payment failed.');
+        }
     };
 
     useEffect(() => {
@@ -69,8 +95,8 @@ const Payment = () => {
                     <div className='mt-8 flex flex-col items-center'>
                         <VerifiedUserIcon sx={{ fontSize: 48, color: '#4F6E54' }} />
                         <p className='mt-4 font-sans text-sm leading-relaxed text-ink-soft'>
-                            This is a simulated payment gateway for academic purposes. No real
-                            money will be deducted.
+                            You will be redirected to Cashfree’s secure checkout. Your order is
+                            created only after the payment is verified.
                         </p>
                         <p className='mt-6 font-sans text-[0.68rem] uppercase tracking-luxe text-ink-faint'>
                             Total Due
@@ -90,7 +116,7 @@ const Payment = () => {
                             </div>
                         ) : (
                             <button onClick={submitHandler} className='btn-solid w-full'>
-                                Simulate Payment of ₹{orderInfo && orderInfo.totalPrice}
+                                Pay securely with Cashfree · ₹{orderInfo && orderInfo.totalPrice}
                             </button>
                         )}
                     </div>

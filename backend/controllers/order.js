@@ -10,6 +10,7 @@ const Reorder = require('../models/reorder');
 const generateId = require('../utils/generateId');
 const ejs = require('ejs');
 const path = require('path');
+const { getCashfreeOrder } = require('../utils/cashfree');
 
 const timestamp = Date.now();
 const timestampInSeconds = Math.floor(timestamp / 1000);
@@ -31,6 +32,21 @@ exports.newOrder = async (req, res, next) => {
         } = req.body;
 
         const coupon = await Coupon.findOne({ code: couponCode });
+
+        if (paymentInfo?.provider === 'cashfree') {
+            const cashfreeOrder = await getCashfreeOrder(paymentInfo.id);
+            if (
+                !paymentInfo.id.startsWith(`order_${req.user._id}_`) ||
+                cashfreeOrder.order_status !== 'PAID'
+            ) {
+                return res.status(402).json({
+                    success: false,
+                    message: 'Cashfree payment has not been completed',
+                });
+            }
+            paymentInfo.status = 'PAID';
+            paymentInfo.id = cashfreeOrder.cf_order_id || paymentInfo.id;
+        }
 
         let discountedTotalPrice = totalPrice;
         if (coupon) {

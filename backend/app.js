@@ -32,7 +32,12 @@ require("dotenv").config({ path: "./config/config.env" });
 // (API JSON, docs, health) is compressed before it leaves the server.
 app.use(compression());
 app.use(cookieParser());
-app.use(express.json({ limit: "50mb" }));
+app.use(express.json({
+  limit: "50mb",
+  verify: (req, res, buffer) => {
+    req.rawBody = buffer.toString('utf8');
+  },
+}));
 app.use(
   bodyParser.urlencoded({
     extended: true,
