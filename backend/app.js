@@ -47,6 +47,28 @@ app.use(
   }),
 );
 
+const allowedOrigins = [
+  "http://localhost:3000",
+  "https://orderplanning.netlify.app",
+];
+
+const corsOptions = {
+  origin: (origin, callback) => {
+    if (
+      !origin ||
+      allowedOrigins.includes(origin) ||
+      /^https:\/\/[-a-z0-9]+--orderplanning\.netlify\.app$/i.test(origin)
+    ) {
+      return callback(null, true);
+    }
+    return callback(new Error("Origin is not allowed by CORS"));
+  },
+  optionsSuccessStatus: 204,
+  credentials: true,
+};
+
+app.use(cors(corsOptions));
+
 // s3.config.update({
 //     region: process.env.AWS_BUCKET_REGION,
 //     accessKeyId: process.env.AWS_ACCESS_KEY_ID,
@@ -123,36 +145,6 @@ if (process.env.NODE_ENV === "production") {
     res.sendFile(path.join(buildPath, "index.html"));
   });
 }
-
-// CORS
-app.use(async (req, res, next) => {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.header(
-    "Access-Control-Allow-Headers",
-    "Origin, X-Requested-With, Content-Type, Accept",
-  );
-  res.header("Access-Control-Allow-Credentials", true);
-  res.header("Access-Control-Allow-Methods", "*");
-  return next();
-});
-
-const allowedOrigins = [
-  'http://localhost:3000',
-  'https://orderplanning.netlify.app',
-];
-
-const corsOptions = {
-  origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin) || /^https:\/\/[-a-z0-9]+--orderplanning\.netlify\.app$/i.test(origin)) {
-      return callback(null, true);
-    }
-    return callback(new Error('Origin is not allowed by CORS'));
-  },
-  optionsSuccessStatus: 204,
-  credentials: true,
-};
-
-app.use(cors(corsOptions));
 
 process.noDeprecation = true;
 
