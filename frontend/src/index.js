@@ -16,6 +16,7 @@ import 'react-toastify/dist/ReactToastify.css';
 
 const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID;
 axios.defaults.baseURL = process.env.REACT_APP_BACKEND_URL || '';
+axios.defaults.withCredentials = true;
 
 console.log("Google Client ID Status:", GOOGLE_CLIENT_ID ? "Loaded" : "MISSING");
 

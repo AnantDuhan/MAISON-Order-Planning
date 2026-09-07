@@ -136,9 +136,19 @@ app.use(async (req, res, next) => {
   return next();
 });
 
+const allowedOrigins = [
+  'http://localhost:3000',
+  'https://orderplanning.netlify.app',
+];
+
 const corsOptions = {
-  origin: ["http://localhost:3000", "https://orderplanning.netlify.app/"],
-  optionsSuccessStatus: 200, // some legacy browsers (IE11, various SmartTVs) choke on 204
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin) || /^https:\/\/[-a-z0-9]+--orderplanning\.netlify\.app$/i.test(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error('Origin is not allowed by CORS'));
+  },
+  optionsSuccessStatus: 204,
   credentials: true,
 };
 
