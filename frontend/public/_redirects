@@ -1,2 +1,2 @@
-/api/*  https://mern-ecommerce-7ojo.onrender.com/  200
+/api/* https://mern-ecommerce-7ojo.onrender.com/api/:splat 200
 /*      /index.html                                          200

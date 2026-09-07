@@ -1,5 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import axios from 'axios';
 import { Provider } from 'react-redux';
 import { BrowserRouter } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
@@ -14,6 +15,7 @@ import './styles/theme.css';
 import 'react-toastify/dist/ReactToastify.css';
 
 const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID;
+axios.defaults.baseURL = process.env.REACT_APP_BACKEND_URL || '';
 
 console.log("Google Client ID Status:", GOOGLE_CLIENT_ID ? "Loaded" : "MISSING");
 
