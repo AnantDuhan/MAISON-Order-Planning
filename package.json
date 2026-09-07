@@ -24,6 +24,7 @@
         "dotenv": "^16.4.5",
         "ejs": "^5.0.1",
         "express": "^5.2.1",
+        "express-rate-limit": "^8.7.0",
         "google-auth-library": "^10.2.0",
         "jsonwebtoken": "^9.0.2",
         "mongoose": "^9.3.1",

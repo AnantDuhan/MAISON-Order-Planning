@@ -24,6 +24,7 @@ const {
 } = require('../controllers/user');
 
 const { isAuthUser, authRoles } = require('../middleware/auth');
+const { authLimiter } = require('../middleware/rateLimiter');
 // const upload = require('../app');
 const multer = require('multer');
 const { contactUs } = require('../controllers/contact');
@@ -48,13 +49,13 @@ const upload = multer({
 
 const router = express.Router();
 
-router.route('/register').post(upload.single('image'), registerUser);
+router.route('/register').post(authLimiter, upload.single('image'), registerUser);
 
-router.route('/login').post(loginUser);
+router.route('/login').post(authLimiter, loginUser);
 
-router.route('/password/forgot').post(forgotPassword);
+router.route('/password/forgot').post(authLimiter, forgotPassword);
 
-router.route('/password/reset/:token').put(resetPassword);
+router.route('/password/reset/:token').put(authLimiter, resetPassword);
 
 router.route('/logout').get(logout);
 
@@ -80,6 +81,6 @@ router.route('/contact-us').post(contactUs);
 
 router.route('/subscribe').post(subscriber);
 
-router.route('/auth/google').post(googleLogin);
+router.route('/auth/google').post(authLimiter, googleLogin);
 
 module.exports = router;

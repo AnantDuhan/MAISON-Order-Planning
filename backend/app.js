@@ -2,6 +2,7 @@ const cookieParser = require("cookie-parser");
 const compression = require("compression");
 const express = require("express");
 const app = express();
+app.set("trust proxy", 1);
 const bodyParser = require("body-parser");
 const cors = require("cors");
 const errorMiddleware = require("./middleware/error");
@@ -82,12 +83,14 @@ const orderRoute = require("./routes/order");
 const paymentRoute = require("./routes/payment");
 const couponRoute = require("./routes/coupon");
 const analyticsRoute = require("./routes/analytics");
+const { apiLimiter } = require("./middleware/rateLimiter");
 
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.get('/api-docs.json', (req, res) => {
   res.json(swaggerSpec);
 });
 
+app.use("/api/v1", apiLimiter);
 app.use("/api/v1", productRoute);
 app.use("/api/v1", userRoute);
 app.use("/api/v1", orderRoute);
