@@ -18,6 +18,9 @@ const {
    verifyTwoFactorAuth,
    disableTwoFactorAuth,
    validateTfaToken,
+   getAddresses,
+   addAddress,
+   deleteAddress,
 } = require('../controllers/user');
 
 const { isAuthUser, authRoles } = require('../middleware/auth');
@@ -56,6 +59,11 @@ router.route('/password/reset/:token').put(resetPassword);
 router.route('/logout').get(logout);
 
 router.route('/me').get(isAuthUser, getUserDetails);
+
+// Address book
+router.route('/addresses').get(isAuthUser, getAddresses);
+router.route('/address/new').post(isAuthUser, addAddress);
+router.route('/address/:addressId').delete(isAuthUser, deleteAddress);
 
 router.route('/me/update').put(isAuthUser, upload.single('image'), updateProfile);
 

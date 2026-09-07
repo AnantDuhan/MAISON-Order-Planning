@@ -16,6 +16,7 @@ const links = [
     { to: '/admin/users', label: 'Users' },
     { to: '/admin/returns', label: 'Returns' },
     { to: '/admin/refunds', label: 'Refunds' },
+    { to: '/admin/coupon', label: 'Coupons' },
 ];
 
 const AdminHeader = () => {

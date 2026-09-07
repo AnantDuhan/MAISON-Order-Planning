@@ -6,6 +6,7 @@ import AddIcon from '@mui/icons-material/Add';
 import ListAltIcon from '@mui/icons-material/ListAlt';
 import PeopleIcon from '@mui/icons-material/People';
 import RateReviewIcon from '@mui/icons-material/RateReview';
+import LocalOfferIcon from '@mui/icons-material/LocalOffer';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 
 const Sidebar = () => {
@@ -64,6 +65,9 @@ const Sidebar = () => {
                 </Link>
                 <Link to='/admin/reviews' className={itemClass('/admin/reviews')}>
                     <RateReviewIcon fontSize='small' /> Reviews
+                </Link>
+                <Link to='/admin/coupon' className={itemClass('/admin/coupon')}>
+                    <LocalOfferIcon fontSize='small' /> Coupons
                 </Link>
             </nav>
         </aside>

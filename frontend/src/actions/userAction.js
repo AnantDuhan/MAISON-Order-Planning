@@ -290,3 +290,19 @@ export const loginWithGoogle = (googleToken) => async (dispatch) => {
 export const clearErrors = () => async dispatch => {
     dispatch({ type: CLEAR_ERRORS });
 };
+
+// ---- Address book -------------------------------------------------------
+// The saved addresses live on the user document, so after a change we refresh
+// the profile via loadUser() rather than maintaining a separate reducer.
+export const addAddress = address => async dispatch => {
+    const config = { headers: { 'Content-Type': 'application/json' } };
+    const { data } = await axios.post('/api/v1/address/new', address, config);
+    dispatch(loadUser());
+    return data;
+};
+
+export const deleteAddress = addressId => async dispatch => {
+    const { data } = await axios.delete(`/api/v1/address/${addressId}`);
+    dispatch(loadUser());
+    return data;
+};

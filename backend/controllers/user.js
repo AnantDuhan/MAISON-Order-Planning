@@ -494,3 +494,96 @@ exports.googleLogin = async (req, res, next) => {
         });
     }
 };
+// ---------------------------------------------------------------------------
+// Address book — saved shipping addresses on the user profile.
+// Shape mirrors an order's shippingInfo so a saved address drops straight in.
+// ---------------------------------------------------------------------------
+
+// GET /api/v1/addresses
+exports.getAddresses = async (req, res) => {
+    try {
+        const user = await User.findById(req.user._id);
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+        res.status(200).json({ success: true, addresses: user.addresses || [] });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Failed to fetch addresses', error: error.message });
+    }
+};
+
+// POST /api/v1/address/new
+exports.addAddress = async (req, res) => {
+    try {
+        const { label, address, city, state, country, pinCode, phoneNumber } = req.body;
+
+        if (!address || !city || !state || !country || !pinCode || !phoneNumber) {
+            return res.status(400).json({
+                success: false,
+                message: 'address, city, state, country, pinCode and phoneNumber are required'
+            });
+        }
+
+        const user = await User.findById(req.user._id);
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+
+        const normalize = value => String(value ?? '').trim().toLowerCase();
+        const duplicate = (user.addresses || []).some(saved =>
+            normalize(saved.address) === normalize(address) &&
+            normalize(saved.city) === normalize(city) &&
+            normalize(saved.state) === normalize(state) &&
+            normalize(saved.country) === normalize(country) &&
+            normalize(saved.pinCode) === normalize(pinCode) &&
+            normalize(saved.phoneNumber) === normalize(phoneNumber)
+        );
+
+        if (duplicate) {
+            return res.status(409).json({
+                success: false,
+                message: 'This address is already saved'
+            });
+        }
+
+        user.addresses.push({
+            _id: generateId(),
+            label: label || '',
+            address,
+            city,
+            state,
+            country,
+            pinCode,
+            phoneNumber
+        });
+
+        await user.save({ validateBeforeSave: false });
+
+        res.status(201).json({ success: true, addresses: user.addresses });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Failed to save address', error: error.message });
+    }
+};
+
+// DELETE /api/v1/address/:addressId
+exports.deleteAddress = async (req, res) => {
+    try {
+        const user = await User.findById(req.user._id);
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+
+        const before = user.addresses.length;
+        user.addresses = user.addresses.filter(a => String(a._id) !== String(req.params.addressId));
+
+        if (user.addresses.length === before) {
+            return res.status(404).json({ success: false, message: 'Address not found' });
+        }
+
+        await user.save({ validateBeforeSave: false });
+
+        res.status(200).json({ success: true, addresses: user.addresses });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Failed to delete address', error: error.message });
+    }
+};

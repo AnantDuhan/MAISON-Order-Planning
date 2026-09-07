@@ -2,6 +2,7 @@ import React, { Fragment, useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import io from 'socket.io-client';
 
 import { Carousel } from 'react-responsive-carousel';
 import 'react-responsive-carousel/lib/styles/carousel.min.css';
@@ -91,6 +92,27 @@ const OrderDetails = () => {
         setProgress(100);
         setTimeout(() => setProgress(0), 5000);
     }, [dispatch, error, id]);
+
+    // Live order-status updates: join this order's room and refetch when the
+    // admin advances the status, so the page reflects Processing -> Shipped ->
+    // Delivered without a manual refresh.
+    useEffect(() => {
+        const socket = io(process.env.REACT_APP_SOCKET_URL || 'http://localhost:4000');
+        const room = `order:${id}`;
+        socket.emit('joinRoom', room);
+
+        const onStatus = ({ orderStatus }) => {
+            toast.info(`Order status updated: ${orderStatus}`);
+            dispatch(getOrderDetails(id));
+        };
+        socket.on('orderStatusUpdate', onStatus);
+
+        return () => {
+            socket.emit('leaveRoom', room);
+            socket.off('orderStatusUpdate', onStatus);
+            socket.disconnect();
+        };
+    }, [dispatch, id]);
 
     const isPaid = order?.paymentInfo?.status === 'succeeded';
     const isDelivered = order?.orderStatus === 'Delivered';

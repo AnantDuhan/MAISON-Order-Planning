@@ -2,9 +2,11 @@ import {
     GENERATE_COUPON_SUCCESS,
     GENERATE_COUPON_REQUEST,
     GENERATE_COUPON_FAIL,
+    GENERATE_COUPON_RESET,
     FETCH_COUPONS_SUCCESS,
     FETCH_COUPONS_REQUEST,
-    FETCH_COUPONS_FAIL
+    FETCH_COUPONS_FAIL,
+    CLEAR_ERRORS
 } from '../constants/couponConstants';
 
 const initialState = {
@@ -44,6 +46,18 @@ export const couponReducer = (state = initialState, action) => {
                 loading: false,
                 success: false,
                 error: action.payload
+            };
+        case GENERATE_COUPON_RESET:
+            return {
+                ...state,
+                loading: false,
+                success: false,
+                coupon: null
+            };
+        case CLEAR_ERRORS:
+            return {
+                ...state,
+                error: ''
             };
         default:
             return state;

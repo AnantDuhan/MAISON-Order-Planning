@@ -24,15 +24,16 @@ const io = new Server(createServer, {
     }
 });
 
-// io.on('connection', socket => {
-//     socket.on('joinProductRoom', productId => {
-//         socket.join(productId);
-//     });
+io.on('connection', socket => {
+    // Generic rooms — order status uses room `order:<orderId>`; future
+    // per-entity channels can reuse joinRoom/leaveRoom.
+    socket.on('joinRoom', room => room && socket.join(room));
+    socket.on('leaveRoom', room => room && socket.leave(room));
 
-//     socket.on('leaveProductRoom', productId => {
-//         socket.leave(productId);
-//     });
-// });
+    // Back-compat with the product page, which joins a room named by productId.
+    socket.on('joinProductRoom', productId => productId && socket.join(productId));
+    socket.on('leaveProductRoom', productId => productId && socket.leave(productId));
+});
 
 app.set('socketio', io);
 app.set('redisClient', redisClient);

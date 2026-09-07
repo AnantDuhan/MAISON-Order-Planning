@@ -94,6 +94,21 @@ const userSchema = new mongoose.Schema({
         type: String,
         default: 'user'
     },
+    addresses: {
+        type: [
+            {
+                _id: String,
+                label: { type: String, trim: true, default: '' },
+                address: { type: String, required: true },
+                city: { type: String, required: true },
+                state: { type: String, required: true },
+                country: { type: String, required: true },
+                pinCode: { type: Number, required: true },
+                phoneNumber: { type: Number, required: true }
+            }
+        ],
+        default: []
+    },
     createdAt: {
         type: Date,
         default: Date.now

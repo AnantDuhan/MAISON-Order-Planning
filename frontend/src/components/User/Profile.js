@@ -74,6 +74,7 @@ const Profile = () => {
 
                                 <div className='mt-12 flex flex-wrap gap-4'>
                                     <Link to='/orders' className='btn-solid'>My Orders</Link>
+                                    <Link to='/account/addresses' className='btn-outline'>Address Book</Link>
                                     <Link to='/password/update' className='btn-outline'>Change Password</Link>
                                 </div>
 

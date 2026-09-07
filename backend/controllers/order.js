@@ -237,6 +237,15 @@ exports.updateOrder = async (req, res, next) => {
         // Save the updated order
         await order.save({ validateBeforeSave: false });
 
+        // Push the new status to anyone viewing this order in real time.
+        const io = req.app.get('socketio');
+        if (io) {
+            io.to(`order:${orderId}`).emit('orderStatusUpdate', {
+                orderId,
+                orderStatus: order.orderStatus
+            });
+        }
+
         // Clear the cache for the updated order
         NodeCache.del(orderId);
         NodeCache.del(`order:${orderId}`);

@@ -34,6 +34,7 @@ const ReturnList = lazy(() => import("./components/Admin/ReturnList"));
 const UpdateProduct = lazy(() => import("./components/Admin/UpdateProduct"));
 const UpdateUser = lazy(() => import("./components/Admin/UpdateUser"));
 const UsersList = lazy(() => import("./components/Admin/UsersList"));
+const CreateCoupon = lazy(() => import("./components/Admin/CreateCoupon"));
 const Cart = lazy(() => import("./components/Cart/Cart"));
 const ConfirmOrder = lazy(() => import("./components/Cart/ConfirmOrder"));
 const OrderSuccess = lazy(() => import("./components/Cart/OrderSuccess"));
@@ -55,6 +56,7 @@ const Products = lazy(() => import("./components/Product/Products"));
 const SearchResult = lazy(() => import("./components/Product/SearchResult"));
 const Wishlist = lazy(() => import("./components/Product/Wishlist"));
 const ForgotPassword = lazy(() => import("./components/User/ForgotPassword"));
+const AddressBook = lazy(() => import("./components/User/AddressBook"));
 const LoginAndRegister = lazy(
   () => import("./components/User/LoginAndRegister"),
 );
@@ -132,6 +134,9 @@ function App() {
               {/* Authenticated User Routes */}
               {isAuthenticated && (
                 <Route path="/account" element={<Profile />} exact />
+              )}
+              {isAuthenticated && (
+                <Route path="/account/addresses" element={<AddressBook />} exact />
               )}
               {isAuthenticated && (
                 <Route path="/me/update" element={<UpdateProfile />} exact />
@@ -271,6 +276,15 @@ function App() {
                 element={
                   <ProtectedAdminRoute>
                     <RefundList />
+                  </ProtectedAdminRoute>
+                }
+                exact
+              />
+              <Route
+                path="/admin/coupon"
+                element={
+                  <ProtectedAdminRoute>
+                    <CreateCoupon />
                   </ProtectedAdminRoute>
                 }
                 exact
