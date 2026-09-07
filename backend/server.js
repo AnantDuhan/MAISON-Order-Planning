@@ -49,8 +49,8 @@ const server = createServer.listen(process.env.PORT || 8080, () => {
     console.log(`✅ Server is working on http://localhost:${process.env.PORT || 8080}`)
 })
 
-// Check every minute for testing; each subscriber is still eligible only once every seven days.
-setInterval(() => runWeeklyNewsletter().catch(error => console.error('Newsletter job failed:', error.message)), 60 * 1000);
+// Check daily; each subscriber is eligible only once every seven days.
+setInterval(() => runWeeklyNewsletter().catch(error => console.error('Newsletter job failed:', error.message)), 24 * 60 * 60 * 1000);
 
 // Unhandeled Promise Rejection
 // process.on("unhandledRejection", err => {
