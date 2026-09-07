@@ -97,7 +97,7 @@ const OrderDetails = () => {
     // admin advances the status, so the page reflects Processing -> Shipped ->
     // Delivered without a manual refresh.
     useEffect(() => {
-        const socket = io(process.env.REACT_APP_SOCKET_URL || 'http://localhost:4000');
+        const socket = io(process.env.REACT_APP_SOCKET_URL || (process.env.NODE_ENV === 'production' ? undefined : 'http://localhost:4000'));
         const room = `order:${id}`;
         socket.emit('joinRoom', room);
 

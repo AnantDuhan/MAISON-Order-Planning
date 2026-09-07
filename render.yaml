@@ -10,67 +10,94 @@ projects:
       dockerfilePath: ./Dockerfile
       repo: https://github.com/AnantDuhan/MERN-Ecommerce
       plan: free
+      region: oregon
+      autoDeployTrigger: commit
+      healthCheckPath: /api/v1/health
+      # NOTE: with runtime: docker, the Dockerfile performs the build (installs
+      # backend deps, builds the frontend). No buildCommand is used.
+      # Render assigns PORT automatically; do NOT declare it — the app binds
+      # process.env.PORT.
       envVars:
-      - key: config.env
-        sync: false
-      - key: ELASTIC_SEARCH_CLOUD_ID
-        sync: false
-      - key: ELASTIC_SEARCH_PASSWORD
-        sync: false
-      - key: ELASTIC_SEARCH_ENDPOINT
-        sync: false
-      - key: reCAPTCHA_SECRET_KEY
-        sync: false
-      - key: GOOGLE_OAUTH_CLIENT_SECRET
-        sync: false
-      - key: GOOGLE_OAUTH_CLIENT_ID
-        sync: false
-      - key: TWILIO_PHONE_NUMBER
-        sync: false
-      - key: AUTH_TOKEN
-        sync: false
-      - key: ACCOUNT_SID
-        sync: false
-      - key: AWS_BUCKET_REGION
-        sync: false
-      - key: AWS_BUCKET_NAME
-        sync: false
-      - key: AWS_SECRET_ACCESS_KEY
-        sync: false
-      - key: AWS_ACCESS_KEY_ID
-        sync: false
-      - key: RESULT_PER_PAGE
-        sync: false
-      - key: SMTP_PASSWORD
-        sync: false
-      - key: SMTP_MAIL
-        sync: false
-      - key: SMTP_SERVICE
-        sync: false
-      - key: SMTP_HOST
-        sync: false
-      - key: COOKIE_EXPIRES
-        sync: false
-      - key: JWT_EXPIRES_IN
-        sync: false
-      - key: JWT_SECRET_KEY
+      # --- Runtime ---
+      - key: NODE_ENV
+        value: production            # serves the built frontend (same-origin)
+      # ENABLE_IN_PROCESS_CRON stays unset/false; jobs run via the /jobs
+      # endpoints driven by .github/workflows/cron.yml.
+
+      # --- Database ---
+      - key: DB_URI
         sync: false
       - key: DB_HOSTED_URI
         sync: false
-      - key: DB_URI
+
+      # --- Auth / sessions ---
+      - key: JWT_SECRET_KEY
         sync: false
-      - key: STRIPE_SECRET_KEY_LIVE
+      - key: JWT_EXPIRES_IN
         sync: false
-      - key: STRIPE_SECRET_KEY
+      - key: COOKIE_EXPIRES
         sync: false
-      - key: STRIPE_PUBLISHABLE_KEY_LIVE
+      - key: GOOGLE_CLIENT_ID        # backend reads GOOGLE_CLIENT_ID (not *_OAUTH_*)
         sync: false
-      - key: STRIPE_PUBLISHABLE_KEY
+
+      # --- App config ---
+      - key: FRONTEND_URL            # same-origin: set to the deployed app URL
         sync: false
-      - key: FRONTEND_URL
+      - key: RESULT_PER_PAGE
         sync: false
-      - key: PORT
+
+      # --- Scheduled jobs ---
+      - key: CRON_SECRET             # required by POST /api/v1/jobs/*
         sync: false
-      region: oregon
-      buildCommand: npm install
-      autoDeployTrigger: commit
+
+      # --- Email (pooled SMTP) ---
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_MAIL
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: NEWSLETTER_UNSUBSCRIBE_URL
+        sync: false
+
+      # --- Payments / membership (Cashfree) ---
+      - key: CASHFREE_APP_ID
+        sync: false
+      - key: CASHFREE_SECRET_KEY
+        sync: false
+      - key: CASHFREE_ENVIRONMENT
+        sync: false
+      - key: CASHFREE_RETURN_URL
+        sync: false
+      - key: CASHFREE_WEBHOOK_URL
+        sync: false
+      - key: CASHFREE_MONTHLY_AMOUNT
+        sync: false
+      - key: CASHFREE_YEARLY_AMOUNT
+        sync: false
+
+      # --- AI (review summaries) ---
+      - key: GEMINI_API_KEY
+        sync: false
+
+      # --- Cache (Upstash REST + optional node redis client) ---
+      - key: UPSTASH_REDIS_REST_URL
+        sync: false
+      - key: UPSTASH_REDIS_REST_TOKEN
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: REDIS_HOSTED_URL
+        sync: false
+
+      # --- Storage (AWS S3) ---
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: AWS_BUCKET_NAME
+        sync: false
+      - key: AWS_BUCKET_REGION
+        sync: false

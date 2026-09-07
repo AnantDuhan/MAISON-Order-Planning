@@ -8,6 +8,7 @@ const cors = require("cors");
 const errorMiddleware = require("./middleware/error");
 const multer = require("multer");
 const url = require("url");
+const path = require("path");
 const {
   S3Client,
   PutObjectCommand,
@@ -89,6 +90,7 @@ const paymentRoute = require("./routes/payment");
 const subscriptionRoute = require("./routes/subscription");
 const couponRoute = require("./routes/coupon");
 const analyticsRoute = require("./routes/analytics");
+const jobsRoute = require("./routes/jobs");
 const { apiLimiter } = require("./middleware/rateLimiter");
 
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
@@ -104,6 +106,23 @@ app.use("/api/v1", paymentRoute);
 app.use("/api/v1", subscriptionRoute);
 app.use("/api/v1", couponRoute);
 app.use("/api/v1", analyticsRoute);
+app.use("/api/v1", jobsRoute);
+
+// --- Serve the built React app (same-origin deployment) ---------------------
+// In production the backend serves the compiled frontend, so the whole app is
+// one origin: no CORS, no cross-site cookies, relative /api/v1 calls just work.
+// Guarded by NODE_ENV so local dev (CRA dev server + proxy) is unaffected.
+if (process.env.NODE_ENV === "production") {
+  const buildPath = path.join(__dirname, "../frontend/build");
+  app.use(express.static(buildPath));
+
+  // SPA fallback: any non-API GET returns index.html so client-side routes
+  // (e.g. /product/:id, /account/addresses) resolve. Express 5 needs a RegExp
+  // here, and we exclude the API, docs, and socket.io paths.
+  app.get(/^\/(?!api\/|api-docs|socket\.io\/).*/, (req, res) => {
+    res.sendFile(path.join(buildPath, "index.html"));
+  });
+}
 
 // CORS
 app.use(async (req, res, next) => {

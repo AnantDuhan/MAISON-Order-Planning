@@ -1,0 +1,54 @@
+name: Scheduled email jobs
+
+# Reliably triggers the backend's email jobs regardless of host sleep state.
+# The request itself wakes a sleeping instance; the endpoint returns 202 and
+# runs the batch in the background.
+#
+# Required repository secrets:
+#   BACKEND_URL  – e.g. https://your-app.onrender.com  (no trailing slash)
+#   CRON_SECRET  – must match CRON_SECRET in the backend environment
+#
+# Note: GitHub-scheduled runs use UTC and may be delayed a few minutes under
+# load; scheduled workflows are also paused after ~60 days of repo inactivity.
+
+on:
+  schedule:
+    - cron: '30 4 * * *'    # daily 04:30 UTC (10:00 IST) — wishlist reminders
+    - cron: '30 4 * * 1'    # Mondays 04:30 UTC — weekly newsletter
+  workflow_dispatch:
+    inputs:
+      job:
+        description: 'Which job to run'
+        required: true
+        default: 'wishlist'
+        type: choice
+        options: [wishlist, newsletter]
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wake the backend
+        run: curl -fsS --max-time 120 --retry 3 --retry-all-errors "$BACKEND_URL/api/v1/health" || true
+        env:
+          BACKEND_URL: ${{ secrets.BACKEND_URL }}
+
+      - name: Wishlist reminders
+        if: github.event.schedule == '30 4 * * *' || github.event.inputs.job == 'wishlist'
+        run: |
+          curl -fsS --max-time 120 --retry 3 --retry-all-errors \
+            -X POST "$BACKEND_URL/api/v1/jobs/wishlist" \
+            -H "x-cron-secret: $CRON_SECRET"
+        env:
+          BACKEND_URL: ${{ secrets.BACKEND_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+
+      - name: Weekly newsletter
+        if: github.event.schedule == '30 4 * * 1' || github.event.inputs.job == 'newsletter'
+        run: |
+          curl -fsS --max-time 120 --retry 3 --retry-all-errors \
+            -X POST "$BACKEND_URL/api/v1/jobs/newsletter" \
+            -H "x-cron-secret: $CRON_SECRET"
+        env:
+          BACKEND_URL: ${{ secrets.BACKEND_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}

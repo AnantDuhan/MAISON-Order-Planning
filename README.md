@@ -10,7 +10,6 @@ A full‑stack e‑commerce application built with MongoDB, Express, React, and 
 - **Authentication & security** — JWT (httpOnly cookie) sessions, Google OAuth sign‑in, two‑factor auth (TOTP), password reset by email
 - **Product discovery** — catalogue with search, filters, and pagination; rich product pages with an image gallery / lightbox
 - **Reviews & ratings** — customer reviews plus **AI‑generated review summaries** (Google Gemini)
-- **Product Q&A** — ask questions on a product page and read answers; admins answer inline and the asker is emailed on reply
 - **Wishlist** — save items for later, with **daily wishlist‑reminder emails**
 - **Cart & checkout** — multi‑step checkout with a saved **address book** (pick a saved shipping address at checkout)
 - **Orders** — order history, one‑click **reorder**, and **real‑time order status** (Processing → Shipped → Delivered) over Socket.io
@@ -38,7 +37,7 @@ A full‑stack e‑commerce application built with MongoDB, Express, React, and 
 - Route‑level frontend code splitting (React lazy loading)
 
 ### 📨 Email (EJS templates)
-Account activation, order confirmation, password reset, contact, **question reply**, **weekly newsletter**, and **wishlist reminder**.
+Account activation, order confirmation, password reset, contact, **weekly newsletter**, and **wishlist reminder**.
 
 ## 🛠️ Tech Stack
 
@@ -72,13 +71,15 @@ Create `backend/config/config.env` locally. Never commit real secrets.
 ```env
 # Core
 PORT=4000
-NODE_ENV=development
+NODE_ENV=development                               # 'production' makes the backend serve the built frontend
 FRONTEND_URL=http://localhost:3000
 DB_URI=mongodb://localhost:27017/e-commerce      # or DB_HOSTED_URI for Atlas
 JWT_SECRET_KEY=your_jwt_secret
 JWT_EXPIRES_IN=5d
 COOKIE_EXPIRES=5
 RESULT_PER_PAGE=8
+CRON_SECRET=<random secret>                      # required to trigger the /jobs endpoints
+ENABLE_IN_PROCESS_CRON=false                     # true only for a single always-on instance
 
 # Email (pooled SMTP)
 SMTP_HOST=smtp.example.com
@@ -130,11 +131,15 @@ npm start
 ```
 
 ## ⏱️ Background jobs
-Registered in `server.js` and run in‑process on a daily interval:
-- **Weekly newsletter** (`backend/newsletterJob.js`) — digest of recent products; each subscriber eligible at most once every 7 days.
-- **Wishlist reminders** (`backend/wishlistJob.js`) — emails users who have items saved in their wishlist.
+Two email jobs — **weekly newsletter** (`backend/newsletterJob.js`) and **wishlist reminders** (`backend/wishlistJob.js`, emails users with saved items).
 
-> Both run inside the web process. If you scale to multiple instances, move them to a single worker (or a dedicated scheduler) to avoid duplicate sends.
+They can run two ways:
+- **Externally triggered (default, recommended for hosts that sleep idle instances).** Secret‑protected endpoints run each job on demand:
+  - `POST /api/v1/jobs/newsletter` and `POST /api/v1/jobs/wishlist`, both requiring an `x-cron-secret: <CRON_SECRET>` header.
+  - `.github/workflows/cron.yml` calls these on a schedule (daily wishlist, weekly newsletter). Set repo secrets `BACKEND_URL` and `CRON_SECRET`. The request wakes a sleeping instance and the endpoint returns `202` immediately, running the batch in the background.
+- **In‑process timers.** Set `ENABLE_IN_PROCESS_CRON=true` to run both on a daily `setInterval` inside the web process — only suitable for a single always‑on instance (multiple instances would send duplicates, and a sleeping instance never fires).
+
+> Use one mechanism or the other, not both, to avoid duplicate sends.
 
 ## 🗃️ Maintenance scripts
 Run from the repo root with a valid `DB_URI` (back up the database before any `--apply`):
@@ -165,11 +170,6 @@ Base path: `/api/v1`.
 - `POST /review` · `GET /reviews` · `DELETE /review/:reviewId`
 - `POST /:id/summerize-reviews` (admin — AI review summary)
 
-**Product Q&A**
-- `GET /product/:id/questions`
-- `POST /product/:id/question` (auth)
-- `PUT /product/:id/question/:questionId/answer` (admin)
-
 **Wishlist**
 - `GET /wishlist` · `POST /wishlist/:id` · `DELETE /wishlist/:id`
 
@@ -186,6 +186,9 @@ Base path: `/api/v1`.
 **Admin analytics**
 - `GET /admin/analytics?range=7d|30d|90d|12m|all` · `GET /admin/stats`
 
+**Scheduled jobs** (require `x-cron-secret` header)
+- `POST /jobs/newsletter` · `POST /jobs/wishlist`
+
 **Docs & health**
 - `GET /api/v1/health` · `GET /api-docs` (Swagger UI) · `GET /api-docs.json`
 
@@ -198,12 +201,17 @@ docker-compose up --build
 ```
 Starts the app, MongoDB, and Redis. The app is exposed on host port `4001` (container `4000`).
 
-## 🚀 Deployment
-**Backend (Render):** Docker environment, start command `node backend/server.js`, set the environment variables above (`DB_URI`, `JWT_SECRET_KEY`, `FRONTEND_URL`, SMTP, Cashfree, AWS, Upstash, …).
+## 🚀 Deployment (same‑origin)
+The backend serves the compiled React app, so the whole thing deploys as **one service** — no separate frontend host, no CORS/cross‑site‑cookie setup.
 
-**Frontend (Vercel):** framework preset Create React App, root directory `frontend`, build `npm run build`, output `build`. Set `REACT_APP_SOCKET_URL` (and any API base URL) to your deployed backend.
+**Render (Docker):**
+- The `Dockerfile` installs backend deps, builds the frontend, and runs `node backend/server.js` with `NODE_ENV=production` (which turns on static serving of `frontend/build`).
+- Set the environment variables above (`DB_URI`, `JWT_SECRET_KEY`, `FRONTEND_URL`, SMTP, Cashfree, AWS, Upstash, `CRON_SECRET`, …).
+- Any `REACT_APP_*` the client needs are inlined at **build time** — pass them as Docker **build args** (see the `ARG`s in the `Dockerfile`). Same‑origin means `REACT_APP_SOCKET_URL` can be left unset (the client defaults to the current origin in production).
 
-Any Node‑friendly host works (AWS, DigitalOcean, Railway, Fly.io).
+**Scheduled jobs:** add repo secrets `BACKEND_URL` and `CRON_SECRET` so `.github/workflows/cron.yml` can trigger the email jobs (see Background jobs). On a free tier that sleeps, this is what keeps them running.
+
+Any Node‑friendly host works (Render, Railway, Fly.io, a VPS). On free tiers the instance may cold‑start after idle; the client’s `BackendWaker` masks the first‑request delay.
 
 ## 🤝 Contributing
 1. Fork the repo

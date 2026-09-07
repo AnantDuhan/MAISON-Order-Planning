@@ -50,11 +50,19 @@ const server = createServer.listen(process.env.PORT || 8080, () => {
     console.log(`✅ Server is working on http://localhost:${process.env.PORT || 8080}`)
 })
 
-// Check daily; each subscriber is eligible only once every seven days.
-setInterval(() => runWeeklyNewsletter().catch(error => console.error('Newsletter job failed:', error.message)), 24 * 60 * 60 * 1000);
+// In-process schedulers. Off by default: production drives these via the
+// secret-protected /api/v1/jobs/* endpoints (see routes/jobs.js) using an
+// external scheduler, which is reliable on hosts that sleep idle instances.
+// Set ENABLE_IN_PROCESS_CRON=true for a single always-on instance instead.
+if (process.env.ENABLE_IN_PROCESS_CRON === 'true') {
+    // Check daily; each subscriber is eligible only once every seven days.
+    setInterval(() => runWeeklyNewsletter().catch(error => console.error('Newsletter job failed:', error.message)), 24 * 60 * 60 * 1000);
 
-// Daily wishlist reminders for users with saved items.
-setInterval(() => runWishlistReminders().catch(error => console.error('Wishlist job failed:', error.message)), 24 * 60 * 60 * 1000);
+    // Daily wishlist reminders for users with saved items.
+    setInterval(() => runWishlistReminders().catch(error => console.error('Wishlist job failed:', error.message)), 24 * 60 * 60 * 1000);
+
+    console.log('🗓️  In-process schedulers enabled (newsletter + wishlist)');
+}
 
 // Unhandeled Promise Rejection
 // process.on("unhandledRejection", err => {
