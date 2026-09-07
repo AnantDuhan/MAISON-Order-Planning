@@ -5,7 +5,7 @@ const path = require('path');
 const { sendEmail } = require('./utils/sendEmail');
 
 const runWeeklyNewsletter = async () => {
-    const cutoff = new Date(Date.now() - 60 * 1000);
+    const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const subscribers = await Subscribe.find({
         unsubscribedAt: null,
         $or: [{ lastNewsletterSentAt: null }, { lastNewsletterSentAt: { $lte: cutoff } }],
