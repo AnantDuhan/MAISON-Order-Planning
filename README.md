@@ -221,7 +221,7 @@ Any Node‑friendly host works (Render, Railway, Fly.io, a VPS). On free tiers t
 5. Open a Pull Request
 
 ## 📄 License
-MIT — see [LICENSE](LICENSE).
+Apache License 2.0 — see [LICENSE](LICENSE).
 
 ## 👨‍💻 Author
 **Anant Duhan** — GitHub [@AnantDuhan](https://github.com/AnantDuhan) · LinkedIn [@AnantDuhan](https://linkedin.com/in/AnantDuhan)
