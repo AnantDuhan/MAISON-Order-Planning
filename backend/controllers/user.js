@@ -71,7 +71,9 @@ exports.registerUser = async (req, res, next) => {
 
         const options = {
             expires: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
-            httpOnly: true
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
         };
 
         const finalToken = user.getJWTToken();
@@ -138,7 +140,9 @@ exports.loginUser = async (req, res, next) => {
 
         const options = {
             expires: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
-            httpOnly: true
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
         };
 
         res.status(201).cookie('token', token, options).json({
@@ -157,7 +161,9 @@ exports.loginUser = async (req, res, next) => {
 exports.logout = async (req, res, next) => {
     res.cookie('token', null, {
         expires: new Date(Date.now()),
-        httpOnly: true
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
     });
 
     res.status(200).json({
@@ -257,7 +263,9 @@ exports.resetPassword = async (req, res, next) => {
 
         const options = {
             expires: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
-            httpOnly: true
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
         };
 
         res.status(200).cookie('token', token, options).json({
@@ -367,7 +375,9 @@ exports.updatePassword = async (req, res, next) => {
 
         const options = {
             expires: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
-            httpOnly: true
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
         };
 
         res.status(200).cookie('token', token, options).json({
@@ -478,7 +488,7 @@ exports.googleLogin = async (req, res, next) => {
             expires: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
             secure: process.env.NODE_ENV === 'production',
             httpOnly: true,
-            sameSite: 'lax'
+            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
         };
 
         res.status(200).cookie('token', token, options).json({
