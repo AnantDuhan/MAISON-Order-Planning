@@ -6,6 +6,7 @@ const http = require('http');
 const { Server } = require('socket.io');
 const redisClient = require('./config/redisClientUpstash');
 const { warmUpEmailTransport } = require('./utils/sendEmail');
+const runWeeklyNewsletter = require('./newsletterJob');
 
 // Handling Uncaught Exceptions
 // process.on('uncaughtException', (err) => {
@@ -48,7 +49,8 @@ const server = createServer.listen(process.env.PORT || 8080, () => {
     console.log(`✅ Server is working on http://localhost:${process.env.PORT || 8080}`)
 })
 
-// cronJob.start();
+// Check every minute for testing; each subscriber is still eligible only once every seven days.
+setInterval(() => runWeeklyNewsletter().catch(error => console.error('Newsletter job failed:', error.message)), 60 * 1000);
 
 // Unhandeled Promise Rejection
 // process.on("unhandledRejection", err => {

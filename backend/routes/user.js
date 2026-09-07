@@ -28,7 +28,7 @@ const { authLimiter } = require('../middleware/rateLimiter');
 // const upload = require('../app');
 const multer = require('multer');
 const { contactUs } = require('../controllers/contact');
-const { subscriber } = require('../controllers/subscribe');
+const { subscriber, unsubscribe } = require('../controllers/subscribe');
 
 // Configure Multer for file uploads
 const upload = multer({
@@ -80,6 +80,7 @@ router
 router.route('/contact-us').post(contactUs);
 
 router.route('/subscribe').post(subscriber);
+router.route('/unsubscribe/:token').get(unsubscribe);
 
 router.route('/auth/google').post(authLimiter, googleLogin);
 

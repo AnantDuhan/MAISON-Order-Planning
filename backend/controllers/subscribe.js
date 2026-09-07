@@ -1,5 +1,12 @@
 const Subscribe = require('../models/subscribe');
 const generateId = require('../utils/generateId');
+const crypto = require('crypto');
+const ejs = require('ejs');
+const path = require('path');
+const { sendEmailInBackground } = require('../utils/sendEmail');
+
+const getUnsubscribeUrl = token =>
+    `${process.env.NEWSLETTER_UNSUBSCRIBE_URL || `${process.env.FRONTEND_URL}/api/v1/unsubscribe`}/${token}`;
 
 const timestamp = Date.now();
 const timestampInSeconds = Math.floor(timestamp / 1000);
@@ -18,9 +25,20 @@ exports.subscriber = async (req, res, next) => {
 
             const newSubscriber = await Subscribe.create({
                 _id: generateId(),
-                email
+                email,
+                unsubscribeToken: crypto.randomBytes(24).toString('hex'),
             });
-            await newSubscriber.save();
+
+            const emailMessage = await ejs.renderFile(
+                path.join(__dirname, '../mails/newsletter-welcome.ejs'),
+                { unsubscribeUrl: getUnsubscribeUrl(newSubscriber.unsubscribeToken) },
+            );
+            sendEmailInBackground({
+                email: newSubscriber.email,
+                subject: 'Welcome to the Maison Journal',
+                html: emailMessage,
+            });
+            await Subscribe.updateOne({ _id: newSubscriber._id }, { welcomeEmailSent: true });
 
             res.status(200).json({
                 success: true,
@@ -34,3 +52,15 @@ exports.subscriber = async (req, res, next) => {
         })
     }
 }
+
+exports.unsubscribe = async (req, res) => {
+    const subscriber = await Subscribe.findOneAndUpdate(
+        { unsubscribeToken: req.params.token, unsubscribedAt: null },
+        { unsubscribedAt: new Date() },
+        { returnDocument: 'after' },
+    );
+
+    res.status(subscriber ? 200 : 404).send(
+        subscriber ? 'You have been unsubscribed from the Maison Journal.' : 'This unsubscribe link is invalid or has already been used.',
+    );
+};

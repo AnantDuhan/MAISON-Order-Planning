@@ -12,7 +12,18 @@ const subscriber = new mongoose.Schema({
     createdAt: {
         type: Date,
         default: Date.now
-    }
+    },
+    unsubscribeToken: {
+        type: String,
+        required: true,
+        unique: true
+    },
+    welcomeEmailSent: {
+        type: Boolean,
+        default: false
+    },
+    lastNewsletterSentAt: Date,
+    unsubscribedAt: Date
 });
 
 module.exports = mongoose.model('Subscriber', subscriber);

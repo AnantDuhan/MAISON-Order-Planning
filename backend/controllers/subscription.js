@@ -1,5 +1,7 @@
 const Subscription = require('../models/plusMembership');
 const User = require('../models/user');
+const ejs = require('ejs');
+const path = require('path');
 const generateId = require('../utils/generateId');
 const { sendEmailInBackground } = require('../utils/sendEmail');
 const {
@@ -43,7 +45,7 @@ const sendActivationEmailOnce = async membership => {
             activationEmailSent: true,
             activatedAt: membership.activatedAt || new Date(),
         },
-        { new: true },
+        { returnDocument: 'after' },
     );
     if (!claimedMembership) return;
 
@@ -53,15 +55,19 @@ const sendActivationEmailOnce = async membership => {
     const nextPaymentDate = claimedMembership.nextPaymentDate
         ? new Date(claimedMembership.nextPaymentDate).toLocaleDateString()
         : 'Cashfree will confirm your next billing date';
+    const emailMessage = await ejs.renderFile(
+        path.join(__dirname, '../mails/membership-activated.ejs'),
+        {
+            user,
+            membership: claimedMembership,
+            nextPaymentDate,
+        },
+    );
+
     sendEmailInBackground({
         email: user.email,
         subject: 'Your Maison membership is now active',
-        html: `
-            <p>Hi ${user.name},</p>
-            <p>Your <strong>${claimedMembership.name}</strong> membership is now active.</p>
-            <p>Your next payment date is <strong>${nextPaymentDate}</strong>.</p>
-            <p>You can manage your membership from your Maison account.</p>
-        `,
+        html: emailMessage,
     });
 };
 

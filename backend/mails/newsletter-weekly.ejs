@@ -1,0 +1,31 @@
+<%- include('partials/head', { title: 'Maison journal', preheader: 'This week at Maison.' }) %>
+
+<p style="margin:0; font-family:Helvetica,Arial,sans-serif; font-size:10px; font-weight:bold; letter-spacing:3px; text-transform:uppercase; color:#A07C4B;">The Maison Journal</p>
+<h1 style="margin:14px 0 0 0; font-family:Georgia,'Times New Roman',serif; font-size:34px; font-weight:500; line-height:1.15; color:#1A1816;">This week at Maison</h1>
+<p style="margin:22px 0 0 0; font-family:Helvetica,Arial,sans-serif; font-size:15px; line-height:1.75; color:#4A453F;">
+  A small edit of pieces worth noticing.
+</p>
+
+<% products.forEach(product => { %>
+  <% const imageUrl = product.images && product.images[0] && product.images[0].url ? product.images[0].url : null; %>
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:24px 0 0 0; border-top:1px solid #E0D9CE;">
+    <tr>
+      <td style="padding:20px 0;">
+        <% if (imageUrl) { %>
+          <a href="<%= frontendUrl %>/product/<%= product._id %>" style="text-decoration:none;">
+            <img src="<%= imageUrl %>" alt="<%= product.name %>" width="512" style="display:block; width:100%; max-width:512px; height:280px; object-fit:cover; border:1px solid #E0D9CE;" />
+          </a>
+        <% } %>
+        <p style="margin:0; font-family:Georgia,'Times New Roman',serif; font-size:22px; color:#1A1816;"><%= product.name %></p>
+        <p style="margin:7px 0 0 0; font-family:Helvetica,Arial,sans-serif; font-size:13px; line-height:1.6; color:#8A8278;"><%= product.description %></p>
+        <p style="margin:10px 0 0 0; font-family:Helvetica,Arial,sans-serif; font-size:13px; color:#A07C4B;">&#8377;<%= product.price %> · <a href="<%= frontendUrl %>/product/<%= product._id %>" style="color:#A07C4B; text-decoration:none;">View piece</a></p>
+      </td>
+    </tr>
+  </table>
+<% }); %>
+
+<p style="margin:30px 0 0 0; font-family:Helvetica,Arial,sans-serif; font-size:12px; color:#8A8278;">
+  <a href="<%= unsubscribeUrl %>" style="color:#A07C4B; text-decoration:none;">Unsubscribe from the Maison Journal</a>
+</p>
+
+<%- include('partials/foot') %>
