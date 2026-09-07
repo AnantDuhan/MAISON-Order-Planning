@@ -1,6 +1,7 @@
 import React, { Fragment, useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { Link, useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import LoadingBar from 'react-top-loading-bar';
 
 import MetaData from '../layout/MetaData';
@@ -10,6 +11,7 @@ const Profile = () => {
     const { user, loading, isAuthenticated } = useSelector(state => state.user);
 
     const [progress, setProgress] = useState(0);
+    const [membership, setMembership] = useState(null);
     const onLoaderFinished = () => setProgress(0);
 
     useEffect(() => {
@@ -19,6 +21,23 @@ const Profile = () => {
         setProgress(100);
         setTimeout(() => setProgress(0), 5000);
     }, [navigate, isAuthenticated]);
+
+    useEffect(() => {
+        if (isAuthenticated) {
+            axios.get('/api/v1/membership/current')
+                .then(({ data }) => setMembership(data.membership))
+                .catch(() => {});
+        }
+    }, [isAuthenticated]);
+
+    const isMember = membership?.isActive && membership.status === 'ACTIVE';
+    const nextPaymentDate = membership?.nextPaymentDate
+        ? new Date(membership.nextPaymentDate).toLocaleDateString(undefined, {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+        })
+        : 'Cashfree will confirm the next billing date';
 
     return (
         <Fragment>
@@ -69,6 +88,27 @@ const Profile = () => {
                                         <p className='mt-2 font-display text-2xl text-ink'>
                                             {String(user?.createdAt).substring(0, 10)}
                                         </p>
+                                    </div>
+                                    <div className='rule-luxe' />
+                                    <div className='border border-brass/40 bg-surface p-5'>
+                                        <p className='eyebrow'>{isMember ? 'Maison Member' : 'Membership'}</p>
+                                        {isMember ? (
+                                            <Fragment>
+                                                <p className='mt-2 font-display text-2xl text-ink'>You are a member</p>
+                                                <p className='mt-2 font-sans text-sm text-ink-soft'>{membership.name}</p>
+                                                <p className='mt-2 font-sans text-sm text-ink-soft'>
+                                                    Next payment date: <strong className='text-ink'>{nextPaymentDate}</strong>
+                                                </p>
+                                            </Fragment>
+                                        ) : (
+                                            <Fragment>
+                                                <p className='mt-2 font-display text-2xl text-ink'>Not a member yet</p>
+                                                <p className='mt-2 font-sans text-sm text-ink-soft'>Explore monthly and yearly membership plans.</p>
+                                            </Fragment>
+                                        )}
+                                        <Link to='/membership' className='btn-outline mt-5 inline-flex'>
+                                            {isMember ? 'Manage Membership' : 'View Membership'}
+                                        </Link>
                                     </div>
                                 </div>
 

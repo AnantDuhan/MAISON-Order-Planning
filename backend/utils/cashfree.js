@@ -38,6 +38,7 @@ const cashfreeRequest = async (path, options = {}) => {
 };
 
 const getCashfreeOrder = orderId => cashfreeRequest(`/orders/${encodeURIComponent(orderId)}`);
+const getCashfreePlan = planId => cashfreeRequest(`/plans/${encodeURIComponent(planId)}`);
 
 const verifyCashfreeWebhookSignature = (timestamp, rawBody, signature) => {
     if (!timestamp || !rawBody || !signature || !process.env.CASHFREE_SECRET_KEY) {
@@ -60,6 +61,7 @@ const verifyCashfreeWebhookSignature = (timestamp, rawBody, signature) => {
 module.exports = {
     cashfreeRequest,
     getCashfreeOrder,
+    getCashfreePlan,
     getCashfreeBaseUrl,
     verifyCashfreeWebhookSignature,
 };

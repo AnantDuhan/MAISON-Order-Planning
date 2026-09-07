@@ -25,7 +25,7 @@ exports.createCashfreeOrder = async (req, res) => {
                 customer_phone: String(req.user.whatsappNumber || req.body.phoneNumber || '9999999999'),
             },
             order_meta: {
-                return_url: `${process.env.FRONTEND_URL}/payment`,
+                return_url: `${process.env.FRONTEND_URL}/payment?cashfree_order_id=${cashfreeOrderId}`,
             },
         };
 

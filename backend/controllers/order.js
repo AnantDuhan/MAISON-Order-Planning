@@ -34,9 +34,14 @@ exports.newOrder = async (req, res, next) => {
         const coupon = await Coupon.findOne({ code: couponCode });
 
         if (paymentInfo?.provider === 'cashfree') {
+            if (!paymentInfo.id || !paymentInfo.id.startsWith(`order_${req.user._id}_`)) {
+                return res.status(403).json({
+                    success: false,
+                    message: 'You cannot use this payment for the order',
+                });
+            }
             const cashfreeOrder = await getCashfreeOrder(paymentInfo.id);
             if (
-                !paymentInfo.id.startsWith(`order_${req.user._id}_`) ||
                 cashfreeOrder.order_status !== 'PAID'
             ) {
                 return res.status(402).json({

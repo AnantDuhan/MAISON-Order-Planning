@@ -1,5 +1,6 @@
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
+import CardMembershipIcon from '@mui/icons-material/CardMembership';
 import React, { useEffect, useRef, useState } from 'react';
 import { FaSearch } from 'react-icons/fa';
 import { useDispatch, useSelector } from 'react-redux';
@@ -38,6 +39,7 @@ const MainHeader = () => {
     const [isSuggestionsVisible, setIsSuggestionsVisible] = useState(false);
     const [menuOpen, setMenuOpen] = useState(false);
     const [scrolled, setScrolled] = useState(false);
+    const [membership, setMembership] = useState(null);
 
     const debouncedKeyword = useDebounce(keyword, 300);
     const searchRef = useRef(null);
@@ -47,6 +49,25 @@ const MainHeader = () => {
         window.addEventListener('scroll', onScroll);
         return () => window.removeEventListener('scroll', onScroll);
     }, []);
+
+    useEffect(() => {
+        if (!isAuthenticated) {
+            setMembership(null);
+            return undefined;
+        }
+
+        let active = true;
+        axios.get('/api/v1/membership/current')
+            .then(({ data }) => {
+                if (active) setMembership(data.membership);
+            })
+            .catch(() => {
+                if (active) setMembership(null);
+            });
+        return () => {
+            active = false;
+        };
+    }, [isAuthenticated]);
 
     const handleLogout = () => {
         dispatch(logout());
@@ -187,6 +208,18 @@ const MainHeader = () => {
 
                     <ThemeToggle />
 
+                    {isAuthenticated && (
+                        <Link
+                            to='/membership'
+                            aria-label={membership?.isActive ? 'Active membership' : 'Membership'}
+                            title={membership?.isActive ? 'Active membership' : 'Membership'}
+                            className={`relative text-ink transition-colors hover:text-brass ${membership?.isActive ? 'text-brass' : ''}`}
+                        >
+                            <CardMembershipIcon fontSize='small' />
+                            {membership?.isActive && <span className='absolute -right-1 -top-1 h-2 w-2 rounded-full bg-brass ring-2 ring-canvas' />}
+                        </Link>
+                    )}
+
                     <Link to='/wishlist' aria-label='Wishlist' className='text-ink transition-colors hover:text-brass'>
                         <FavoriteBorderIcon fontSize='small' />
                     </Link>
@@ -256,6 +289,14 @@ const MainHeader = () => {
                                 </Link>
                             </li>
                         ))}
+                        {isAuthenticated && (
+                            <li>
+                                <Link to='/membership' onClick={() => setMenuOpen(false)} className={`flex items-center gap-2 font-sans text-sm uppercase tracking-luxe ${membership?.isActive ? 'text-brass' : 'text-ink'}`}>
+                                    <CardMembershipIcon fontSize='small' />
+                                    {membership?.isActive ? 'Active Membership' : 'Membership'}
+                                </Link>
+                            </li>
+                        )}
                         {isAuthenticated && (
                             <li>
                                 <button onClick={handleLogout} className='font-sans text-sm uppercase tracking-luxe text-danger'>

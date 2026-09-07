@@ -4,6 +4,7 @@ import 'chart.js/auto';
 import { Bar, Doughnut, Line } from 'react-chartjs-2';
 import { useSelector, useDispatch } from 'react-redux';
 import { toast } from 'react-toastify';
+import axios from 'axios';
 
 import { getAnalytics, getAdminStats, clearErrors } from '../../actions/analyticsAction';
 import MetaData from '../layout/MetaData';
@@ -26,6 +27,7 @@ const Dashboard = () => {
     const isDark = theme === 'dark';
 
     const [range, setRange] = useState('30d');
+    const [membershipAnalytics, setMembershipAnalytics] = useState(null);
 
     const { analytics, stats, loading: analyticsLoading, error: analyticsError } =
         useSelector(state => state.analytics);
@@ -35,6 +37,9 @@ const Dashboard = () => {
 
     useEffect(() => {
         dispatch(getAdminStats());
+        axios.get('/api/v1/admin/membership-analytics')
+            .then(({ data }) => setMembershipAnalytics(data.analytics))
+            .catch(() => setMembershipAnalytics(null));
     }, [dispatch]);
 
     useEffect(() => {
@@ -93,6 +98,7 @@ const Dashboard = () => {
     const returnReasons = analytics?.returnReasons || [];
     const statusBreakdown = analytics?.statusBreakdown || [];
     const couponUsage = analytics?.couponUsage || [];
+    const membershipSummary = membershipAnalytics?.summary || {};
 
     // ── chart data ───────────────────────────────────────
     const revenueChart = {
@@ -241,6 +247,27 @@ const Dashboard = () => {
                         <p className='mt-2 font-display text-3xl font-medium text-ink'>
                             {inr(summary?.discountGiven)}
                         </p>
+                    </div>
+                </div>
+
+                <div className='mt-10'>
+                    <div className='flex items-end justify-between gap-4'>
+                        <p className='eyebrow'>Membership Pulse</p>
+                        <Link to='/admin/memberships' className='font-sans text-[0.68rem] uppercase tracking-luxe text-brass hover:text-ink'>View details</Link>
+                    </div>
+                    <div className='mt-5 grid gap-6 sm:grid-cols-3'>
+                        <div className='border border-line bg-surface px-7 py-6'>
+                            <p className='eyebrow'>Members</p>
+                            <p className='mt-2 font-display text-3xl font-medium text-ink'>{membershipSummary.total || 0}</p>
+                        </div>
+                        <div className='border border-line bg-surface px-7 py-6'>
+                            <p className='eyebrow'>Active</p>
+                            <p className='mt-2 font-display text-3xl font-medium text-ink'>{membershipSummary.active || 0}</p>
+                        </div>
+                        <div className='border border-line bg-surface px-7 py-6'>
+                            <p className='eyebrow'>Monthly Recurring Revenue</p>
+                            <p className='mt-2 font-display text-3xl font-medium text-ink'>{inr(membershipSummary.recurringRevenue)}</p>
+                        </div>
                     </div>
                 </div>
 

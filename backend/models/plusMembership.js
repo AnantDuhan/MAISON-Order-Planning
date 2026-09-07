@@ -8,6 +8,9 @@ const subscription = new mongoose.Schema({
         type: String,
         required: true
     },
+    cashfreeSubscriptionId: String,
+    subscriptionSessionId: String,
+    planId: String,
     name: {
         type: String,
         required: true
@@ -33,6 +36,16 @@ const subscription = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    status: {
+        type: String,
+        default: 'INITIALIZED'
+    },
+    nextPaymentDate: Date,
+    activationEmailSent: {
+        type: Boolean,
+        default: false
+    },
+    activatedAt: Date,
     createdAt: Date
 });
 

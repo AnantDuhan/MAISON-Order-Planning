@@ -43,9 +43,13 @@ const Payment = () => {
                 redirectTarget: '_modal',
             });
 
-            if (result?.error || !result?.paymentDetails) {
+            if (result?.error) {
                 setIsProcessing(false);
                 toast.info('Payment was not completed. You can try again.');
+                return;
+            }
+
+            if (result?.redirect) {
                 return;
             }
 
@@ -54,7 +58,7 @@ const Payment = () => {
                 throw new Error('Payment could not be verified. Please try again.');
             }
 
-            await dispatch(createOrder({
+            const createdOrder = await dispatch(createOrder({
                 shippingInfo,
                 orderItems: cartItems,
                 itemsPrice: orderInfo.subtotal,
@@ -68,6 +72,9 @@ const Payment = () => {
                     status: 'PAID',
                 },
             }));
+            if (!createdOrder?.success) {
+                throw new Error('Payment succeeded, but the order could not be created. Please contact support.');
+            }
             toast.success('Payment processed successfully.');
             navigate('/success');
         } catch (error) {

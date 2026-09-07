@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router';
 import { Link, useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 
 import { logout } from '../../../actions/userAction';
 import ThemeToggle from '../ThemeToggle';
@@ -17,7 +18,11 @@ const links = [
     { to: '/admin/returns', label: 'Returns' },
     { to: '/admin/refunds', label: 'Refunds' },
     { to: '/admin/coupon', label: 'Coupons' },
+    { to: '/admin/memberships', label: 'Memberships' },
 ];
+
+const primaryLinks = links.slice(0, 4);
+const secondaryLinks = links.slice(4);
 
 const AdminHeader = () => {
     const { isAuthenticated, user } = useSelector(state => state.user);
@@ -26,6 +31,7 @@ const AdminHeader = () => {
     const location = useLocation();
 
     const [menuOpen, setMenuOpen] = useState(false);
+    const [moreOpen, setMoreOpen] = useState(false);
 
     const handleLogout = () => {
         dispatch(logout());
@@ -46,7 +52,7 @@ const AdminHeader = () => {
 
                 {/* Desktop nav */}
                 <ul className='hidden flex-1 items-center justify-center gap-6 xl:flex'>
-                    {links.map(l => {
+                    {primaryLinks.map(l => {
                         const active = location.pathname === l.to;
                         return (
                             <li key={l.to}>
@@ -61,6 +67,35 @@ const AdminHeader = () => {
                             </li>
                         );
                     })}
+                    <li className='relative'>
+                        <button
+                            type='button'
+                            onClick={() => setMoreOpen(open => !open)}
+                            aria-expanded={moreOpen}
+                            className={`flex items-center gap-1 font-sans text-[0.7rem] uppercase tracking-luxe transition-colors ${
+                                secondaryLinks.some(link => location.pathname === link.to) ? 'text-brass' : 'text-ink-soft hover:text-ink'
+                            }`}
+                        >
+                            More
+                            <ExpandMoreIcon sx={{ fontSize: 16 }} />
+                        </button>
+                        {moreOpen && (
+                            <div className='absolute right-0 top-8 z-10 min-w-48 border border-line bg-canvas p-2 shadow-xl'>
+                                {secondaryLinks.map(l => (
+                                    <Link
+                                        key={l.to}
+                                        to={l.to}
+                                        onClick={() => setMoreOpen(false)}
+                                        className={`block px-3 py-2 font-sans text-[0.7rem] uppercase tracking-luxe transition-colors ${
+                                            location.pathname === l.to ? 'text-brass' : 'text-ink-soft hover:bg-surface hover:text-ink'
+                                        }`}
+                                    >
+                                        {l.label}
+                                    </Link>
+                                ))}
+                            </div>
+                        )}
+                    </li>
                 </ul>
 
                 {/* Actions */}

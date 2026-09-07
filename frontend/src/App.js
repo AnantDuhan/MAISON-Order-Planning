@@ -64,6 +64,8 @@ const Profile = lazy(() => import("./components/User/Profile"));
 const ResetPassword = lazy(() => import("./components/User/ResetPassword"));
 const UpdatePassword = lazy(() => import("./components/User/UpdatePassword"));
 const UpdateProfile = lazy(() => import("./components/User/UpdateProfile"));
+const Membership = lazy(() => import("./components/User/Membership"));
+const MembershipAnalytics = lazy(() => import("./components/Admin/MembershipAnalytics"));
 
 function App() {
   const { isAuthenticated } = useSelector((state) => state.user);
@@ -136,6 +138,9 @@ function App() {
                 <Route path="/account" element={<Profile />} exact />
               )}
               {isAuthenticated && (
+                <Route path="/membership" element={<Membership />} exact />
+              )}
+              {isAuthenticated && (
                 <Route path="/account/addresses" element={<AddressBook />} exact />
               )}
               {isAuthenticated && (
@@ -186,6 +191,15 @@ function App() {
                 element={
                   <ProtectedAdminRoute>
                     <Dashboard />
+                  </ProtectedAdminRoute>
+                }
+                exact
+              />
+              <Route
+                path="/admin/memberships"
+                element={
+                  <ProtectedAdminRoute>
+                    <MembershipAnalytics />
                   </ProtectedAdminRoute>
                 }
                 exact

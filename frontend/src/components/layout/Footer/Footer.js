@@ -9,6 +9,7 @@ const columns = [
             { label: 'New Arrivals', to: '/products' },
             { label: 'Wishlist', to: '/wishlist' },
             { label: 'My Orders', to: '/orders' },
+            { label: 'Membership', to: '/membership' },
         ],
     },
     {
@@ -22,6 +23,7 @@ const columns = [
 ];
 
 const socials = [
+    { label: 'LinkedIn', href: 'http://linkedin.com/in/anantduhan' },
     { label: 'Instagram', href: 'http://instagram.com/anantduhan_' },
     { label: 'Facebook', href: 'http://facebook.com/AnantDuhan12' },
     { label: 'Snapchat', href: 'http://snapchat.com/add/anant_duhan' },

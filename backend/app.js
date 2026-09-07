@@ -86,6 +86,7 @@ const productRoute = require("./routes/product");
 const userRoute = require("./routes/user");
 const orderRoute = require("./routes/order");
 const paymentRoute = require("./routes/payment");
+const subscriptionRoute = require("./routes/subscription");
 const couponRoute = require("./routes/coupon");
 const analyticsRoute = require("./routes/analytics");
 const { apiLimiter } = require("./middleware/rateLimiter");
@@ -100,6 +101,7 @@ app.use("/api/v1", productRoute);
 app.use("/api/v1", userRoute);
 app.use("/api/v1", orderRoute);
 app.use("/api/v1", paymentRoute);
+app.use("/api/v1", subscriptionRoute);
 app.use("/api/v1", couponRoute);
 app.use("/api/v1", analyticsRoute);
 

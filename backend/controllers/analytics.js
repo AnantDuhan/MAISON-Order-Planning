@@ -3,6 +3,7 @@ const Return = require('../models/return');
 const Product = require('../models/product');
 const User = require('../models/user');
 const Refund = require('../models/refund');
+const Subscription = require('../models/plusMembership');
 
 /**
  * Admin analytics.
@@ -266,4 +267,77 @@ exports.getAdminStats = async (req, res, next) => {
     console.error('Admin stats failed:', error);
     res.status(500).json({ success: false, message: 'Could not load stats' });
   }
+};
+
+exports.getMembershipAnalytics = async (req, res) => {
+    try {
+        const [totals, statusBreakdown, planBreakdown, recentMembers] = await Promise.all([
+            Subscription.aggregate([
+                {
+                    $group: {
+                        _id: null,
+                        total: { $sum: 1 },
+                        active: { $sum: { $cond: ['$isActive', 1, 0] } },
+                        recurringRevenue: {
+                            $sum: {
+                                $cond: [
+                                    '$isActive',
+                                    { $cond: [{ $eq: ['$duration', 1] }, '$amount', { $divide: ['$amount', 12] }] },
+                                    0,
+                                ],
+                            },
+                        },
+                    },
+                },
+                { $project: { _id: 0, total: 1, active: 1, recurringRevenue: 1 } },
+            ]),
+            Subscription.aggregate([
+                { $group: { _id: '$status', count: { $sum: 1 } } },
+                { $project: { _id: 0, status: '$_id', count: 1 } },
+                { $sort: { count: -1 } },
+            ]),
+            Subscription.aggregate([
+                {
+                    $group: {
+                        _id: '$planId',
+                        members: { $sum: 1 },
+                        active: { $sum: { $cond: ['$isActive', 1, 0] } },
+                        amount: { $first: '$amount' },
+                    },
+                },
+                { $project: { _id: 0, planId: '$_id', members: 1, active: 1, amount: 1 } },
+                { $sort: { active: -1, members: -1 } },
+            ]),
+            Subscription.find()
+                .sort({ createdAt: -1 })
+                .limit(12)
+                .populate('user', 'name email')
+                .lean(),
+        ]);
+
+        res.status(200).json({
+            success: true,
+            analytics: {
+                summary: totals[0] || { total: 0, active: 0, recurringRevenue: 0 },
+                statusBreakdown,
+                planBreakdown,
+                recentMembers,
+            },
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+exports.getMemberships = async (req, res) => {
+    try {
+        const memberships = await Subscription.find()
+            .sort({ createdAt: -1 })
+            .limit(100)
+            .populate('user', 'name email')
+            .lean();
+        res.status(200).json({ success: true, memberships });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
 };
