@@ -113,6 +113,9 @@ const subscriptionRoute = require("./routes/subscription");
 const couponRoute = require("./routes/coupon");
 const analyticsRoute = require("./routes/analytics");
 const jobsRoute = require("./routes/jobs");
+const bannerRoute = require("./routes/banner");
+const cartRoute = require("./routes/cart");
+const redirectRoute = require("./routes/redirect");
 const { apiLimiter } = require("./middleware/rateLimiter");
 
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
@@ -129,6 +132,9 @@ app.use("/api/v1", subscriptionRoute);
 app.use("/api/v1", couponRoute);
 app.use("/api/v1", analyticsRoute);
 app.use("/api/v1", jobsRoute);
+app.use("/api/v1", bannerRoute);
+app.use("/api/v1", cartRoute);
+app.use(redirectRoute);
 
 // --- Serve the built React app (same-origin deployment) ---------------------
 // In production the backend serves the compiled frontend, so the whole app is

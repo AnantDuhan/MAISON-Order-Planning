@@ -113,6 +113,10 @@ const userSchema = new mongoose.Schema({
         type: Date,
         default: Date.now
     },
+    pushToken: {
+        type: String,
+        default: null
+    },
     resetPasswordToken: String,
     resetPasswordExpire: Date
 });

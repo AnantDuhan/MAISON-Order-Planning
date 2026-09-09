@@ -292,6 +292,22 @@ exports.getUserDetails = async (req, res, next) => {
 };
 
 // update User profile
+exports.registerPushToken = async (req, res) => {
+    try {
+        const { pushToken } = req.body;
+
+        await User.findByIdAndUpdate(req.user._id, { pushToken: pushToken || null });
+
+        res.status(200).json({ success: true });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Failed to register push token',
+            error: error.message
+        });
+    }
+};
+
 exports.updateProfile = async (req, res, next) => {
     try {
         const user = await User.findById(req.user._id);

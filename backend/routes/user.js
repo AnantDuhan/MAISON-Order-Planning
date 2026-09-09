@@ -7,6 +7,7 @@ const {
    resetPassword,
    getUserDetails,
     updateProfile,
+    registerPushToken,
    updatePassword,
    getAllUsers,
    getSingleUser,
@@ -67,6 +68,7 @@ router.route('/address/new').post(isAuthUser, addAddress);
 router.route('/address/:addressId').delete(isAuthUser, deleteAddress);
 
 router.route('/me/update').put(isAuthUser, upload.single('image'), updateProfile);
+router.route('/me/push-token').put(isAuthUser, registerPushToken);
 
 router.route('/password/update').put(isAuthUser, updatePassword);
 

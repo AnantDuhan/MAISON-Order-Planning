@@ -11,6 +11,7 @@ const generateId = require('../utils/generateId');
 const ejs = require('ejs');
 const path = require('path');
 const { getCashfreeOrder } = require('../utils/cashfree');
+const { sendPushNotification } = require('../utils/pushNotifications');
 
 const timestamp = Date.now();
 const timestampInSeconds = Math.floor(timestamp / 1000);
@@ -107,13 +108,24 @@ exports.newOrder = async (req, res, next) => {
             currentDate.getDate() + randomDays
         ); // Add random days
 
+        order.estimatedDeliveryDate = estimatedDeliveryDate;
+        await order.save({ validateBeforeSave: false });
+
+        sendPushNotification(
+            user.pushToken,
+            'Order Placed',
+            `We've received your order. Estimated delivery: ${estimatedDeliveryDate.toDateString()}.`,
+            { orderId: order._id, type: 'order-status' }
+        ).catch(() => {});
+
         const emailMessage = await ejs.renderFile(
             path.join(__dirname, '../mails/order-confirmation.ejs'),
             {
                 order,
                 user,
                 status: 'placed',
-                estimatedDeliveryDate: estimatedDeliveryDate.toDateString()
+                estimatedDeliveryDate: estimatedDeliveryDate.toDateString(),
+                orderLink: `${process.env.BACKEND_URL}/order/${order._id}`
             }
         );
 
@@ -281,13 +293,37 @@ exports.updateOrder = async (req, res, next) => {
             currentDate.getDate() + randomDays
         ); // Add random days
 
+        if (order.orderStatus !== 'Delivered') {
+            order.estimatedDeliveryDate = estimatedDeliveryDate;
+            await order.save({ validateBeforeSave: false });
+        }
+
+        if (order.orderStatus !== 'Delivered') {
+            order.estimatedDeliveryDate = estimatedDeliveryDate;
+            await order.save({ validateBeforeSave: false });
+        }
+
+        // NOTE: `user` above is the ADMIN performing this update (req.user._id),
+        // not the customer who placed the order — so notifications about the
+        // order must go to the order's own owner instead.
+        const orderOwner = await User.findById(order.user);
+        if (orderOwner) {
+            sendPushNotification(
+                orderOwner.pushToken,
+                'Order Update',
+                `Your order is now ${order.orderStatus}.`,
+                { orderId: order._id, type: 'order-status' }
+            ).catch(() => {});
+        }
+
         const emailMessage = await ejs.renderFile(
             path.join(__dirname, '../mails/order-confirmation.ejs'),
             {
                 order,
                 user,
                 status: order.orderStatus,
-                estimatedDeliveryDate: estimatedDeliveryDate.toDateString()
+                estimatedDeliveryDate: estimatedDeliveryDate.toDateString(),
+                orderLink: `${process.env.BACKEND_URL}/go/order/${order._id}`
             }
         );
         sendEmailInBackground({
