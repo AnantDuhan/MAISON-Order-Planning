@@ -241,32 +241,60 @@ exports.getAnalytics = async (req, res, next) => {
  */
 // GET /api/v1/admin/stats
 exports.getAdminStats = async (req, res, next) => {
-  try {
-    const [products, orders, users, returns, refunds, outOfStock] = await Promise.all([
-        Product.estimatedDocumentCount(),
-        Order.estimatedDocumentCount(),
-        User.estimatedDocumentCount(),
-        Return.estimatedDocumentCount(),
-        Refund.estimatedDocumentCount(),
-        Product.countDocuments({ Stock: 0 }),
-    ]);
-
-    res.status(200).json({
-        success: true,
-        stats: {
+    try {
+        const [
             products,
             orders,
             users,
             returns,
             refunds,
             outOfStock,
-            inStock: Math.max(0, products - outOfStock),
-        },
-    });
-  } catch (error) {
-    console.error('Admin stats failed:', error);
-    res.status(500).json({ success: false, message: 'Could not load stats' });
-  }
+            twoFactorEnabled
+        ] = await Promise.all([
+            Product.estimatedDocumentCount(),
+            Order.estimatedDocumentCount(),
+            User.estimatedDocumentCount(),
+            Return.estimatedDocumentCount(),
+            Refund.estimatedDocumentCount(),
+            Product.countDocuments({ Stock: 0 }),
+
+            // Users who have enabled 2FA
+            User.countDocuments({
+                'twoFactorAuth.enabled': true
+            })
+        ]);
+
+        const twoFactorDisabled = Math.max(0, users - twoFactorEnabled);
+
+        const twoFactorAdoptionRate =
+            users > 0
+                ? (twoFactorEnabled / users) * 100
+                : 0;
+
+        res.status(200).json({
+            success: true,
+            stats: {
+                products,
+                orders,
+                users,
+                returns,
+                refunds,
+                outOfStock,
+                inStock: Math.max(0, products - outOfStock),
+
+                // 2FA analytics
+                twoFactorEnabled,
+                twoFactorDisabled,
+                twoFactorAdoptionRate
+            }
+        });
+    } catch (error) {
+        console.error('Admin stats failed:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Could not load stats'
+        });
+    }
 };
 
 exports.getMembershipAnalytics = async (req, res) => {

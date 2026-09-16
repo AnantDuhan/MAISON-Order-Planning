@@ -18,8 +18,14 @@ const LoginAndRegister = () => {
     const dispatch = useDispatch();
     const navigate = useNavigate();
 
-    const { error, loading, isAuthenticated, message, twoFactorRequired, userIdFor2fa } =
-        useSelector(state => state.user);
+    const {
+        error,
+        loading,
+        isAuthenticated,
+        message,
+        twoFactorRequired,
+        twoFactorToken
+    } = useSelector(state => state.user);
 
     const [tab, setTab] = useState('login');
     const [loginIdentifier, setLoginIdentifier] = useState('');
@@ -91,12 +97,16 @@ const LoginAndRegister = () => {
         if (message) {
             toast.success(message);
         }
-        if (twoFactorRequired && userIdFor2fa) {
-            navigate('/login/2fa', { state: { userId: userIdFor2fa } });
+        if (twoFactorRequired && twoFactorToken) {
+            navigate('/login/2fa', {
+                state: {
+                    twoFactorToken
+                }
+            });
         }
         const timer = setTimeout(() => setProgress(0), 5000);
         return () => clearTimeout(timer);
-    }, [dispatch, error, navigate, isAuthenticated, message, twoFactorRequired, userIdFor2fa]);
+    }, [dispatch, error, navigate, isAuthenticated, message, twoFactorRequired, twoFactorToken]);
 
     const Divider = () => (
         <div className='my-6 flex items-center gap-4'>

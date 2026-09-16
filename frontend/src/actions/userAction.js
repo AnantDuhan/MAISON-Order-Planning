@@ -38,31 +38,63 @@ import {
     GOOGLE_LOGIN_SUCCESS,
     GOOGLE_LOGIN_FAIL,
     CLEAR_ERRORS,
+    LOGIN_2FA_REQUEST,
+    LOGIN_2FA_SUCCESS,
+    LOGIN_2FA_FAIL,
+    TWO_FACTOR_SETUP_REQUEST,
+    TWO_FACTOR_SETUP_SUCCESS,
+    TWO_FACTOR_SETUP_FAIL,
+    TWO_FACTOR_VERIFY_FAIL,
+    TWO_FACTOR_VERIFY_SUCCESS,
+    TWO_FACTOR_VERIFY_REQUEST,
+    TWO_FACTOR_DISABLE_REQUEST,
+    TWO_FACTOR_DISABLE_SUCCESS,
+    TWO_FACTOR_DISABLE_FAIL,
+    CLEAR_2FA_ERROR
 } from '../constants/userConstants';
 import axios from 'axios';
 
 // Login
-// Replace your existing login action with this
-export const login = (email, password) => async (dispatch) => {
+export const login = (email, password) => async dispatch => {
     try {
         dispatch({ type: LOGIN_REQUEST });
 
-        const config = { headers: { 'Content-Type': 'application/json' } };
+        const config = {
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        };
 
         const { data } = await axios.post(
-            `/api/v1/login`,
+            '/api/v1/login',
             { email, password },
             config
         );
 
-        dispatch({ type: LOGIN_SUCCESS, payload: data.user });
-        localStorage.setItem('authToken', data.token);
+        // 2FA enabled → don't complete login yet
+        if (data.twoFactorRequired) {
+            return {
+                twoFactorRequired: true,
+                twoFactorToken: data.twoFactorToken,
+            };
+        }
+
+        dispatch({
+            type: LOGIN_SUCCESS,
+            payload: data.user,
+        });
+
+        return data;
 
     } catch (error) {
-        dispatch({ 
-            type: LOGIN_FAIL, 
-            payload: error.response ? error.response.data.message : error.message 
+        dispatch({
+            type: LOGIN_FAIL,
+            payload:
+                error.response?.data?.message ||
+                error.message,
         });
+
+        throw error;
     }
 };
 
@@ -305,4 +337,143 @@ export const deleteAddress = addressId => async dispatch => {
     const { data } = await axios.delete(`/api/v1/address/${addressId}`);
     dispatch(loadUser());
     return data;
+};
+
+// Complete login with 2FA
+export const verifyLoginOtp = (twoFactorToken, code) => async dispatch => {
+    try {
+        dispatch({ type: LOGIN_2FA_REQUEST });
+
+        const { data } = await axios.post(
+            '/api/v1/login/2fa',
+            {
+                twoFactorToken,
+                code,
+            },
+            {
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            }
+        );
+
+        dispatch({
+            type: LOGIN_2FA_SUCCESS,
+            payload: data.user,
+        });
+
+        return data;
+    } catch (error) {
+        const message =
+            error.response?.data?.message || error.message;
+
+        dispatch({
+            type: LOGIN_2FA_FAIL,
+            payload: message,
+        });
+
+        throw new Error(message);
+    }
+};
+
+// Start 2FA setup
+export const setupTwoFactorAuth = () => async dispatch => {
+    try {
+        dispatch({ type: TWO_FACTOR_SETUP_REQUEST });
+
+        const { data } = await axios.get(
+            '/api/v1/2fa/setup'
+        );
+
+        dispatch({
+            type: TWO_FACTOR_SETUP_SUCCESS,
+            payload: data,
+        });
+
+        return data;
+    } catch (error) {
+        const message =
+            error.response?.data?.message || error.message;
+
+        dispatch({
+            type: TWO_FACTOR_SETUP_FAIL,
+            payload: message,
+        });
+
+        throw new Error(message);
+    }
+};
+
+// Verify setup code and enable 2FA
+export const verifyTwoFactorAuth = code => async dispatch => {
+    try {
+        dispatch({ type: TWO_FACTOR_VERIFY_REQUEST });
+
+        const { data } = await axios.post(
+            '/api/v1/2fa/verify',
+            { code },
+            {
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            }
+        );
+
+        dispatch({
+            type: TWO_FACTOR_VERIFY_SUCCESS,
+            payload: data,
+        });
+
+        return data;
+    } catch (error) {
+        const message =
+            error.response?.data?.message || error.message;
+
+        dispatch({
+            type: TWO_FACTOR_VERIFY_FAIL,
+            payload: message,
+        });
+
+        throw new Error(message);
+    }
+};
+
+// Disable 2FA
+export const disableTwoFactorAuth = code => async dispatch => {
+    try {
+        dispatch({ type: TWO_FACTOR_DISABLE_REQUEST });
+
+        const { data } = await axios.post(
+            '/api/v1/2fa/disable',
+            { code },
+            {
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            }
+        );
+
+        dispatch({
+            type: TWO_FACTOR_DISABLE_SUCCESS,
+            payload: data,
+        });
+
+        return data;
+    } catch (error) {
+        const message =
+            error.response?.data?.message || error.message;
+
+        dispatch({
+            type: TWO_FACTOR_DISABLE_FAIL,
+            payload: message,
+        });
+
+        throw new Error(message);
+    }
+};
+
+export const clear2FAError = () => (dispatch) => {
+    dispatch({
+        type: CLEAR_2FA_ERROR,
+    });
 };
