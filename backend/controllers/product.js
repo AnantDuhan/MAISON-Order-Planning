@@ -14,9 +14,49 @@ const timestamp = Date.now();
 const timestampInSeconds = Math.floor(timestamp / 1000);
 
 // get all products
-export const getAllProducts = async (req, res, next) => {
+// export const getAllProducts = async (req, res, next) => {
 
-    let products;
+//     let products;
+
+//     const resultPerPage = process.env.RESULT_PER_PAGE;
+//     const productsCount = await Product.countDocuments();
+
+//     const apiFeature = new ApiFeatures(Product.find(), req.query)
+//         .search()
+//         .filter();
+
+//     products = await apiFeature.query;
+
+//     let filteredProductsCount = products.length;
+
+//     apiFeature.pagination(resultPerPage);
+
+//     products = await apiFeature.query.clone();
+
+//     res.status(200).json({
+//         success: true,
+//         products,
+//         productsCount,
+//         resultPerPage,
+//         filteredProductsCount
+//     });
+// };
+
+export const getAllProducts = async (req, res, next) => {
+    const redisClient = redisClientPromise;
+    // Cache per query signature — listings vary by search/filter/page, so a
+    // single flat key won't do. Reads dominate and the catalog changes rarely,
+    // so a short TTL removes almost all DB load from this route.
+    const cacheKey = `products:list:${JSON.stringify(req.query)}`;
+
+    try {
+        const cached = await redisClient.get(cacheKey);
+        if (cached) {
+            return res.status(200).json(JSON.parse(cached));
+        }
+    } catch (cacheError) {
+        console.error('Redis cache read error (getAllProducts):', cacheError.message);
+    }
 
     const resultPerPage = process.env.RESULT_PER_PAGE;
     const productsCount = await Product.countDocuments();
@@ -25,21 +65,29 @@ export const getAllProducts = async (req, res, next) => {
         .search()
         .filter();
 
-    products = await apiFeature.query;
-
-    let filteredProductsCount = products.length;
+    let products = await apiFeature.query;
+    const filteredProductsCount = products.length;
 
     apiFeature.pagination(resultPerPage);
-
     products = await apiFeature.query.clone();
 
-    res.status(200).json({
+    const payload = {
         success: true,
         products,
         productsCount,
         resultPerPage,
         filteredProductsCount
-    });
+    };
+
+    try {
+        // 60s TTL: listings tolerate brief staleness. See the invalidation note
+        // below if you need writes to reflect immediately.
+        await redisClient.set(cacheKey, JSON.stringify(payload), { EX: 60 });
+    } catch (cacheError) {
+        console.error('Redis cache write error (getAllProducts):', cacheError.message);
+    }
+
+    res.status(200).json(payload);
 };
 
 // Get All Product (Admin)

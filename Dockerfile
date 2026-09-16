@@ -22,6 +22,6 @@ ARG REACT_APP_SOCKET_URL
 RUN cd frontend && npm install && npm run build
 
 ENV NODE_ENV=production
-EXPOSE 4000
+EXPOSE 8080
 
 CMD ["node", "backend/server.js"]
