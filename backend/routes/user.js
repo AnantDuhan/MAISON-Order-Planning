@@ -13,12 +13,10 @@ const {
    getSingleUser,
    updateUserRole,
    googleLogin,
-   sendLoginOtp,
    verifyLoginOtp,
    setupTwoFactorAuth,
    verifyTwoFactorAuth,
    disableTwoFactorAuth,
-   validateTfaToken,
    getAddresses,
    addAddress,
    deleteAddress,
@@ -53,6 +51,12 @@ const router = express.Router();
 router.route('/register').post(authLimiter, upload.single('image'), registerUser);
 
 router.route('/login').post(authLimiter, loginUser);
+
+// Two-factor authentication
+router.route('/login/2fa').post(authLimiter, verifyLoginOtp);      // complete login with a TOTP code
+router.route('/2fa/setup').get(isAuthUser, setupTwoFactorAuth);    // begin setup → returns QR
+router.route('/2fa/verify').post(isAuthUser, verifyTwoFactorAuth); // confirm setup → enables 2FA
+router.route('/2fa/disable').post(isAuthUser, disableTwoFactorAuth);
 
 router.route('/password/forgot').post(authLimiter, forgotPassword);
 

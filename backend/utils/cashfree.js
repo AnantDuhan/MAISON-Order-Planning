@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 
 const CASHFREE_API_VERSION = '2025-01-01';
+const CASHFREE_TIMEOUT_MS = Number(process.env.CASHFREE_TIMEOUT_MS) || 15000;
 
 const getCashfreeBaseUrl = () =>
     process.env.CASHFREE_ENVIRONMENT === 'production'
@@ -19,13 +20,26 @@ const cashfreeRequest = async (path, options = {}) => {
         throw new Error('Cashfree credentials are not configured');
     }
 
-    const response = await fetch(`${getCashfreeBaseUrl()}${path}`, {
-        ...options,
-        headers: {
-            ...cashfreeHeaders(),
-            ...options.headers,
-        },
-    });
+    let response;
+    try {
+        response = await fetch(`${getCashfreeBaseUrl()}${path}`, {
+            ...options,
+            headers: {
+                ...cashfreeHeaders(),
+                ...options.headers,
+            },
+            // Fail fast instead of hanging if the provider is unreachable.
+            signal: AbortSignal.timeout(CASHFREE_TIMEOUT_MS),
+        });
+    } catch (err) {
+        const error = new Error(
+            err.name === 'TimeoutError'
+                ? 'Payment provider timed out. Please try again.'
+                : 'Could not reach the payment provider. Please try again.'
+        );
+        error.statusCode = 504;
+        throw error;
+    }
 
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {

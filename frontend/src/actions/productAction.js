@@ -103,7 +103,7 @@ export const getAdminProduct = () => async dispatch => {
     } catch (error) {
         dispatch({
             type: ADMIN_PRODUCT_FAIL,
-            payload: error.response.data.message
+            payload: error.response?.data?.message || 'Failed to submit review'
         });
     }
 };
@@ -203,11 +203,9 @@ export const newReview = reviewData => async dispatch => {
 
         const { data } = await axios.post(
             `/api/v1/review`,
-            { reviewData },
-            { config }
+            reviewData,
+            config
         );
-
-        console.log('DATA', data);
 
         dispatch({
             type: NEW_REVIEW_SUCCESS,

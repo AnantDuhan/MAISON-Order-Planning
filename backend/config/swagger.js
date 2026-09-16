@@ -55,7 +55,7 @@ const options = {
       description: 'API documentation for the MERN Ecommerce backend.',
     },
     servers: [
-      { url: 'http://localhost:8080', description: 'Local development server' },
+      { url: 'http://localhost:4000', description: 'Local development server' },
     ],
     tags: [
       { name: 'Health' },

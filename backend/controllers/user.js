@@ -13,6 +13,7 @@ const validator = require('validator');
 const ejs = require('ejs');
 const path = require('path');
 const speakeasy = require('speakeasy');
+const QRCode = require('qrcode');
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -112,19 +113,29 @@ exports.loginUser = async (req, res, next) => {
             });
         }
 
-        if (user.twoFactorAuth.enabled) {
-            return res.status(200).json({
-                success: true,
-                twoFactorRequired: true,
-                userId: user._id,
-            });
-        }
-
+        // Verify the password FIRST. 2FA is a SECOND factor on top of the
+        // password — never a replacement for it.
         const isPasswordMatched = await user.comparePassword(password);
         if (!isPasswordMatched) {
             return res.status(401).json({
                 success: false,
                 message: 'Invalid Email or Password'
+            });
+        }
+
+        // Password OK. If 2FA is enabled, don't issue the session yet — require
+        // the authenticator code. Bind that step to this successful password
+        // check with a short-lived pending token.
+        if (user.twoFactorAuth.enabled) {
+            const twoFactorToken = jwt.sign(
+                { id: user._id, twoFactorPending: true },
+                process.env.JWT_SECRET_KEY,
+                { expiresIn: '5m' }
+            );
+            return res.status(200).json({
+                success: true,
+                twoFactorRequired: true,
+                twoFactorToken,
             });
         }
 
@@ -611,5 +622,127 @@ exports.deleteAddress = async (req, res) => {
         res.status(200).json({ success: true, addresses: user.addresses });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Failed to delete address', error: error.message });
+    }
+};
+
+// ===================== Two-Factor Authentication (TOTP) =====================
+
+// Issue the authenticated session cookie (shared by login completion).
+const issueSession = (user, res, statusCode = 200) => {
+    const token = jwt.sign(
+        { id: user._id, name: user.name, email: user.email, avatar: user.avatar },
+        process.env.JWT_SECRET_KEY
+    );
+    const options = {
+        expires: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    };
+    return res.status(statusCode).cookie('token', token, options).json({ success: true, user });
+};
+
+// Begin setup: create a secret, stash it as a TEMP secret (not yet active),
+// and return a QR code the user scans in their authenticator app.
+exports.setupTwoFactorAuth = async (req, res) => {
+    try {
+        const secret = speakeasy.generateSecret({ name: `Maison (${req.user.email})` });
+        await User.findByIdAndUpdate(req.user._id, {
+            'twoFactorAuth.tempSecret': secret.base32,
+        });
+        const qrCode = await QRCode.toDataURL(secret.otpauth_url);
+        res.status(200).json({ success: true, qrCode, secret: secret.base32 });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// Confirm setup: verify a code against the temp secret, then activate 2FA.
+exports.verifyTwoFactorAuth = async (req, res) => {
+    try {
+        const { code } = req.body;
+        const user = await User.findById(req.user._id).select('+twoFactorAuth.tempSecret');
+        if (!user?.twoFactorAuth?.tempSecret) {
+            return res.status(400).json({ success: false, message: 'Start 2FA setup first' });
+        }
+        const verified = speakeasy.totp.verify({
+            secret: user.twoFactorAuth.tempSecret,
+            encoding: 'base32',
+            token: String(code || ''),
+            window: 1,
+        });
+        if (!verified) {
+            return res.status(400).json({ success: false, message: 'Invalid authentication code' });
+        }
+        user.twoFactorAuth.secret = user.twoFactorAuth.tempSecret;
+        user.twoFactorAuth.tempSecret = undefined;
+        user.twoFactorAuth.enabled = true;
+        await user.save({ validateBeforeSave: false });
+        res.status(200).json({ success: true, message: 'Two-factor authentication enabled' });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// Disable 2FA — requires a current valid code so a hijacked session can't turn it off.
+exports.disableTwoFactorAuth = async (req, res) => {
+    try {
+        const { code } = req.body;
+        const user = await User.findById(req.user._id).select('+twoFactorAuth.secret +twoFactorAuth.enabled');
+        if (!user?.twoFactorAuth?.enabled) {
+            return res.status(400).json({ success: false, message: '2FA is not enabled' });
+        }
+        const verified = speakeasy.totp.verify({
+            secret: user.twoFactorAuth.secret,
+            encoding: 'base32',
+            token: String(code || ''),
+            window: 1,
+        });
+        if (!verified) {
+            return res.status(400).json({ success: false, message: 'Invalid authentication code' });
+        }
+        user.twoFactorAuth.secret = undefined;
+        user.twoFactorAuth.tempSecret = undefined;
+        user.twoFactorAuth.enabled = false;
+        await user.save({ validateBeforeSave: false });
+        res.status(200).json({ success: true, message: 'Two-factor authentication disabled' });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// Complete login: verify the pending token (proves password was checked) + the
+// TOTP code, then issue the real session.
+exports.verifyLoginOtp = async (req, res) => {
+    try {
+        const { twoFactorToken, code } = req.body;
+        if (!twoFactorToken || !code) {
+            return res.status(400).json({ success: false, message: 'Authentication code is required' });
+        }
+        let decoded;
+        try {
+            decoded = jwt.verify(twoFactorToken, process.env.JWT_SECRET_KEY);
+        } catch {
+            return res.status(401).json({ success: false, message: 'Login session expired. Please sign in again.' });
+        }
+        if (!decoded.twoFactorPending) {
+            return res.status(400).json({ success: false, message: 'Invalid login session' });
+        }
+        const user = await User.findById(decoded.id).select('+twoFactorAuth.secret');
+        if (!user?.twoFactorAuth?.secret) {
+            return res.status(400).json({ success: false, message: 'Invalid login session' });
+        }
+        const verified = speakeasy.totp.verify({
+            secret: user.twoFactorAuth.secret,
+            encoding: 'base32',
+            token: String(code),
+            window: 1,
+        });
+        if (!verified) {
+            return res.status(400).json({ success: false, message: 'Invalid authentication code' });
+        }
+        return issueSession(user, res, 200);
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
     }
 };

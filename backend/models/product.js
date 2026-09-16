@@ -71,8 +71,18 @@ const productSchema = mongoose.Schema({
         }
     ],
     aiSummary: {
-      type: String,
-      default: '',
+        overall: {
+            type: String,
+            default: '',
+        },
+        pros: {
+            type: [String],
+            default: [],
+        },
+        cons: {
+            type: [String],
+            default: [],
+        },
     },
     createdAt: {
         type: Date,

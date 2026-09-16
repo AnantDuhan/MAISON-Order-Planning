@@ -1,32 +1,31 @@
 module.exports = (err, req, res, next) => {
     err.statusCode = err.statusCode || 500;
-    err.message = err.message || "Internal Server Error";
+    err.message = err.message || 'Internal Server Error';
 
-    // Wrong MongoDB Id Error
-    if (err.name === "CaseError") {
-        res.status(400).json({
-            message: `Resource not found. Invalid: ${err.path}`
-        });
+    // Wrong MongoDB ObjectId
+    if (err.name === 'CastError') {
+        err.statusCode = 400;
+        err.message = `Resource not found. Invalid: ${err.path}`;
     }
-
-    // mongoose duplicate key error
+    // Mongoose duplicate key
     if (err.code === 11000) {
-        res.status(400).json({
-            message: `Duplicate ${object.keys(err.keyValue)} entered`
-        });
+        err.statusCode = 400;
+        err.message = `Duplicate ${Object.keys(err.keyValue)} entered`;
     }
-
-    // wrong JWT error
-    if (err.name === "JsonWebTokenError") {
-        res.status(400).json({
-            message: `JSON Web Token is invalid, Try again!`
-        });
+    // Invalid JWT
+    if (err.name === 'JsonWebTokenError') {
+        err.statusCode = 400;
+        err.message = 'JSON Web Token is invalid, Try again!';
     }
-
-    // JWT expire error
+    // Expired JWT
     if (err.name === 'TokenExpiredError') {
-        res.status(400).json({
-            message: `JSON Web Token is invalid, Try again!`
-        });
+        err.statusCode = 400;
+        err.message = 'JSON Web Token is expired, Try again!';
     }
+
+    // Always respond — previously unmatched errors sent nothing, hanging the request.
+    res.status(err.statusCode).json({
+        success: false,
+        message: err.message,
+    });
 };

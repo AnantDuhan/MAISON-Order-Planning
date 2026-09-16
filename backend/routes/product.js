@@ -46,7 +46,7 @@ router
 
 router.route('/review/:reviewId').delete(isAuthUser, deleteReview);
 
-router.route('/:id/summerize-reviews').post(isAuthUser, authRoles('admin'), summerizeProductReviews);
+router.route('/products/:id/summarize-reviews').post(isAuthUser, authRoles('admin'), summerizeProductReviews);
 
 // router.route("/search").get(searchProducts);
 
