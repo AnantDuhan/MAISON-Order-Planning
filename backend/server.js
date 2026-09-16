@@ -4,6 +4,8 @@ const dotenv = require('dotenv');
 const connectDB = require('./config/database');
 const http = require('http');
 const { Server } = require('socket.io');
+const { createAdapter } = require('@socket.io/redis-adapter');
+const { createClient } = require('redis');
 const redisClient = require('./config/redisClientUpstash');
 const { warmUpEmailTransport } = require('./utils/sendEmail');
 const runWeeklyNewsletter = require('./newsletterJob');
@@ -25,6 +27,24 @@ const io = new Server(createServer, {
         origin: "http://localhost:3000",
     }
 });
+
+// Fan Socket.io events across instances via Redis pub/sub. Without this, an
+// event emitted on one instance never reaches clients connected to another.
+// Falls back to the in-memory adapter locally when REDIS_URL is unset.
+async function attachRedisAdapter(io) {
+    if (!process.env.REDIS_URL) {
+        console.info('Socket.io: single-instance mode (no REDIS_URL)');
+        return;
+    }
+    const pubClient = createClient({ url: process.env.REDIS_URL });
+    const subClient = pubClient.duplicate();
+    pubClient.on('error', e => console.error('Socket pub error:', e.message));
+    subClient.on('error', e => console.error('Socket sub error:', e.message));
+    await Promise.all([pubClient.connect(), subClient.connect()]);
+    io.adapter(createAdapter(pubClient, subClient));
+    console.info('Socket.io: Redis adapter attached (multi-instance ready)');
+}
+attachRedisAdapter(io).catch(err => console.error('Redis adapter setup failed:', err.message));
 
 io.on('connection', socket => {
     // Generic rooms — order status uses room `order:<orderId>`; future
@@ -64,11 +84,27 @@ if (process.env.ENABLE_IN_PROCESS_CRON === 'true') {
     console.log('🗓️  In-process schedulers enabled (newsletter + wishlist)');
 }
 
-// Unhandeled Promise Rejection
-// process.on("unhandledRejection", err => {
-//     console.log(`Error: ${err.message}`);
-//     console.log(`Shutting down the server due to Unhandled Promise Rejection`);
-//     server.close(() => {
-//         process.exit(1);
-//     });
-// });
+// Graceful shutdown: stop accepting new connections, let in-flight requests
+// finish, close sockets, then exit. Hosts (Render, Fly, K8s) send SIGTERM
+// before replacing an instance — without this, live requests get dropped.
+const gracefulShutdown = signal => {
+    console.log(`\n${signal} received — shutting down gracefully`);
+    io.close();
+    server.close(() => {
+        console.log('HTTP server closed');
+        process.exit(0);
+    });
+    // Force-exit if connections don't drain in time.
+    setTimeout(() => {
+        console.error('Forced shutdown after timeout');
+        process.exit(1);
+    }, 10000).unref();
+};
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+// Unhandled promise rejection safety net.
+process.on('unhandledRejection', err => {
+    console.error(`Unhandled Rejection: ${err.message}`);
+    server.close(() => process.exit(1));
+});

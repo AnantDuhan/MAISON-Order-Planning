@@ -84,4 +84,12 @@ const productSchema = mongoose.Schema({
     }
 });
 
+// Indexes for listing/filter/sort/search hot paths. The text index backs
+// keyword search; the Gemini vector index is configured in Atlas separately.
+productSchema.index({ category: 1 });
+productSchema.index({ price: 1 });
+productSchema.index({ createdAt: -1 });
+productSchema.index({ ratings: -1 });
+productSchema.index({ name: 'text', description: 'text' });
+
 module.exports = mongoose.model('Product', productSchema);

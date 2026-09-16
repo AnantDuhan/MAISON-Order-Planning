@@ -163,4 +163,15 @@ const orderSchema = new mongoose.Schema({
     }
 });
 
+// Indexes for hot query paths (myOrders, admin filters, listings) and to
+// prevent duplicate orders per completed payment. The paymentInfo.id index is
+// partial so COD / null-payment orders are exempt from the unique constraint.
+orderSchema.index({ user: 1, createdAt: -1 });
+orderSchema.index({ orderStatus: 1 });
+orderSchema.index({ createdAt: -1 });
+orderSchema.index(
+    { 'paymentInfo.id': 1 },
+    { unique: true, partialFilterExpression: { 'paymentInfo.id': { $type: 'string' } } }
+);
+
 module.exports = mongoose.model('Order', orderSchema);

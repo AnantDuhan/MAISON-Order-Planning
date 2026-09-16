@@ -1,8 +1,5 @@
 const express = require('express');
 
-const runWeeklyNewsletter = require('../newsletterJob');
-const runWishlistReminders = require('../wishlistJob');
-
 const router = express.Router();
 
 /**
@@ -26,16 +23,27 @@ const requireCronSecret = (req, res, next) => {
     next();
 };
 
-// Respond immediately (202) and run the batch in the background, so the
-// scheduler's request doesn't block on potentially many emails.
-const fireAndForget = (job, name) => (req, res) => {
-    res.status(202).json({ success: true, job: name, message: 'started' });
-    Promise.resolve()
-        .then(() => job())
-        .catch(err => console.error(`${name} job failed:`, err.message));
+// Enqueue the batch onto the BullMQ email queue and return immediately (202).
+// The separate worker (backend/worker.js) runs it, with retries and
+// back-pressure — the web process never blocks on the batch. This also keeps
+// the job from running once per instance under horizontal scaling.
+const emailQueue = require('../queues/email.queue');
+
+const enqueue = name => async (req, res, next) => {
+    try {
+        await emailQueue.add(name, {}, {
+            removeOnComplete: true,
+            removeOnFail: 50,
+            attempts: 3,
+            backoff: { type: 'exponential', delay: 5000 },
+        });
+        res.status(202).json({ success: true, job: name, message: 'queued' });
+    } catch (err) {
+        next(err);
+    }
 };
 
-router.post('/jobs/newsletter', requireCronSecret, fireAndForget(runWeeklyNewsletter, 'newsletter'));
-router.post('/jobs/wishlist', requireCronSecret, fireAndForget(runWishlistReminders, 'wishlist'));
+router.post('/jobs/newsletter', requireCronSecret, enqueue('newsletter'));
+router.post('/jobs/wishlist', requireCronSecret, enqueue('wishlist'));
 
 module.exports = router;

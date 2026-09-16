@@ -1,8 +1,7 @@
 const Return = require('../models/return');
 const Order = require('../models/order');
 const generateId = require('../utils/generateId');
-const nodeCache = require('node-cache');
-const NodeCache = new nodeCache();
+const cache = require('../utils/cache');
 
 exports.requestReturn = async (req, res) => {
     try {
@@ -74,9 +73,8 @@ exports.getAllReturns = async (req, res) => {
     try {
         let returns;
 
-        if (NodeCache.has('returns;')) {
-            returns = JSON.parse(JSON.stringify(NodeCache.get('returns')));
-        } else {
+        returns = await cache.getJSON('returns');
+        if (!returns) {
             returns = await Return.find()
                 .populate({
                     path: 'order',
@@ -90,8 +88,9 @@ exports.getAllReturns = async (req, res) => {
                     path: 'products.product',
                     select: 'name price'
                 })
-                .sort('-requestedAt');
-            NodeCache.set('returns', JSON.stringify(returns));
+                .sort('-requestedAt')
+                .lean();
+            await cache.setJSON('returns', returns);
         }
 
         res.status(200).json({ success: true, returns });
@@ -125,7 +124,7 @@ exports.updateReturnStatus = async (req, res) => {
         returnRequest.resolvedAt = ['Rejected', 'Completed'].includes(status) ? new Date() : undefined;
         await returnRequest.save();
 
-        NodeCache.del('returns');
+        await cache.del('returns', 'orders');
 
         res.status(200).json({
             success: true,

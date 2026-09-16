@@ -2,9 +2,7 @@ const Return = require('../models/return');
 const Refund = require('../models/refund');
 const Order = require('../models/order');
 const generateId = require('../utils/generateId');
-const nodeCache = require('node-cache');
-
-const NodeCache = new nodeCache();
+const cache = require('../utils/cache');
 
 exports.initiateRefund = async (req, res) => {
     try {
@@ -92,9 +90,8 @@ exports.initiateRefund = async (req, res) => {
         order.refundRequestedAt = new Date();
         await order.save();
 
-        // CLEAR CACHE so the admin panel updates instantly
-        NodeCache.del('refunds');
-        NodeCache.del('orders');
+        // CLEAR shared CACHE so the admin panel updates instantly (all instances)
+        await cache.del('refunds', 'orders', `order:${order._id}`, `orders:${order.user}`);
 
         res.status(200).json({
             success: true,
@@ -158,9 +155,8 @@ exports.updateRefundStatus = async (req, res) => {
         }
         await refund.save();
 
-        // CLEAR CACHE so the DataGrid in React updates immediately
-        NodeCache.del('refunds');
-        NodeCache.del('orders');
+        // CLEAR shared CACHE so the DataGrid in React updates immediately
+        await cache.del('refunds', 'orders', `order:${order._id}`, `orders:${order.user}`);
 
         res.status(200).json({
             success: true,
@@ -182,9 +178,8 @@ exports.getAllRefunds = async (req, res) => {
         let refunds;
 
         // FIXED CACHE BUG: Removed the semicolon typo and stopped stringifying arrays
-        if (NodeCache.has('refunds')) {
-            refunds = NodeCache.get('refunds');
-        } else {
+        refunds = await cache.getJSON('refunds');
+        if (!refunds) {
             refunds = await Refund.find()
                 .populate({
                     path: 'order',
@@ -194,9 +189,10 @@ exports.getAllRefunds = async (req, res) => {
                         select: 'name email'
                     }
                 })
-                .sort('-requestedAt');
-                
-            NodeCache.set('refunds', refunds);
+                .sort('-requestedAt')
+                .lean();
+
+            await cache.setJSON('refunds', refunds);
         }
 
         res.status(200).json({ success: true, refunds });

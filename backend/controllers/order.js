@@ -4,8 +4,7 @@ const sendEmail = require('../utils/sendEmail');
 const { sendEmailInBackground } = require('../utils/sendEmail');
 const User = require('../models/user');
 const Coupon = require('../models/coupon');
-const nodeCache = require('node-cache');
-const NodeCache = new nodeCache({ useClones: false });
+const cache = require('../utils/cache');
 const Reorder = require('../models/reorder');
 const generateId = require('../utils/generateId');
 const ejs = require('ejs');
@@ -52,6 +51,15 @@ exports.newOrder = async (req, res, next) => {
             }
             paymentInfo.status = 'PAID';
             paymentInfo.id = cashfreeOrder.cf_order_id || paymentInfo.id;
+        }
+
+        // Prevent duplicate orders for the same completed payment
+        // (protects against double-submit / client retries).
+        if (paymentInfo?.id) {
+            const existingOrder = await Order.findOne({ 'paymentInfo.id': paymentInfo.id }).select('_id');
+            if (existingOrder) {
+                return res.status(200).json({ success: true, order: existingOrder, deduped: true });
+            }
         }
 
         let discountedTotalPrice = totalPrice;
@@ -152,14 +160,13 @@ exports.getSingleOrder = async (req, res, next) => {
     let order;
     const cacheKey = `order:${req.params.id}`;
 
-    if (NodeCache.has(cacheKey)) {
-        order = NodeCache.get(cacheKey);
-    } else {
+    order = await cache.getJSON(cacheKey);
+    if (!order) {
         order = await Order.findById(req.params.id).populate(
             'user',
             'name email'
         ).lean();
-        NodeCache.set(cacheKey, order);
+        if (order) await cache.setJSON(cacheKey, order, 600);
     }
 
     if (!order) {
@@ -180,13 +187,12 @@ exports.myOrders = async (req, res, next) => {
     let orders;
     const cacheKey = `orders:${req.user._id}`;
 
-    if (NodeCache.has(cacheKey)) {
-        orders = NodeCache.get(cacheKey);
-    } else {
+    orders = await cache.getJSON(cacheKey);
+    if (!orders) {
         orders = await Order.find({
             user: req.user._id
         }).lean();
-        NodeCache.set(cacheKey, orders);
+        await cache.setJSON(cacheKey, orders);
     }
 
     res.status(200).json({
@@ -201,13 +207,12 @@ exports.getAllOrders = async (req, res, next) => {
         let totalAmount = 0;
 
         // 1. Check if it's in the cache
-        if (NodeCache.has('orders')) {
-            orders = NodeCache.get('orders');
-        } else {
+        orders = await cache.getJSON('orders');
+        if (!orders) {
             // 2. If not in cache, get from DB
             orders = await Order.find().lean();
-            
-            NodeCache.set('orders', orders);
+
+            await cache.setJSON('orders', orders);
         }
 
         // 3. Calculate total amount safely
@@ -279,11 +284,8 @@ exports.updateOrder = async (req, res, next) => {
             });
         }
 
-        // Clear the cache for the updated order
-        NodeCache.del(orderId);
-        NodeCache.del(`order:${orderId}`);
-        NodeCache.del('orders');
-        NodeCache.del(`orders:${order.user}`);
+        // Clear the shared cache for the updated order (reaches all instances)
+        await cache.del(`order:${orderId}`, 'orders', `orders:${order.user}`);
 
         const randomDays = Math.floor(Math.random() * 8); // Generate random number between 0 and 7
         const currentDate = new Date();
@@ -349,15 +351,15 @@ exports.updateOrder = async (req, res, next) => {
 async function getOrderFromCache(orderId) {
     // Check if order data is in the cache
     const cacheKey = `order:${orderId}`;
-    let order = NodeCache.get(cacheKey);
+    let order = await cache.getJSON(cacheKey);
 
     // If not in the cache, fetch from the database
     if (!order) {
-        order = await Order.findById(orderId);
+        order = await Order.findById(orderId).lean();
 
         // Cache the order data for future use
         if (order) {
-            NodeCache.set(cacheKey, order);
+            await cache.setJSON(cacheKey, order, 600);
         }
     }
 

@@ -34,4 +34,7 @@ const reviewSchema = new mongoose.Schema({
     },
 });
 
+// Reviews are almost always fetched by product, newest first.
+reviewSchema.index({ product: 1, createdAt: -1 });
+
 module.exports = mongoose.model('Review', reviewSchema);
