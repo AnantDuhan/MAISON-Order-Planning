@@ -1,0 +1,8 @@
+$kind: 'http-request'
+name: Add To Wishlist
+order: 2000
+method: POST
+url: '{{baseUrl}}/wishlist/:id'
+pathVariables:
+  - key: id
+    value: '{{productId}}'

@@ -1,0 +1,12 @@
+$kind: 'http-request'
+name: Verify Login OTP
+order: 9000
+method: POST
+url: '{{baseUrl}}/login/2fa'
+body:
+  type: json
+  content: |-
+    {
+      "email": "user@example.com",
+      "token": "123456"
+    }

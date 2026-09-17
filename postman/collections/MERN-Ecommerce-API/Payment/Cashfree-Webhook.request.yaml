@@ -1,0 +1,16 @@
+$kind: 'http-request'
+name: Cashfree Webhook
+order: 3000
+method: POST
+url: '{{baseUrl}}/cashfree/webhook'
+body:
+  type: json
+  content: |-
+    {
+      "data": {
+        "order": {
+          "order_id": "order_123",
+          "order_status": "PAID"
+        }
+      }
+    }

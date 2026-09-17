@@ -1,0 +1,5 @@
+$kind: 'http-request'
+name: Get Addresses
+order: 5000
+method: GET
+url: '{{baseUrl}}/addresses'

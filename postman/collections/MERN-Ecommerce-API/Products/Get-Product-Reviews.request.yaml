@@ -1,0 +1,8 @@
+$kind: 'http-request'
+name: Get Product Reviews
+order: 6000
+method: GET
+url: '{{baseUrl}}/reviews?id={{productId}}'
+queryParams:
+  - key: id
+    value: '{{productId}}'

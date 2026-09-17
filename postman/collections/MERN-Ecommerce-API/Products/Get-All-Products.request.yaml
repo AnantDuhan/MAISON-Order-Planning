@@ -1,0 +1,24 @@
+$kind: 'http-request'
+name: Get All Products
+order: 1000
+method: GET
+url: '{{baseUrl}}/products'
+queryParams:
+  - key: keyword
+    value: ''
+    disabled: true
+  - key: page
+    value: '1'
+    disabled: true
+  - key: 'price[gte]'
+    value: ''
+    disabled: true
+  - key: 'price[lte]'
+    value: ''
+    disabled: true
+  - key: 'ratings[gte]'
+    value: ''
+    disabled: true
+  - key: category
+    value: ''
+    disabled: true

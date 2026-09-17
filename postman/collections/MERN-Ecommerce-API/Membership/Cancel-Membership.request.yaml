@@ -1,0 +1,8 @@
+$kind: 'http-request'
+name: Cancel Membership
+order: 5000
+method: POST
+url: '{{baseUrl}}/membership/:subscriptionId/cancel'
+pathVariables:
+  - key: subscriptionId
+    value: '{{subscriptionId}}'

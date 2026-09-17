@@ -1,0 +1,7 @@
+$kind: http-request
+body:
+  type: json
+  content: ""
+order: 3000
+method: GET
+url: "{{baseUrl}}/recommended"

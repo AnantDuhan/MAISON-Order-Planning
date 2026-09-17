@@ -1,0 +1,5 @@
+$kind: 'http-request'
+name: Get Wishlist
+order: 1000
+method: GET
+url: '{{baseUrl}}/wishlist'

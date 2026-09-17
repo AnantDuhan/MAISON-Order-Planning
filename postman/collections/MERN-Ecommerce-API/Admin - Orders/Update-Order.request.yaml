@@ -1,0 +1,14 @@
+$kind: 'http-request'
+name: Update Order
+order: 2000
+method: PUT
+url: '{{baseUrl}}/admin/order/:id'
+pathVariables:
+  - key: id
+    value: '{{orderId}}'
+body:
+  type: json
+  content: |-
+    {
+      "status": "Shipped"
+    }

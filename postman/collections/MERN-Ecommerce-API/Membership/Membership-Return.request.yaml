@@ -1,0 +1,5 @@
+$kind: 'http-request'
+name: Membership Return
+order: 6000
+method: GET
+url: '{{baseUrl}}/membership/return'

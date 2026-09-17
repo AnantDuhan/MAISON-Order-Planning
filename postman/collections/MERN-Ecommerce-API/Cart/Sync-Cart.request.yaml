@@ -1,0 +1,19 @@
+$kind: 'http-request'
+name: Sync Cart
+order: 2000
+method: PUT
+url: '{{baseUrl}}/cart'
+body:
+  type: json
+  content: |-
+    {
+      "cartItems": [
+        {
+          "product": "{{productId}}",
+          "name": "Product Name",
+          "price": 999,
+          "image": "image_url",
+          "quantity": 1
+        }
+      ]
+    }

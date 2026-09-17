@@ -1,0 +1,13 @@
+$kind: 'http-request'
+name: Create Product Review
+order: 5000
+method: POST
+url: '{{baseUrl}}/review'
+body:
+  type: json
+  content: |-
+    {
+      "rating": 5,
+      "comment": "Great product!",
+      "productId": "{{productId}}"
+    }

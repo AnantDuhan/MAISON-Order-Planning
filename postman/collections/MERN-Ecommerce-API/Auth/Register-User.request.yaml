@@ -1,0 +1,23 @@
+$kind: 'http-request'
+name: Register User
+order: 1000
+method: POST
+url: '{{baseUrl}}/register'
+body:
+  type: formdata
+  content:
+    - key: name
+      type: text
+      value: 'John Doe'
+    - key: email
+      type: text
+      value: 'john@example.com'
+    - key: password
+      type: text
+      value: 'password123'
+    - key: whatsappNumber
+      type: text
+      value: '9876543210'
+    - key: image
+      type: file
+      src: ''

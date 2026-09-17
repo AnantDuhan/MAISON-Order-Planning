@@ -1,0 +1,37 @@
+$kind: 'http-request'
+name: Create Order
+order: 1000
+method: POST
+url: '{{baseUrl}}/order/new'
+body:
+  type: json
+  content: |-
+    {
+      "shippingInfo": {
+        "address": "123 Main St",
+        "city": "New York",
+        "state": "NY",
+        "country": "US",
+        "pinCode": 10001,
+        "phoneNo": 9876543210
+      },
+      "orderItems": [
+        {
+          "name": "Product",
+          "price": 999,
+          "image": "url",
+          "product": "{{productId}}",
+          "quantity": 1
+        }
+      ],
+      "paymentInfo": {
+        "id": "payment_id",
+        "status": "succeeded",
+        "provider": "stripe"
+      },
+      "itemsPrice": 999,
+      "taxPrice": 50,
+      "shippingPrice": 0,
+      "totalPrice": 1049,
+      "couponCode": ""
+    }

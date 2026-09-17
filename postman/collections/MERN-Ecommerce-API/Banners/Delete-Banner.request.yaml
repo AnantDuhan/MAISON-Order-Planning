@@ -1,0 +1,8 @@
+$kind: 'http-request'
+name: Delete Banner
+order: 5000
+method: DELETE
+url: '{{baseUrl}}/admin/banner/:id'
+pathVariables:
+  - key: id
+    value: '{{bannerId}}'

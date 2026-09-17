@@ -1,0 +1,12 @@
+$kind: 'http-request'
+name: Create Cashfree Order
+order: 1000
+method: POST
+url: '{{baseUrl}}/cashfree/order'
+body:
+  type: json
+  content: |-
+    {
+      "amount": 1049,
+      "currency": "INR"
+    }

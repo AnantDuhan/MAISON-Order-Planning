@@ -1,0 +1,5 @@
+$kind: 'http-request'
+name: Get All Coupons
+order: 2000
+method: GET
+url: '{{baseUrl}}/coupons/all'

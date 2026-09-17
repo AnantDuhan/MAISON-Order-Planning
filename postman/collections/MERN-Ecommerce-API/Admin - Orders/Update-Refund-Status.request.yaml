@@ -1,0 +1,16 @@
+$kind: 'http-request'
+name: Update Refund Status
+order: 5000
+method: PATCH
+url: '{{baseUrl}}/admin/order/:orderId/refund/:refundId/status'
+pathVariables:
+  - key: orderId
+    value: '{{orderId}}'
+  - key: refundId
+    value: '{{refundId}}'
+body:
+  type: json
+  content: |-
+    {
+      "status": "processed"
+    }

@@ -1,0 +1,8 @@
+$kind: 'http-request'
+name: Remove From Wishlist
+order: 3000
+method: DELETE
+url: '{{baseUrl}}/wishlist/:id'
+pathVariables:
+  - key: id
+    value: '{{productId}}'

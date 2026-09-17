@@ -1,0 +1,16 @@
+$kind: 'http-request'
+name: Update User Role
+order: 3000
+method: PUT
+url: '{{baseUrl}}/admin/user/:id'
+pathVariables:
+  - key: id
+    value: '{{userId}}'
+body:
+  type: json
+  content: |-
+    {
+      "name": "User Name",
+      "email": "user@example.com",
+      "role": "admin"
+    }

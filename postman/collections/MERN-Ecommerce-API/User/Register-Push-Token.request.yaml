@@ -1,0 +1,11 @@
+$kind: 'http-request'
+name: Register Push Token
+order: 4000
+method: PUT
+url: '{{baseUrl}}/me/push-token'
+body:
+  type: json
+  content: |-
+    {
+      "pushToken": "device_push_token_here"
+    }

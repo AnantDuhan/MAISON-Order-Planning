@@ -1,0 +1,8 @@
+$kind: 'http-request'
+name: Get Membership Status
+order: 4000
+method: GET
+url: '{{baseUrl}}/membership/:subscriptionId'
+pathVariables:
+  - key: subscriptionId
+    value: '{{subscriptionId}}'

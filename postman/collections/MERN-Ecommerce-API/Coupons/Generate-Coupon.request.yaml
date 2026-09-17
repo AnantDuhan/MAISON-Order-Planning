@@ -1,0 +1,14 @@
+$kind: 'http-request'
+name: Generate Coupon
+order: 1000
+method: POST
+url: '{{baseUrl}}/coupon'
+body:
+  type: json
+  content: |-
+    {
+      "code": "SAVE10",
+      "discountPercent": 10,
+      "minOrderAmount": 500,
+      "maxOrderAmount": 5000
+    }

@@ -1,0 +1,15 @@
+$kind: 'http-request'
+name: Initiate Refund
+order: 4000
+method: POST
+url: '{{baseUrl}}/admin/order/:id/refund'
+pathVariables:
+  - key: id
+    value: '{{orderId}}'
+body:
+  type: json
+  content: |-
+    {
+      "amount": 999,
+      "reason": "Customer request"
+    }

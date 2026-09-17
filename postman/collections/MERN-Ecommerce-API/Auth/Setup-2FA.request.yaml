@@ -1,0 +1,5 @@
+$kind: 'http-request'
+name: Setup 2FA
+order: 10000
+method: GET
+url: '{{baseUrl}}/2fa/setup'

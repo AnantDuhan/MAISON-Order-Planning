@@ -1,0 +1,5 @@
+$kind: 'http-request'
+name: Get Active Banners
+order: 1000
+method: GET
+url: '{{baseUrl}}/banners'

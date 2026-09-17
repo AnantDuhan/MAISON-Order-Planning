@@ -1,0 +1,8 @@
+$kind: 'http-request'
+name: Unsubscribe Newsletter
+order: 3000
+method: GET
+url: '{{baseUrl}}/unsubscribe/:token'
+pathVariables:
+  - key: token
+    value: '{{unsubscribeToken}}'

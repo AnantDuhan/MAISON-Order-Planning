@@ -1,0 +1,11 @@
+$kind: 'http-request'
+name: Google Login
+order: 3000
+method: POST
+url: '{{baseUrl}}/auth/google'
+body:
+  type: json
+  content: |-
+    {
+      "idToken": "google_id_token_here"
+    }

@@ -1,0 +1,15 @@
+$kind: 'http-request'
+name: Update Banner
+order: 4000
+method: PUT
+url: '{{baseUrl}}/admin/banner/:id'
+pathVariables:
+  - key: id
+    value: '{{bannerId}}'
+body:
+  type: json
+  content: |-
+    {
+      "title": "Updated Title",
+      "isActive": false
+    }

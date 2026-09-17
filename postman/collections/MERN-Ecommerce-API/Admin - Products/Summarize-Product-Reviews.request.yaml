@@ -1,0 +1,8 @@
+$kind: 'http-request'
+name: Summarize Product Reviews
+order: 3000
+method: POST
+url: '{{baseUrl}}/products/:id/summarize-reviews'
+pathVariables:
+  - key: id
+    value: '{{productId}}'

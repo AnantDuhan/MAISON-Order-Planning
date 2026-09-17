@@ -1,0 +1,13 @@
+$kind: 'http-request'
+name: Contact Us
+order: 1000
+method: POST
+url: '{{baseUrl}}/contact-us'
+body:
+  type: json
+  content: |-
+    {
+      "name": "John Doe",
+      "email": "john@example.com",
+      "message": "Hello, I need help."
+    }

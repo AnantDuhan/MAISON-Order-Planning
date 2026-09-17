@@ -1,0 +1,5 @@
+$kind: 'http-request'
+name: Get Membership Analytics
+order: 3000
+method: GET
+url: '{{baseUrl}}/admin/membership-analytics'

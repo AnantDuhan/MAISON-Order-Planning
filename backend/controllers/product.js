@@ -7,6 +7,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import redisClientPromise from "../config/redisClientUpstash.js";
 import dotenv from "dotenv";
 import { generateEmbedding } from "../utils/generateEmbedding.js";
+import { getSimilarProducts as findSimilarProducts, getPersonalizedRecommendations } from "../services/recommendationService.js";
 
 dotenv.config({ path: "../config/config.env" });
 
@@ -770,32 +771,40 @@ export const summerizeProductReviews = async (req, res, next) => {
   }
 };
 
-// Products in the same category as the given one (excluding it) — "Similar Products".
 export const getSimilarProducts = async (req, res) => {
     try {
-        const product = await Product.findById(req.params.id).lean();
-        if (!product) {
-            return res.status(404).json({ success: false, message: 'Product not found' });
-        }
-        const products = await Product.find({
-            category: product.category,
-            _id: { $ne: product._id },
-        }).limit(8).lean();
-        res.status(200).json({ success: true, products });
+        const { id } = req.params;
+
+        const products = await findSimilarProducts(id, 8);
+
+        return res.status(200).json({
+            success: true,
+            products,
+        });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        console.error("Similar products error:", error);
+
+        return res.status(error.statusCode || 500).json({
+            success: false,
+            message: error.message || "Failed to fetch similar products",
+        });
     }
 };
 
-// Highest-rated products across the store — "You May Also Like".
 export const getRecommendedProducts = async (req, res) => {
     try {
-        const products = await Product.find()
-            .sort({ ratings: -1, numOfReviews: -1 })
-            .limit(8)
-            .lean();
-        res.status(200).json({ success: true, products });
+        const products = await getPersonalizedRecommendations(req.user._id, 8);
+
+        return res.status(200).json({
+            success: true,
+            products,
+        });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        console.error("❌ Personalized recommendations error:", error);
+
+        return res.status(500).json({
+            success: false,
+            message: error.message,
+        });
     }
 };

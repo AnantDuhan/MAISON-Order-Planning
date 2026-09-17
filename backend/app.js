@@ -117,6 +117,7 @@ const jobsRoute = require("./routes/jobs");
 const bannerRoute = require("./routes/banner");
 const cartRoute = require("./routes/cart");
 const redirectRoute = require("./routes/redirect");
+const productInteractionRoute = require("./routes/productInteraction");
 const { apiLimiter } = require("./middleware/rateLimiter");
 
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
@@ -135,6 +136,7 @@ app.use("/api/v1", analyticsRoute);
 app.use("/api/v1", jobsRoute);
 app.use("/api/v1", bannerRoute);
 app.use("/api/v1", cartRoute);
+app.use("/api/v1/products", productInteractionRoute);
 app.use(redirectRoute);
 
 // --- Serve the built React app (same-origin deployment) ---------------------

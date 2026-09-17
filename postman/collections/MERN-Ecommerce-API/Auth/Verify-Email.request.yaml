@@ -1,0 +1,8 @@
+$kind: 'http-request'
+name: Verify Email
+order: 5000
+method: GET
+url: '{{baseUrl}}/verify-email/:token'
+pathVariables:
+  - key: token
+    value: '{{verificationToken}}'

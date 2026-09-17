@@ -1,0 +1,14 @@
+$kind: 'http-request'
+name: Update Return Status
+order: 7000
+method: PATCH
+url: '{{baseUrl}}/admin/return/:id/status'
+pathVariables:
+  - key: id
+    value: '{{returnId}}'
+body:
+  type: json
+  content: |-
+    {
+      "status": "approved"
+    }

@@ -1,0 +1,20 @@
+$kind: 'http-request'
+name: Request Return
+order: 5000
+method: POST
+url: '{{baseUrl}}/order/:id/return'
+pathVariables:
+  - key: id
+    value: '{{orderId}}'
+body:
+  type: json
+  content: |-
+    {
+      "reason": "Product damaged",
+      "items": [
+        {
+          "product": "{{productId}}",
+          "quantity": 1
+        }
+      ]
+    }
