@@ -1,4 +1,0 @@
-$kind: 'http-request'
-order: 4000
-method: GET
-url: '{{baseUrl}}/logout'

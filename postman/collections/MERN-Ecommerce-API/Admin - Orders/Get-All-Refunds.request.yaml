@@ -1,5 +1,0 @@
-$kind: 'http-request'
-name: Get All Refunds
-order: 8000
-method: GET
-url: '{{baseUrl}}/admin/refunds'

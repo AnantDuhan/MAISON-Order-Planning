@@ -1,7 +1,0 @@
-$kind: http-request
-name: Get Products Interaction
-url: "{{baseUrl}}/products/:id/similar"
-method: GET
-pathVariables:
-  id: "{{productId}}"
-order: 3180

@@ -1,8 +1,0 @@
-$kind: 'http-request'
-name: Open Order Redirect
-order: 4000
-method: GET
-url: '{{baseUrl}}/go/order/:id'
-pathVariables:
-  - key: id
-    value: '{{orderId}}'

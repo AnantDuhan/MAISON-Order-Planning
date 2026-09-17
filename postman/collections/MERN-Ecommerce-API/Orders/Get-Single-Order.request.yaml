@@ -1,8 +1,0 @@
-$kind: 'http-request'
-name: Get Single Order
-order: 2000
-method: GET
-url: '{{baseUrl}}/order/:id'
-pathVariables:
-  - key: id
-    value: '{{orderId}}'

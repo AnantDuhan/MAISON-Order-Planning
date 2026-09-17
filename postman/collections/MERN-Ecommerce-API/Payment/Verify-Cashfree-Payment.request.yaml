@@ -1,8 +1,0 @@
-$kind: 'http-request'
-name: Verify Cashfree Payment
-order: 2000
-method: GET
-url: '{{baseUrl}}/cashfree/order/:orderId/verify'
-pathVariables:
-  - key: orderId
-    value: '{{cashfreeOrderId}}'

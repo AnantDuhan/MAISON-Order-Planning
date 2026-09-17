@@ -1,8 +1,0 @@
-$kind: 'http-request'
-name: Trigger Newsletter Job
-order: 5000
-method: POST
-url: '{{baseUrl}}/jobs/newsletter'
-headers:
-  - key: x-cron-secret
-    value: '{{cronSecret}}'

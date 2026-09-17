@@ -1,5 +1,0 @@
-$kind: 'http-request'
-name: Get All Users
-order: 1000
-method: GET
-url: '{{baseUrl}}/admin/users'

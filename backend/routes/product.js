@@ -52,8 +52,6 @@ router.route('/review/:reviewId').delete(isAuthUser, deleteReview);
 
 router.route('/products/:id/summarize-reviews').post(isAuthUser, authRoles('admin'), summerizeProductReviews);
 
-router.route('/recommended').get(isAuthUser, getRecommendedProducts);
-
 // router.route("/search").get(searchProducts);
 
 // router.route('/admin/product/:productId').put(isAuthUser, authRoles('admin'), upload.array('product', 5), updateProduct);

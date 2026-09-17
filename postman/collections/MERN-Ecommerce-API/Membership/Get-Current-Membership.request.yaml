@@ -1,5 +1,0 @@
-$kind: 'http-request'
-name: Get Current Membership
-order: 2000
-method: GET
-url: '{{baseUrl}}/membership/current'

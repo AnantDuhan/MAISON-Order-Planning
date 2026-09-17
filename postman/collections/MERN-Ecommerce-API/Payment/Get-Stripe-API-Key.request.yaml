@@ -1,5 +1,0 @@
-$kind: 'http-request'
-name: Get Stripe API Key
-order: 4000
-method: GET
-url: '{{baseUrl}}/stripeapikey'

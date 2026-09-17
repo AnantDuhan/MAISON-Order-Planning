@@ -1,5 +1,0 @@
-$kind: 'http-request'
-name: Get All Orders
-order: 1000
-method: GET
-url: '{{baseUrl}}/admin/orders'
