@@ -1,8 +1,8 @@
 const express = require('express');
 const { trackProductInteraction } = require('../controllers/productInteraction');
-const { isAuthUser } = require('../middleware/auth');
+const { optionalAuth } = require('../middleware/auth');
 
 const router = express.Router();
 
-router.route("/interaction").post(isAuthUser, trackProductInteraction);
+router.route("/interaction").post(optionalAuth, trackProductInteraction);
 module.exports = router;

@@ -5,7 +5,11 @@ const productInteractionSchema = new mongoose.Schema(
         user: {
             type: String,
             ref: "User",
-            required: true,
+        },
+
+        // Guest identity (localStorage UUID) when no user is logged in.
+        anonymousId: {
+            type: String,
         },
 
         product: {
@@ -49,6 +53,13 @@ productInteractionSchema.index({
 productInteractionSchema.index({
     user: 1,
     product: 1,
+});
+
+productInteractionSchema.index({
+    anonymousId: 1,
+    product: 1,
+    type: 1,
+    createdAt: -1,
 });
 
 export default mongoose.model(

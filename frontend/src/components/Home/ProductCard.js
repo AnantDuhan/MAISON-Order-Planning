@@ -4,6 +4,7 @@ import { useDispatch } from 'react-redux';
 import { Link } from 'react-router-dom';
 import { addProductToWishlist } from '../../actions/productAction';
 import { toast } from 'react-toastify';
+import { trackInteraction } from '../../utils/trackInteraction';
 
 const ProductCard = ({ product }) => {
     const dispatch = useDispatch();
@@ -23,6 +24,7 @@ const ProductCard = ({ product }) => {
         e.preventDefault();
         e.stopPropagation();
         toast.success('Product added to wishlist');
+        trackInteraction(product._id, 'wishlist');
         dispatch(addProductToWishlist(product._id));
     };
 
@@ -40,7 +42,7 @@ const ProductCard = ({ product }) => {
 
     return (
         <Fragment>
-            <Link className='group card-luxe block' to={`/product/${product._id}`}>
+            <Link className='group card-luxe block' to={`/product/${product._id}`} onClick={() => trackInteraction(product._id, 'click')}>
                 {/* Image */}
                 <div className='relative aspect-[4/5] overflow-hidden bg-surface-2'>
                     <img

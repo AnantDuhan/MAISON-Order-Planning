@@ -2,7 +2,7 @@ import { recordProductInteraction } from "../services/productInteractionService.
 
 export const trackProductInteraction = async (req, res) => {
     try {
-        const { productId, type } = req.body;
+        const { productId, type, anonymousId } = req.body;
 
         if (!productId || !type) {
             return res.status(400).json({
@@ -11,15 +11,18 @@ export const trackProductInteraction = async (req, res) => {
             });
         }
 
-        if (!req.user) {
-            return res.status(401).json({
+        // Logged-in users are tracked by their id; guests by a client-supplied
+        // anonymous id. One of the two must be present.
+        if (!req.user && !anonymousId) {
+            return res.status(400).json({
                 success: false,
-                message: "Authentication required",
+                message: "anonymousId is required for guest tracking",
             });
         }
 
         await recordProductInteraction({
-            userId: req.user._id,
+            userId: req.user ? req.user._id : undefined,
+            anonymousId: req.user ? undefined : anonymousId,
             productId,
             type,
         });
@@ -30,7 +33,6 @@ export const trackProductInteraction = async (req, res) => {
         });
     } catch (error) {
         console.error("Product interaction error:", error);
-
         return res.status(500).json({
             success: false,
             message: error.message,

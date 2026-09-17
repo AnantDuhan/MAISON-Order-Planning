@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import ProductCard from '../Home/ProductCard';
 import { addRecentlyViewed, getRecentlyViewed } from '../../utils/recentlyViewed';
+import { trackInteraction } from '../../utils/trackInteraction';
 
 // One horizontal, scrollable rail of product cards.
 const Rail = ({ title, products }) => {
@@ -37,6 +38,7 @@ const ProductRecommendations = ({ productId, product }) => {
     useEffect(() => {
         if (product && product._id) {
             addRecentlyViewed(product);
+            trackInteraction(product._id, 'view');
         }
     }, [product]);
 
