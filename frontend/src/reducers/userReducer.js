@@ -152,8 +152,19 @@ export const userReducer = (
         error: null,
       };
 
-    case LOGIN_SUCCESS:
     case REGISTER_USER_SUCCESS:
+      // Registration does NOT log the user in — they must verify their email
+      // first. Surface the "check your inbox" message instead.
+      return {
+        ...state,
+        loading: false,
+        isAuthenticated: false,
+        user: null,
+        message: action.payload,
+        error: null,
+      };
+
+    case LOGIN_SUCCESS:
     case LOAD_USER_SUCCESS:
     case GOOGLE_LOGIN_SUCCESS:
       return {

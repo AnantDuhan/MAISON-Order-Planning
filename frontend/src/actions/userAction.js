@@ -109,7 +109,7 @@ export const register = formData => async dispatch => {
             { headers: { 'Content-Type': 'multipart/form-data' } }
         );
 
-        dispatch({ type: REGISTER_USER_SUCCESS, payload: data.user });
+        dispatch({ type: REGISTER_USER_SUCCESS, payload: data.message });
     } catch (error) {
         dispatch({
             type: REGISTER_USER_FAIL,
