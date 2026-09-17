@@ -769,33 +769,3 @@ export const summerizeProductReviews = async (req, res, next) => {
     });
   }
 };
-
-// Products in the same category as the given one (excluding it) — "Similar Products".
-export const getSimilarProducts = async (req, res) => {
-    try {
-        const product = await Product.findById(req.params.id).lean();
-        if (!product) {
-            return res.status(404).json({ success: false, message: 'Product not found' });
-        }
-        const products = await Product.find({
-            category: product.category,
-            _id: { $ne: product._id },
-        }).limit(8).lean();
-        res.status(200).json({ success: true, products });
-    } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
-    }
-};
-
-// Highest-rated products across the store — "You May Also Like".
-export const getRecommendedProducts = async (req, res) => {
-    try {
-        const products = await Product.find()
-            .sort({ ratings: -1, numOfReviews: -1 })
-            .limit(8)
-            .lean();
-        res.status(200).json({ success: true, products });
-    } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
-    }
-};
