@@ -73,16 +73,27 @@ const ProcessOrder = () => {
 
     const onLoaderFinished = () => setProgress(0);
 
-    const submitInitiateRefund = async () => {
-        if (order) {
-            try {
-                setProgress(50);
-                await dispatch(initiateRefund(id));
-                toast.success('Refund request initiated successfully');
-                setInitiateOpen(false);
-            } catch (error) {
-                toast.error(error.response?.data?.message || error.message);
-            }
+    const submitInitiateRefund = () => {
+        if (!order?._id) return;
+
+        try {
+            setProgress(50);
+
+            dispatch(initiateRefund(id));
+
+            toast.success('Refund request initiated successfully');
+            setInitiateOpen(false);
+
+            // Refresh order so refund status/details are immediately visible
+            dispatch(getOrderDetails(id));
+        } catch (error) {
+            toast.error(
+                error.response?.data?.message ||
+                error.message ||
+                'Failed to initiate refund'
+            );
+        } finally {
+            setProgress(100);
         }
     };
 
@@ -268,7 +279,12 @@ const ProcessOrder = () => {
                                 <div className='flex flex-col gap-3'>
                                     <button
                                         onClick={() => setInitiateOpen(true)}
-                                        disabled={order.isRefunded === true || order.isReturned === false}
+                                        disabled={
+                                            !isDelivered ||
+                                            !order.return?.length ||
+                                            order.isRefunded === true ||
+                                            order.refundStatus === 'Processing'
+                                        }
                                         className='btn-outline w-full disabled:opacity-40'
                                     >
                                         Initiate Refund

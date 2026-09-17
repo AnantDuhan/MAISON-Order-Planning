@@ -20,6 +20,8 @@ const {
    getAddresses,
    addAddress,
    deleteAddress,
+   verifyEmail,
+   resendVerificationEmail,
 } = require('../controllers/user');
 
 const { isAuthUser, authRoles } = require('../middleware/auth');
@@ -51,6 +53,12 @@ const router = express.Router();
 router.route('/register').post(authLimiter, upload.single('image'), registerUser);
 
 router.route('/login').post(authLimiter, loginUser);
+
+router.route("/verify-email/:token").get(verifyEmail);
+
+router
+  .route("/resend-verification")
+  .post(resendVerificationEmail);
 
 // Two-factor authentication
 router.route('/login/2fa').post(authLimiter, verifyLoginOtp);      // complete login with a TOTP code

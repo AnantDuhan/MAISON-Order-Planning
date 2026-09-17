@@ -181,8 +181,10 @@ app.post("/register", upload.single("image"), async (req, res) => {
     const file = req.file;
 
     if (!file) {
-      res.status(400).send("No file uploaded.");
-      return;
+      return res.status(400).json({
+        success: false,
+        message: "No file uploaded.",
+      });
     }
 
     const s3 = new S3Client({
@@ -190,22 +192,22 @@ app.post("/register", upload.single("image"), async (req, res) => {
       credentials: fromEnv(),
     });
 
-    // Define the upload parameters
     const uploadParams = {
       Bucket: process.env.AWS_BUCKET_NAME,
-      Key: file.originalname, // The name under which the file will be stored in S3
-      Body: file.buffer, // The file data to be uploaded
+      Key: file.originalname,
+      Body: file.buffer,
     };
 
-    // Upload the file to S3
     const uploadCommand = new PutObjectCommand(uploadParams);
     await s3.send(uploadCommand);
 
     const cacheBuster = Date.now();
+
     const avatarUrl = `https://${uploadParams.Bucket}.s3.${process.env.AWS_BUCKET_REGION}.amazonaws.com/${uploadParams.Key}?cacheBuster=${cacheBuster}`;
 
     console.log("✅ Image uploaded successfully:", avatarUrl);
 
+    // 1. Create user
     const user = await User.create({
       _id: generateId(),
       name,
@@ -213,31 +215,49 @@ app.post("/register", upload.single("image"), async (req, res) => {
       email,
       password,
       avatar: avatarUrl,
+      isEmailVerified: false,
     });
 
-    let token = jwt.sign(
+    // 2. Generate email verification token
+    const verificationToken = user.getEmailVerificationToken();
+
+    // 3. Save token and expiry
+    await user.save({
+      validateBeforeSave: false,
+    });
+
+    // 4. Create verification URL
+    const verificationURL =
+      `${process.env.FRONTEND_URL}/verify-email/${verificationToken}`;
+
+    // 5. Render verification email
+    const emailMessage = await ejs.renderFile(
+      path.join(__dirname, "../mails/verify-email.ejs"),
       {
-        userId: user._id,
         name: user.name,
-        email: user.email,
-      },
-      process.env.JWT_SECRET_KEY,
+        verificationURL,
+      }
     );
 
-    const options = {
-      expires: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-    };
-
-    res.status(201).cookie("token", token, options).json({
-      success: true,
-      user,
+    // 6. Send verification email
+    sendEmailInBackground({
+      email: user.email,
+      subject: "Verify Your Email - Ecommerce",
+      html: emailMessage,
     });
+
+    // 7. DO NOT create JWT/cookie here
+    return res.status(201).json({
+      success: true,
+      message:
+        "Registration successful. Please check your email and verify your account before logging in.",
+      email: user.email,
+    });
+
   } catch (err) {
-    console.error("⚠️ Error:", err);
-    res.status(500).json({
+    console.error("⚠️ Registration Error:", err);
+
+    return res.status(500).json({
       success: false,
       message: "⚠️ Error: " + err.message,
     });

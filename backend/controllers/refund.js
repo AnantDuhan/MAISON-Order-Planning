@@ -29,78 +29,110 @@ exports.initiateRefund = async (req, res) => {
             });
         }
 
-        if (order.isRefunded || order.refundStatus === 'Processing') {
+        if (
+            order.isRefunded ||
+            order.refundStatus === 'Processing'
+        ) {
             return res.status(400).json({
                 success: false,
                 message: 'Order refund has already been initiated or processed'
             });
         }
 
-        const returnRequests = await Return.find({ _id: { $in: order.return } });
-        const refunds = [];
-        const updatedReturns = [];
+        /*
+         * Find return requests associated with this order.
+         * Only Pending/Approved returns are eligible for refund.
+         */
+        const returnRequests = await Return.find({
+            _id: { $in: order.return },
+            status: { $in: ['Pending', 'Approved'] }
+        });
 
-        for (const returnDoc of returnRequests) {
-            if (['Pending', 'Approved'].includes(returnDoc.status)) {
-                const refundAmount = order.totalPrice;
-
-                const newRefund = new Refund({
-                    _id: generateId(),
-                    order: order._id,
-                    amount: refundAmount,
-                    initiatedAt: new Date(),
-                    status: 'Initiated'
-                });
-                refunds.push(newRefund);
-
-                order.refund.push(newRefund._id);
-
-                returnDoc.status = 'Initiated';
-                returnDoc.resolvedAt = new Date();
-                updatedReturns.push(returnDoc);
-            }
-        }
-
-        if (refunds.length === 0) {
+        if (returnRequests.length === 0) {
             return res.status(400).json({
                 success: false,
                 message: 'No pending or approved return found for this order'
             });
         }
 
-        if (refunds.length > 0) {
-            await Refund.insertMany(refunds);
-            await Return.bulkWrite(
-                updatedReturns.map(returnDoc => ({
-                    updateOne: {
-                        filter: { _id: returnDoc._id },
-                        update: {
-                            $set: {
-                                status: returnDoc.status,
-                                resolvedAt: returnDoc.resolvedAt
-                            }
-                        }
-                    }
-                }))
-            );
+        /*
+         * IMPORTANT:
+         * Create ONE refund per order, not one refund per return.
+         *
+         * The previous implementation created order.totalPrice
+         * for every eligible return document, which could result in
+         * multiple refunds for the same order.
+         */
+        const refundAmount = order.totalPrice;
+
+        const newRefund = new Refund({
+            _id: generateId(),
+            order: order._id,
+            amount: refundAmount,
+            initiatedAt: new Date(),
+            status: 'Initiated'
+        });
+
+        await newRefund.save();
+
+        /*
+         * Attach the single refund to the order.
+         */
+        if (!Array.isArray(order.refund)) {
+            order.refund = [];
         }
 
-        // Update the order refund status
+        order.refund.push(newRefund._id);
+
+        /*
+         * Mark all eligible return requests as Initiated.
+         */
+        const resolvedAt = new Date();
+
+        await Return.updateMany(
+            {
+                _id: {
+                    $in: returnRequests.map(returnDoc => returnDoc._id)
+                }
+            },
+            {
+                $set: {
+                    status: 'Initiated',
+                    resolvedAt
+                }
+            }
+        );
+
+        /*
+         * Update order refund state.
+         */
         order.refundStatus = 'Processing';
-        order.refundRequestedAt = new Date();
+        order.refundRequestedAt = resolvedAt;
+
         await order.save();
 
-        // CLEAR shared CACHE so the admin panel updates instantly (all instances)
-        await cache.del('refunds', 'orders', `order:${order._id}`, `orders:${order.user}`);
+        /*
+         * Clear shared cache so the admin panel gets
+         * the latest refund/order information.
+         */
+        await cache.del(
+            'refunds',
+            'orders',
+            `order:${order._id}`,
+            `orders:${order.user}`
+        );
 
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             message: 'Refund initiation request sent',
+            refund: newRefund,
             order
         });
+
     } catch (error) {
-        console.error(error);
-        res.status(500).json({
+        console.error('Initiate refund error:', error);
+
+        return res.status(500).json({
             success: false,
             message: 'Server error'
         });

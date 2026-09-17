@@ -1,0 +1,55 @@
+<%- include('partials/head', {
+  title: 'Verify your email',
+  preheader: 'Please verify your email address to activate your Maison account.'
+}) %>
+
+<p style="margin:0; font-family:Helvetica,Arial,sans-serif; font-size:10px; font-weight:bold; letter-spacing:3px; text-transform:uppercase; color:#A07C4B;">
+  Account verification
+</p>
+
+<h1 style="margin:14px 0 0 0; font-family:Georgia,'Times New Roman',serif; font-size:34px; font-weight:500; line-height:1.15; color:#1A1816;">
+  Welcome, <%= name %>
+</h1>
+
+<p style="margin:22px 0 0 0; font-family:Helvetica,Arial,sans-serif; font-size:15px; line-height:1.75; color:#4A453F;">
+  Thank you for creating your Maison account.
+  Please verify your email address to activate your account.
+</p>
+
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:30px 0 0 0;">
+  <tr>
+    <td>
+      <a
+        href="<%= verificationURL %>"
+        style="
+          display:inline-block;
+          padding:14px 30px;
+          background-color:#1A1816;
+          color:#F7F4EF;
+          font-family:Helvetica,Arial,sans-serif;
+          font-size:11px;
+          font-weight:bold;
+          letter-spacing:2px;
+          text-transform:uppercase;
+          text-decoration:none;
+        "
+      >
+        Verify Your Email
+      </a>
+    </td>
+  </tr>
+</table>
+
+<p style="margin:28px 0 0 0; font-family:Helvetica,Arial,sans-serif; font-size:13px; line-height:1.7; color:#8A8278;">
+  This verification link will expire in 24 hours.
+</p>
+
+<p style="margin:18px 0 0 0; font-family:Helvetica,Arial,sans-serif; font-size:13px; line-height:1.7; color:#8A8278;">
+  If you did not create this account, you can safely ignore this email.
+</p>
+
+<p style="margin:30px 0 0 0; font-family:Helvetica,Arial,sans-serif; font-size:12px; line-height:1.7; color:#A07C4B; word-break:break-all;">
+  <%= verificationURL %>
+</p>
+
+<%- include('partials/foot') %>

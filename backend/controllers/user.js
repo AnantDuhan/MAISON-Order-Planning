@@ -21,14 +21,17 @@ const timestamp = Date.now();
 const timestampInSeconds = Math.floor(timestamp / 1000);
 
 // register user
+// Register User
 exports.registerUser = async (req, res, next) => {
     try {
         const { name, whatsappNumber, email, password } = req.body;
         const file = req.file;
 
         if (!file) {
-            res.status(400).send('No file uploaded.');
-            return;
+            return res.status(400).json({
+                success: false,
+                message: 'No file uploaded.'
+            });
         }
 
         const s3 = new S3Client({
@@ -39,7 +42,7 @@ exports.registerUser = async (req, res, next) => {
         // Define the upload parameters
         const uploadParams = {
             Bucket: process.env.AWS_BUCKET_NAME,
-            Key: file.originalname, 
+            Key: file.originalname,
             Body: file.buffer
         };
 
@@ -48,44 +51,67 @@ exports.registerUser = async (req, res, next) => {
         await s3.send(uploadCommand);
 
         const cacheBuster = Date.now();
-        const avatarUrl = `https://${uploadParams.Bucket}.s3.${process.env.AWS_BUCKET_REGION}.amazonaws.com/${uploadParams.Key}?cacheBuster=${cacheBuster}`;
+
+        const avatarUrl =
+            `https://${uploadParams.Bucket}.s3.${process.env.AWS_BUCKET_REGION}.amazonaws.com/${uploadParams.Key}?cacheBuster=${cacheBuster}`;
 
         console.log('✅ Image uploaded successfully:', avatarUrl);
 
+        // Create user as UNVERIFIED
         const user = await User.create({
             _id: generateId(),
             name,
             whatsappNumber,
             email,
             password,
-            avatar: avatarUrl
+            avatar: avatarUrl,
+            isEmailVerified: false
         });
 
-        let token = jwt.sign(
+        // Generate email verification token
+        const verificationToken = user.getEmailVerificationToken();
+
+        // Save verification token and expiry
+        await user.save({
+            validateBeforeSave: false
+        });
+
+        // Create verification URL
+        const verificationURL =
+            `${process.env.FRONTEND_URL}/verify-email/${verificationToken}`;
+
+        console.log('📧 Verification URL generated');
+
+        // Render verification email using EJS
+        const emailMessage = await ejs.renderFile(
+            path.join(__dirname, '../mails/verify-email.ejs'),
             {
-                userId: user._id,
                 name: user.name,
-                email: user.email
-            },
-            process.env.JWT_SECRET_KEY
+                verificationURL
+            }
         );
 
-        const options = {
-            expires: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
-        };
-
-        const finalToken = user.getJWTToken();
-        res.status(201).cookie('token', token, options).json({
-            success: true,
-            user,
-            token: finalToken
+        // Send verification email
+        sendEmailInBackground({
+            email: user.email,
+            subject: 'Verify Your Email - Ecommerce',
+            html: emailMessage
         });
+
+        console.log('📧 Verification email queued:', user.email);
+
+        // DO NOT issue JWT or login cookie here.
+        return res.status(201).json({
+            success: true,
+            message:
+                'Registration successful. Please check your email and verify your account before logging in.',
+            email: user.email
+        });
+
     } catch (err) {
-        console.error('⚠️ Error:', err);
-        res.status(500).json({
+        console.error('⚠️ Registration Error:', err);
+
+        return res.status(500).json({
             success: false,
             message: '⚠️ Error: ' + err.message
         });
@@ -93,11 +119,12 @@ exports.registerUser = async (req, res, next) => {
 };
 
 // Login User
+// Login User
 exports.loginUser = async (req, res, next) => {
     try {
         const { email, password } = req.body;
 
-        // checking if user has given email and password both
+        // Check if email and password are provided
         if (!email || !password) {
             return res.status(400).json({
                 success: false,
@@ -105,7 +132,9 @@ exports.loginUser = async (req, res, next) => {
             });
         }
 
-        const user = await User.findOne({ email }).select('+password +twoFactorAuth.enabled');
+        const user = await User.findOne({ email })
+            .select('+password +twoFactorAuth.enabled');
+
         if (!user) {
             return res.status(401).json({
                 success: false,
@@ -113,9 +142,9 @@ exports.loginUser = async (req, res, next) => {
             });
         }
 
-        // Verify the password FIRST. 2FA is a SECOND factor on top of the
-        // password — never a replacement for it.
+        // 1. Verify password FIRST
         const isPasswordMatched = await user.comparePassword(password);
+
         if (!isPasswordMatched) {
             return res.status(401).json({
                 success: false,
@@ -123,23 +152,38 @@ exports.loginUser = async (req, res, next) => {
             });
         }
 
-        // Password OK. If 2FA is enabled, don't issue the session yet — require
-        // the authenticator code. Bind that step to this successful password
-        // check with a short-lived pending token.
-        if (user.twoFactorAuth.enabled) {
-            const twoFactorToken = jwt.sign(
-                { id: user._id, twoFactorPending: true },
-                process.env.JWT_SECRET_KEY,
-                { expiresIn: '5m' }
-            );
-            return res.status(200).json({
-                success: true,
-                twoFactorRequired: true,
-                twoFactorToken,
+        // 2. Email verification check
+        if (!user.isEmailVerified) {
+            return res.status(403).json({
+                success: false,
+                emailVerificationRequired: true,
+                message: 'Please verify your email address before logging in.'
             });
         }
 
-        let token = jwt.sign(
+        // 3. Email verified.
+        // If 2FA is enabled, require OTP before creating the session.
+        if (user.twoFactorAuth.enabled) {
+            const twoFactorToken = jwt.sign(
+                {
+                    id: user._id,
+                    twoFactorPending: true
+                },
+                process.env.JWT_SECRET_KEY,
+                {
+                    expiresIn: '5m'
+                }
+            );
+
+            return res.status(200).json({
+                success: true,
+                twoFactorRequired: true,
+                twoFactorToken
+            });
+        }
+
+        // 4. No 2FA → create normal login session
+        const token = jwt.sign(
             {
                 id: user._id,
                 name: user.name,
@@ -150,22 +194,138 @@ exports.loginUser = async (req, res, next) => {
         );
 
         const options = {
-            expires: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
+            expires: new Date(
+                Date.now() + 90 * 24 * 60 * 60 * 1000
+            ),
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
-            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
+            sameSite:
+                process.env.NODE_ENV === 'production'
+                    ? 'none'
+                    : 'lax'
         };
 
-        res.status(201).cookie('token', token, options).json({
-            success: true,
-            user
-        });
+        return res.status(201)
+            .cookie('token', token, options)
+            .json({
+                success: true,
+                user
+            });
+
     } catch (err) {
-        res.status(500).json({
+        console.error('⚠️ Login Error:', err);
+
+        return res.status(500).json({
             success: false,
             message: err.message
         });
     }
+};
+
+exports.verifyEmail = async (req, res) => {
+  try {
+    const emailVerificationToken = crypto
+      .createHash("sha256")
+      .update(req.params.token)
+      .digest("hex");
+
+    const user = await User.findOne({
+      emailVerificationToken,
+      emailVerificationExpire: { $gt: Date.now() },
+    }).select("+emailVerificationToken +emailVerificationExpire");
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: "Email verification link is invalid or has expired.",
+      });
+    }
+
+    user.isEmailVerified = true;
+    user.emailVerificationToken = undefined;
+    user.emailVerificationExpire = undefined;
+
+    await user.save({
+      validateBeforeSave: false,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Email verified successfully. You can now login.",
+    });
+  } catch (error) {
+    console.error("Email verification error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to verify email address.",
+    });
+  }
+};
+
+exports.resendVerificationEmail = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: "Email address is required.",
+      });
+    }
+
+    const user = await User.findOne({ email })
+      .select("+emailVerificationToken +emailVerificationExpire");
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "No account found with this email address.",
+      });
+    }
+
+    if (user.isEmailVerified) {
+      return res.status(400).json({
+        success: false,
+        message: "Email address is already verified.",
+      });
+    }
+
+    const verificationToken = user.getEmailVerificationToken();
+
+    await user.save({
+      validateBeforeSave: false,
+    });
+
+    const verificationURL =
+      `${process.env.FRONTEND_URL}/verify-email/${verificationToken}`;
+
+    const emailMessage = await ejs.renderFile(
+      path.join(__dirname, "../mails/verify-email.ejs"),
+      {
+        name: user.name,
+        verificationURL,
+      }
+    );
+
+    sendEmailInBackground({
+      email: user.email,
+      subject: "Verify Your Email - Ecommerce",
+      html: emailMessage,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "A new verification email has been sent.",
+    });
+  } catch (error) {
+    console.error("Resend verification email error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to send verification email.",
+    });
+  }
 };
 
 // logout User
