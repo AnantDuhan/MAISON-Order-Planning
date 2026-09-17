@@ -11,6 +11,8 @@ const {
    getAllWishlistProducts,
    summerizeProductReviews,
    updateProduct,
+   getSimilarProducts,
+   getRecommendedProducts,
 //    searchProducts,
 //    getAutocompleteSuggestions
 } = require('../controllers/product');
@@ -37,6 +39,8 @@ router
     .get(isAuthUser, authRoles('admin'), getAdminProducts);
 
 router.route('/product/:id').get(getProductDetails);
+router.route('/products/:id/similar').get(getSimilarProducts);
+router.route('/recommendations').get(getRecommendedProducts);
 
 router.route('/review').post(isAuthUser, createProductReview);
 
