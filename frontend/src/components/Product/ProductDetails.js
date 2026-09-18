@@ -33,6 +33,7 @@ import {
 } from "../../constants/productConstants";
 import MetaData from "../layout/MetaData";
 import ReviewCard from "./ReviewCard";
+import ReviewsSection from "./ReviewsSection";
 
 import "react-responsive-carousel/lib/styles/carousel.min.css";
 
@@ -485,19 +486,7 @@ const ProductDetails = () => {
                 )}
 
               <div className="mt-10">
-                {product.reviews && product.reviews.length > 0 ? (
-                  <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                    {product.reviews.map((review) => (
-                      <ReviewCard key={review._id} review={review} />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="border border-line bg-surface-2 px-6 py-10 text-center">
-                    <p className="font-sans text-sm text-ink-soft">
-                      No reviews yet — be the first to share your experience.
-                    </p>
-                  </div>
-                )}
+                <ReviewsSection reviews={product.reviews} />
               </div>
             </div>
           </div>

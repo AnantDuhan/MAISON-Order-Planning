@@ -63,6 +63,10 @@ app.set('redisClient', redisClient);
 //connecting to database
 connectDB();
 
+// Initialise the Elasticsearch products index (non-fatal if ES is unreachable).
+const { ensureIndex } = require("./services/searchService");
+ensureIndex().catch(err => console.error("Elasticsearch index init failed:", err.message));
+
 // Open the SMTP pool at boot so the first user-facing email is fast too.
 warmUpEmailTransport();
 

@@ -117,6 +117,7 @@ const jobsRoute = require("./routes/jobs");
 const bannerRoute = require("./routes/banner");
 const cartRoute = require("./routes/cart");
 const redirectRoute = require("./routes/redirect");
+const searchRoute = require("./routes/search");
 const { apiLimiter } = require("./middleware/rateLimiter");
 
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
@@ -126,6 +127,7 @@ app.get('/api-docs.json', (req, res) => {
 
 app.use("/api/v1", apiLimiter);
 app.use("/api/v1", productRoute);
+app.use("/api/v1", searchRoute);
 app.use("/api/v1", userRoute);
 app.use("/api/v1", orderRoute);
 app.use("/api/v1", paymentRoute);
