@@ -1,106 +1,95 @@
-const nodemailer = require("nodemailer");
-
 /**
- * A single pooled SMTP transport for the whole process.
+ * Transactional email through Resend's HTTPS API.
  *
- * The previous implementation called nodemailer.createTransport() on every
- * send, so each email paid for a fresh TCP connect, TLS handshake and SMTP
- * AUTH round-trip — several seconds each time against a remote SMTP host.
- * Nodemailer's pool keeps sockets open and reuses them, so only the first
- * message pays that cost.
+ * This intentionally avoids SMTP: Render free services block SMTP ports, while
+ * HTTPS requests to the Resend API are supported.
+ *
+ * Required environment variables:
+ *   RESEND_API_KEY
+ *   RESEND_FROM_EMAIL  e.g. Maison <hello@your-verified-domain.com>
  */
-let transporter = null;
 
-const getTransporter = () => {
-    if (transporter) return transporter;
+const RESEND_EMAILS_URL = "https://api.resend.com/emails";
 
-    if (!process.env.SMTP_HOST || !process.env.SMTP_MAIL || !process.env.SMTP_PASSWORD) {
-        throw new Error('SMTP email configuration is missing');
-    }
+const getEmailConfig = () => {
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = process.env.RESEND_FROM_EMAIL;
 
-    transporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST,
-        port: Number(process.env.SMTP_PORT) || 587,
-        secure: Number(process.env.SMTP_PORT) === 465,
+  if (!apiKey || !from) {
+    throw new Error(
+      "Resend email configuration is missing. Required: RESEND_API_KEY, RESEND_FROM_EMAIL",
+    );
+  }
 
-        // Render does not provide outbound IPv6. Gmail may resolve to an IPv6
-        // address first, so force the SMTP socket to use IPv4.
-        family: 4,
-
-        auth: {
-            user: process.env.SMTP_MAIL,
-            pass: process.env.SMTP_PASSWORD,
-        },
-
-        // Connection reuse — this is what removes the per-message handshake.
-        pool: true,
-        maxConnections: 5,
-        maxMessages: 100,
-
-        connectionTimeout: 10000,
-        greetingTimeout: 10000,
-        socketTimeout: 20000,
-    });
-
-    transporter.on('error', err => {
-        console.error('SMTP pool error:', err.message);
-    });
-
-    return transporter;
+  return { apiKey, from };
 };
 
-const buildMailOptions = options => ({
-    from: process.env.SMTP_MAIL,
-    to: options.email,
-    subject: options.subject,
-    html: options.html,
+const assertEmailOptions = (options) => {
+  if (!options?.email) throw new Error("Email recipient is required");
+  if (!options.subject) throw new Error("Email subject is required");
+  if (!options.html) throw new Error("Email HTML content is required");
+};
+
+const getResponseBody = async (response) => {
+  try {
+    return await response.json();
+  } catch {
+    return {};
+  }
+};
+
+// Send a message and wait until Resend accepts it for delivery.
+const sendEmail = async (options) => {
+  assertEmailOptions(options);
+  const { apiKey, from } = getEmailConfig();
+
+  const response = await fetch(RESEND_EMAILS_URL, {
+    method: "POST",
     headers: {
-        'Content-Type': 'text/html',
-        charset: 'UTF-8',
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
     },
-});
+    body: JSON.stringify({
+      from,
+      to: [options.email],
+      subject: options.subject,
+      html: options.html,
+    }),
+    signal: AbortSignal.timeout(15_000),
+  });
 
-/**
- * Send and wait for the SMTP result.
- * Use when the caller genuinely needs delivery confirmed before responding.
- */
-const sendEmail = async options => {
-    await getTransporter().sendMail(buildMailOptions(options));
+  const body = await getResponseBody(response);
+  if (!response.ok) {
+    throw new Error(body.message || body.name || `Resend request failed (${response.status})`);
+  }
+
+  console.log(`📧 Email accepted by Resend for ${options.email}`);
+  return body;
 };
 
-/**
- * Hand the message to the pool and return immediately.
- *
- * Use for transactional mail on a request path (password reset, order
- * confirmation, contact form). The HTTP response no longer waits on the SMTP
- * conversation, which is the difference between a ~30s request and a ~50ms
- * one. Failures are logged rather than surfaced to the caller, so only use
- * this where the user does not need delivery confirmed synchronously.
- */
-const sendEmailInBackground = options => {
-    setImmediate(async () => {
-        try {
-            await getTransporter().sendMail(buildMailOptions(options));
-        } catch (error) {
-            console.error(
-                `Background email failed (to: ${options.email}, subject: "${options.subject}"):`,
-                error.message
-            );
-        }
-    });
-};
-
-/**
- * Open the pool at boot so the very first user-facing email is fast too.
- * Safe to call without SMTP configured — it just logs and moves on.
- */
-const warmUpEmailTransport = async () => {
+// Use for request paths that should not wait for email delivery.
+const sendEmailInBackground = (options) => {
+  setImmediate(async () => {
     try {
-        await getTransporter().verify();
-        console.log('✅ SMTP transport ready');
+      await sendEmail(options);
     } catch (error) {
-        console.warn('⚠️  SMTP transport not ready:', error.message);
+      console.error(
+        `❌ Background email failed (to: ${options?.email}, subject: "${options?.subject}")`,
+      );
+      console.error("Message:", error.message);
     }
+  });
+};
+
+// Kept for the existing server startup hook. Resend has no SMTP connection to
+// warm; this only reports whether the service has been configured.
+const warmUpEmailTransport = async () => {
+  try {
+    getEmailConfig();
+    console.log("✅ Resend email API configured");
+  } catch (error) {
+    console.warn("⚠️ Resend email API is not configured:", error.message);
+  }
 };
 
 module.exports = sendEmail;
