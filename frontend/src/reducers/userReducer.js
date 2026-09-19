@@ -67,6 +67,7 @@ export const userReducer = (
     // 2FA login state
     twoFactorRequired: false,
     twoFactorToken: null,
+    twoFactorEnrollmentRequired: false,
 
     // 2FA setup state
     twoFactorSetup: null,
@@ -89,6 +90,7 @@ export const userReducer = (
         // Clear any previous 2FA login flow
         twoFactorRequired: false,
         twoFactorToken: null,
+        twoFactorEnrollmentRequired: false,
       };
 
     // Backend tells us OTP is required
@@ -99,7 +101,8 @@ export const userReducer = (
         isAuthenticated: false,
 
         twoFactorRequired: true,
-        twoFactorToken: action.payload,
+        twoFactorToken: action.payload.token,
+        twoFactorEnrollmentRequired: action.payload.enrollmentRequired === true,
 
         error: null,
       };
@@ -126,6 +129,7 @@ export const userReducer = (
         // OTP flow completed
         twoFactorRequired: false,
         twoFactorToken: null,
+        twoFactorEnrollmentRequired: false,
 
         error: null,
       };
@@ -176,6 +180,7 @@ export const userReducer = (
 
         twoFactorRequired: false,
         twoFactorToken: null,
+        twoFactorEnrollmentRequired: false,
 
         error: null,
       };
@@ -196,6 +201,7 @@ export const userReducer = (
 
         twoFactorRequired: false,
         twoFactorToken: null,
+        twoFactorEnrollmentRequired: false,
 
         error: action.payload,
       };

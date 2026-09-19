@@ -20,6 +20,17 @@ const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 const timestamp = Date.now();
 const timestampInSeconds = Math.floor(timestamp / 1000);
 
+const createTwoFactorPendingToken = (user, enrollmentRequired = false) =>
+    jwt.sign(
+        {
+            id: user._id,
+            twoFactorPending: true,
+            enrollmentRequired,
+        },
+        process.env.JWT_SECRET_KEY,
+        { expiresIn: '5m' }
+    );
+
 // register user
 // Register User
 exports.registerUser = async (req, res, next) => {
@@ -163,21 +174,14 @@ exports.loginUser = async (req, res, next) => {
 
         // 3. Email verified.
         // If 2FA is enabled, require OTP before creating the session.
-        if (user.twoFactorAuth.enabled) {
-            const twoFactorToken = jwt.sign(
-                {
-                    id: user._id,
-                    twoFactorPending: true
-                },
-                process.env.JWT_SECRET_KEY,
-                {
-                    expiresIn: '5m'
-                }
-            );
+        const enrollmentRequired = user.role === 'admin' && !user.twoFactorAuth.enabled;
+        if (user.twoFactorAuth.enabled || enrollmentRequired) {
+            const twoFactorToken = createTwoFactorPendingToken(user, enrollmentRequired);
 
             return res.status(200).json({
                 success: true,
                 twoFactorRequired: true,
+                enrollmentRequired,
                 twoFactorToken
             });
         }
@@ -188,9 +192,11 @@ exports.loginUser = async (req, res, next) => {
                 id: user._id,
                 name: user.name,
                 email: user.email,
-                avatar: user.avatar
+                avatar: user.avatar,
+                mfaVerified: false,
             },
-            process.env.JWT_SECRET_KEY
+            process.env.JWT_SECRET_KEY,
+            { expiresIn: '90d' }
         );
 
         const options = {
@@ -231,13 +237,38 @@ exports.verifyEmail = async (req, res) => {
 
     const user = await User.findOne({
       emailVerificationToken,
-      emailVerificationExpire: { $gt: Date.now() },
     }).select("+emailVerificationToken +emailVerificationExpire");
 
     if (!user) {
       return res.status(400).json({
         success: false,
         message: "Email verification link is invalid or has expired.",
+      });
+    }
+
+    // The link is authentic but no longer usable. Replace its token and send
+    // a fresh link while the account remains unverified.
+    if (!user.emailVerificationExpire || user.emailVerificationExpire <= Date.now()) {
+      const verificationToken = user.getEmailVerificationToken();
+      await user.save({ validateBeforeSave: false });
+
+      const verificationURL =
+        `${process.env.FRONTEND_URL}/verify-email/${verificationToken}`;
+      const emailMessage = await ejs.renderFile(
+        path.join(__dirname, "../mails/verify-email.ejs"),
+        { name: user.name, verificationURL }
+      );
+
+      sendEmailInBackground({
+        email: user.email,
+        subject: "Verify Your Email - Ecommerce",
+        html: emailMessage,
+      });
+
+      return res.status(410).json({
+        success: false,
+        verificationEmailResent: true,
+        message: "This verification link expired. We sent a new link to your email address.",
       });
     }
 
@@ -652,7 +683,7 @@ exports.googleLogin = async (req, res, next) => {
         const payload = ticket.getPayload();
         const { email, name, picture, sub: googleId } = payload;
 
-        let user = await User.findOne({ email });
+        let user = await User.findOne({ email }).select('+twoFactorAuth.enabled');
 
         if (!user) {
             user = await User.create({
@@ -665,8 +696,18 @@ exports.googleLogin = async (req, res, next) => {
             });
         }
 
+        const enrollmentRequired = user.role === 'admin' && !user.twoFactorAuth.enabled;
+        if (user.twoFactorAuth.enabled || enrollmentRequired) {
+            return res.status(200).json({
+                success: true,
+                twoFactorRequired: true,
+                enrollmentRequired,
+                twoFactorToken: createTwoFactorPendingToken(user, enrollmentRequired),
+            });
+        }
+
         let token = jwt.sign(
-            { id: user._id },
+            { id: user._id, mfaVerified: false },
             process.env.JWT_SECRET_KEY,
             { expiresIn: '90d' }
         );
@@ -788,13 +829,15 @@ exports.deleteAddress = async (req, res) => {
 // ===================== Two-Factor Authentication (TOTP) =====================
 
 // Issue the authenticated session cookie (shared by login completion).
-const issueSession = (user, res, statusCode = 200) => {
+const issueSession = (user, res, statusCode = 200, mfaVerified = false) => {
+    const isAdmin = user.role === 'admin';
     const token = jwt.sign(
-        { id: user._id, name: user.name, email: user.email, avatar: user.avatar },
-        process.env.JWT_SECRET_KEY
+        { id: user._id, name: user.name, email: user.email, avatar: user.avatar, mfaVerified },
+        process.env.JWT_SECRET_KEY,
+        { expiresIn: isAdmin ? '12h' : '90d' }
     );
     const options = {
-        expires: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
+        expires: new Date(Date.now() + (isAdmin ? 12 : 90 * 24) * 60 * 60 * 1000),
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
@@ -814,6 +857,64 @@ exports.setupTwoFactorAuth = async (req, res) => {
         res.status(200).json({ success: true, qrCode, secret: secret.base32 });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// Admins without 2FA are allowed to reach only this enrollment flow after
+// proving their primary login factor. No authenticated session is issued yet.
+exports.setupAdminTwoFactorEnrollment = async (req, res) => {
+    try {
+        const { twoFactorToken } = req.body;
+        const decoded = jwt.verify(twoFactorToken, process.env.JWT_SECRET_KEY);
+        if (!decoded.twoFactorPending || !decoded.enrollmentRequired) {
+            return res.status(400).json({ success: false, message: 'Invalid admin enrollment session' });
+        }
+
+        const user = await User.findById(decoded.id);
+        if (!user || user.role !== 'admin' || user.twoFactorAuth.enabled) {
+            return res.status(400).json({ success: false, message: 'Admin 2FA enrollment is not required' });
+        }
+
+        const secret = speakeasy.generateSecret({ name: `Maison Admin (${user.email})` });
+        await User.findByIdAndUpdate(user._id, {
+            'twoFactorAuth.tempSecret': secret.base32,
+        });
+        const qrCode = await QRCode.toDataURL(secret.otpauth_url);
+        return res.status(200).json({ success: true, qrCode, secret: secret.base32 });
+    } catch (error) {
+        return res.status(401).json({ success: false, message: 'Admin enrollment session expired. Please sign in again.' });
+    }
+};
+
+exports.verifyAdminTwoFactorEnrollment = async (req, res) => {
+    try {
+        const { twoFactorToken, code } = req.body;
+        const decoded = jwt.verify(twoFactorToken, process.env.JWT_SECRET_KEY);
+        if (!decoded.twoFactorPending || !decoded.enrollmentRequired) {
+            return res.status(400).json({ success: false, message: 'Invalid admin enrollment session' });
+        }
+
+        const user = await User.findById(decoded.id).select('+twoFactorAuth.tempSecret');
+        if (!user || user.role !== 'admin' || !user.twoFactorAuth.tempSecret) {
+            return res.status(400).json({ success: false, message: 'Start admin 2FA enrollment first' });
+        }
+        const verified = speakeasy.totp.verify({
+            secret: user.twoFactorAuth.tempSecret,
+            encoding: 'base32',
+            token: String(code || ''),
+            window: 1,
+        });
+        if (!verified) {
+            return res.status(400).json({ success: false, message: 'Invalid authentication code' });
+        }
+
+        user.twoFactorAuth.secret = user.twoFactorAuth.tempSecret;
+        user.twoFactorAuth.tempSecret = undefined;
+        user.twoFactorAuth.enabled = true;
+        await user.save({ validateBeforeSave: false });
+        return issueSession(user, res, 200, true);
+    } catch (error) {
+        return res.status(401).json({ success: false, message: 'Admin enrollment session expired. Please sign in again.' });
     }
 };
 
@@ -849,6 +950,9 @@ exports.disableTwoFactorAuth = async (req, res) => {
     try {
         const { code } = req.body;
         const user = await User.findById(req.user._id).select('+twoFactorAuth.secret +twoFactorAuth.enabled');
+        if (user?.role === 'admin') {
+            return res.status(403).json({ success: false, message: 'Administrators must keep two-factor authentication enabled' });
+        }
         if (!user?.twoFactorAuth?.enabled) {
             return res.status(400).json({ success: false, message: '2FA is not enabled' });
         }
@@ -901,7 +1005,7 @@ exports.verifyLoginOtp = async (req, res) => {
         if (!verified) {
             return res.status(400).json({ success: false, message: 'Invalid authentication code' });
         }
-        return issueSession(user, res, 200);
+        return issueSession(user, res, 200, true);
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }

@@ -10,6 +10,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import LoadingBar from 'react-top-loading-bar';
 import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
+import axios from 'axios';
 
 import { clearErrors, login, register, loginWithGoogle } from '../../actions/userAction';
 import ButtonSpinner from '../layout/ButtonSpinner';
@@ -24,13 +25,17 @@ const LoginAndRegister = () => {
         isAuthenticated,
         message,
         twoFactorRequired,
-        twoFactorToken
+        twoFactorToken,
+        twoFactorEnrollmentRequired
     } = useSelector(state => state.user);
 
     const [tab, setTab] = useState('login');
     const [loginIdentifier, setLoginIdentifier] = useState('');
     const [loginPassword, setLoginPassword] = useState('');
     const [showLoginPassword, setShowLoginPassword] = useState(false);
+    const [unverifiedEmail, setUnverifiedEmail] = useState('');
+    const [resendingVerification, setResendingVerification] = useState(false);
+    const [verificationEmailMessage, setVerificationEmailMessage] = useState('');
     const [progress, setProgress] = useState(0);
     const onLoaderFinished = () => setProgress(0);
 
@@ -64,10 +69,39 @@ const LoginAndRegister = () => {
         toast.error('Google login failed. Please try again.');
     };
 
-    const loginSubmit = e => {
+    const loginSubmit = async e => {
         e.preventDefault();
         setProgress(50);
-        dispatch(login(loginIdentifier, loginPassword));
+        setUnverifiedEmail('');
+        setVerificationEmailMessage('');
+
+        try {
+            const result = await dispatch(login(loginIdentifier, loginPassword));
+            if (result?.emailVerificationRequired) {
+                setUnverifiedEmail(loginIdentifier.trim());
+            }
+        } catch {
+            // The Redux error state is displayed by the existing login UI.
+        }
+    };
+
+    const resendVerification = async () => {
+        if (!unverifiedEmail) return;
+
+        try {
+            setResendingVerification(true);
+            setVerificationEmailMessage('');
+            const { data } = await axios.post('/api/v1/resend-verification', {
+                email: unverifiedEmail,
+            });
+            setVerificationEmailMessage(data.message || 'A new verification email has been sent.');
+        } catch (err) {
+            setVerificationEmailMessage(
+                err.response?.data?.message || 'Unable to send a verification email. Please try again.'
+            );
+        } finally {
+            setResendingVerification(false);
+        }
     };
 
     const registerDataChange = e => {
@@ -100,13 +134,14 @@ const LoginAndRegister = () => {
         if (twoFactorRequired && twoFactorToken) {
             navigate('/login/2fa', {
                 state: {
-                    twoFactorToken
+                    twoFactorToken,
+                    enrollmentRequired: twoFactorEnrollmentRequired,
                 }
             });
         }
         const timer = setTimeout(() => setProgress(0), 5000);
         return () => clearTimeout(timer);
-    }, [dispatch, error, navigate, isAuthenticated, message, twoFactorRequired, twoFactorToken]);
+    }, [dispatch, error, navigate, isAuthenticated, message, twoFactorRequired, twoFactorToken, twoFactorEnrollmentRequired]);
 
     const Divider = () => (
         <div className='my-6 flex items-center gap-4'>
@@ -172,6 +207,26 @@ const LoginAndRegister = () => {
                                     <Link to='/password/forgot' className='self-end font-sans text-[0.7rem] uppercase tracking-luxe text-ink-soft hover:text-brass'>
                                         Forgot Password?
                                     </Link>
+
+                                    {unverifiedEmail && (
+                                        <div className='border border-amber-500/40 bg-amber-50 p-4 text-sm text-amber-900'>
+                                            <p>
+                                                Please verify your email by checking the inbox for <strong>{unverifiedEmail}</strong> before signing in.
+                                            </p>
+                                            <button
+                                                type='button'
+                                                onClick={resendVerification}
+                                                disabled={resendingVerification}
+                                                className='mt-3 font-sans text-xs font-semibold uppercase tracking-luxe underline disabled:cursor-not-allowed disabled:opacity-60'
+                                            >
+                                                {resendingVerification ? 'Sending…' : "I didn't receive an email — resend it"}
+                                            </button>
+                                            {verificationEmailMessage && (
+                                                <p className='mt-3 text-xs'>{verificationEmailMessage}</p>
+                                            )}
+                                        </div>
+                                    )}
+
                                     <button type='submit' disabled={loading} className='btn-solid w-full disabled:opacity-40'>
                                         {loading ? (
                                         <>

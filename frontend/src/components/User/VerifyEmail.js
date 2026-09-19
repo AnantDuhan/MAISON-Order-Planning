@@ -10,6 +10,7 @@ const VerifyEmail = () => {
     const { token } = useParams();
     const [status, setStatus] = useState('verifying'); // verifying | success | error
     const [message, setMessage] = useState('Verifying your email…');
+    const [emailResent, setEmailResent] = useState(false);
 
     useEffect(() => {
         let active = true;
@@ -23,6 +24,7 @@ const VerifyEmail = () => {
             } catch (error) {
                 if (!active) return;
                 setStatus('error');
+                setEmailResent(error.response?.data?.verificationEmailResent === true);
                 setMessage(
                     error.response?.data?.message ||
                     'This verification link is invalid or has expired.'
@@ -66,12 +68,19 @@ const VerifyEmail = () => {
                     )}
 
                     {status === 'error' && (
-                        <Link
-                            to='/login'
-                            className='inline-block rounded-lg border border-line px-6 py-2 text-ink'
-                        >
-                            Back to Login
-                        </Link>
+                        <>
+                            {emailResent && (
+                                <p className='mb-4 text-sm text-ink-soft'>
+                                    Check your inbox and spam folder for the new link.
+                                </p>
+                            )}
+                            <Link
+                                to='/login'
+                                className='inline-block rounded-lg border border-line px-6 py-2 text-ink'
+                            >
+                                Back to Login
+                            </Link>
+                        </>
                     )}
                 </div>
             </div>

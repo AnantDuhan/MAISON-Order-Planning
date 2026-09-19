@@ -37,6 +37,7 @@ import {
     GOOGLE_LOGIN_REQUEST,
     GOOGLE_LOGIN_SUCCESS,
     GOOGLE_LOGIN_FAIL,
+    LOGIN_2FA_REQUIRED,
     CLEAR_ERRORS,
     LOGIN_2FA_REQUEST,
     LOGIN_2FA_SUCCESS,
@@ -73,6 +74,14 @@ export const login = (email, password) => async dispatch => {
 
         // 2FA enabled → don't complete login yet
         if (data.twoFactorRequired) {
+            dispatch({
+                type: LOGIN_2FA_REQUIRED,
+                payload: {
+                    token: data.twoFactorToken,
+                    enrollmentRequired: data.enrollmentRequired === true,
+                },
+            });
+
             return {
                 twoFactorRequired: true,
                 twoFactorToken: data.twoFactorToken,
@@ -87,6 +96,14 @@ export const login = (email, password) => async dispatch => {
         return data;
 
     } catch (error) {
+        // A verified email is required before a session can be created. This
+        // is an expected state, so let the login UI offer a resend action
+        // instead of treating it as a generic login failure.
+        if (error.response?.data?.emailVerificationRequired) {
+            dispatch({ type: LOGIN_FAIL, payload: null });
+            return error.response.data;
+        }
+
         dispatch({
             type: LOGIN_FAIL,
             payload:
@@ -308,7 +325,19 @@ export const loginWithGoogle = (googleToken) => async (dispatch) => {
             config
         );
 
+        if (data.twoFactorRequired) {
+            dispatch({
+                type: LOGIN_2FA_REQUIRED,
+                payload: {
+                    token: data.twoFactorToken,
+                    enrollmentRequired: data.enrollmentRequired === true,
+                },
+            });
+            return data;
+        }
+
         dispatch({ type: GOOGLE_LOGIN_SUCCESS, payload: data.user });
+        return data;
 
     } catch (error) {
         dispatch({
@@ -372,6 +401,25 @@ export const verifyLoginOtp = (twoFactorToken, code) => async dispatch => {
             payload: message,
         });
 
+        throw new Error(message);
+    }
+};
+
+// Complete required first-time TOTP enrollment for an admin. The server only
+// issues the admin session after the code has been verified.
+export const enrollAdminTwoFactor = (twoFactorToken, code) => async dispatch => {
+    try {
+        dispatch({ type: LOGIN_2FA_REQUEST });
+        const { data } = await axios.post(
+            '/api/v1/login/2fa/enroll',
+            { twoFactorToken, code },
+            { headers: { 'Content-Type': 'application/json' } }
+        );
+        dispatch({ type: LOGIN_2FA_SUCCESS, payload: data.user });
+        return data;
+    } catch (error) {
+        const message = error.response?.data?.message || error.message;
+        dispatch({ type: LOGIN_2FA_FAIL, payload: message });
         throw new Error(message);
     }
 };

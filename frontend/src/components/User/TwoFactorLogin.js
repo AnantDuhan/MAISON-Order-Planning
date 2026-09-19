@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import axios from 'axios';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
-import { verifyLoginOtp } from '../../actions/userAction';
+import { enrollAdminTwoFactor, verifyLoginOtp } from '../../actions/userAction';
 
 const TwoFactorLogin = () => {
     const location = useLocation();
@@ -10,10 +11,33 @@ const TwoFactorLogin = () => {
 
     const twoFactorToken =
         location.state?.twoFactorToken;
+    const enrollmentRequired = location.state?.enrollmentRequired === true;
 
     const [code, setCode] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [setup, setSetup] = useState(null);
+
+    useEffect(() => {
+        if (!enrollmentRequired || !twoFactorToken) return;
+
+        let active = true;
+        const startEnrollment = async () => {
+            try {
+                const { data } = await axios.post('/api/v1/login/2fa/setup', {
+                    twoFactorToken,
+                });
+                if (active) setSetup(data);
+            } catch (err) {
+                if (active) {
+                    setError(err.response?.data?.message || 'Unable to start admin 2FA setup.');
+                }
+            }
+        };
+
+        startEnrollment();
+        return () => { active = false; };
+    }, [enrollmentRequired, twoFactorToken]);
 
     const handleSubmit = async e => {
         e.preventDefault();
@@ -27,8 +51,9 @@ const TwoFactorLogin = () => {
             setLoading(true);
             setError('');
 
-            await dispatch(
-                verifyLoginOtp(twoFactorToken, code)
+            await dispatch(enrollmentRequired
+                ? enrollAdminTwoFactor(twoFactorToken, code)
+                : verifyLoginOtp(twoFactorToken, code)
             );
 
             navigate('/');
@@ -53,17 +78,40 @@ const TwoFactorLogin = () => {
         <div className="editorial-shell flex min-h-[70vh] items-center justify-center py-16">
             <div className="w-full max-w-md border border-line bg-surface p-8">
                 <p className="eyebrow">
-                    Two-factor authentication
+                    {enrollmentRequired ? 'Admin security setup' : 'Two-factor authentication'}
                 </p>
 
                 <h1 className="heading-display mt-3">
-                    Verify your identity
+                    {enrollmentRequired ? 'Secure your admin account' : 'Verify your identity'}
                 </h1>
 
                 <p className="mt-4 text-sm text-ink-soft">
-                    Enter the 6-digit code from your
-                    authenticator app.
+                    {enrollmentRequired
+                        ? 'Two-factor authentication is required before an admin can access the dashboard.'
+                        : 'Enter the 6-digit code from your authenticator app.'}
                 </p>
+
+                {enrollmentRequired && (
+                    <div className="mt-6 border border-line bg-surface-2 p-4 text-center">
+                        {setup?.qrCode ? (
+                            <>
+                                <img
+                                    src={setup.qrCode}
+                                    alt="Admin 2FA setup QR code"
+                                    className="mx-auto h-48 w-48 bg-white p-2"
+                                />
+                                <p className="mt-3 text-sm text-ink-soft">
+                                    Scan this code with an authenticator app, then enter its current code below.
+                                </p>
+                                <p className="mt-3 break-all font-mono text-xs text-ink-soft">
+                                    {setup.secret}
+                                </p>
+                            </>
+                        ) : !error && (
+                            <p className="text-sm text-ink-soft">Preparing secure setup…</p>
+                        )}
+                    </div>
+                )}
 
                 <form
                     onSubmit={handleSubmit}
@@ -73,7 +121,7 @@ const TwoFactorLogin = () => {
                         htmlFor="twoFactorCode"
                         className="block text-sm font-medium text-ink"
                     >
-                        Authentication code
+                        {enrollmentRequired ? 'Enter the 6-digit setup code' : 'Authentication code'}
                     </label>
 
                     <input

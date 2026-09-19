@@ -14,6 +14,8 @@ const {
    updateUserRole,
    googleLogin,
    verifyLoginOtp,
+   setupAdminTwoFactorEnrollment,
+   verifyAdminTwoFactorEnrollment,
    setupTwoFactorAuth,
    verifyTwoFactorAuth,
    disableTwoFactorAuth,
@@ -54,7 +56,7 @@ router.route('/register').post(authLimiter, upload.single('image'), registerUser
 
 router.route('/login').post(authLimiter, loginUser);
 
-router.route("/verify-email/:token").get(verifyEmail);
+router.route("/verify-email/:token").get(authLimiter, verifyEmail);
 
 router
   .route("/resend-verification")
@@ -62,6 +64,8 @@ router
 
 // Two-factor authentication
 router.route('/login/2fa').post(authLimiter, verifyLoginOtp);      // complete login with a TOTP code
+router.route('/login/2fa/setup').post(authLimiter, setupAdminTwoFactorEnrollment);
+router.route('/login/2fa/enroll').post(authLimiter, verifyAdminTwoFactorEnrollment);
 router.route('/2fa/setup').get(isAuthUser, setupTwoFactorAuth);    // begin setup → returns QR
 router.route('/2fa/verify').post(isAuthUser, verifyTwoFactorAuth); // confirm setup → enables 2FA
 router.route('/2fa/disable').post(isAuthUser, disableTwoFactorAuth);

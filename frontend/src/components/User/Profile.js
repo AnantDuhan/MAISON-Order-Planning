@@ -128,6 +128,7 @@ const Profile = () => {
   // --------------------------------------------------
 
   const is2FAEnabled = user?.twoFactorAuth?.enabled === true;
+  const isAdmin = user?.role === "admin";
 
   const isMember =
     membership?.isActive && membership.status === "ACTIVE";
@@ -375,8 +376,9 @@ const Profile = () => {
                         </h2>
 
                         <p className="mt-2 max-w-xl font-sans text-sm leading-6 text-ink-soft">
-                          Add an extra layer of security to your
-                          Maison account using an authenticator app.
+                          {isAdmin
+                            ? "Two-factor authentication is required for administrator accounts."
+                            : "Add an extra layer of security to your Maison account using an authenticator app."}
                         </p>
                       </div>
 
@@ -565,7 +567,13 @@ const Profile = () => {
                     {/* DISABLE 2FA */}
                     {/* ================================================== */}
 
-                    {is2FAEnabled && !showDisable && (
+                    {is2FAEnabled && isAdmin && (
+                      <p className="mt-6 font-sans text-sm text-ink-soft">
+                        2FA is mandatory for administrators and cannot be disabled.
+                      </p>
+                    )}
+
+                    {is2FAEnabled && !isAdmin && !showDisable && (
                       <div className="mt-6">
                         <button
                           type="button"
@@ -583,7 +591,7 @@ const Profile = () => {
                     )}
 
                     {/* DISABLE FORM */}
-                    {is2FAEnabled && showDisable && (
+                    {is2FAEnabled && !isAdmin && showDisable && (
                       <form
                         onSubmit={handleDisable2FA}
                         className="mt-7 border-t border-line pt-7"

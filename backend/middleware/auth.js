@@ -15,6 +15,7 @@ exports.isAuthUser = async (req, res, next) => {
        process.env.JWT_SECRET_KEY
    );
 
+   req.auth = decodedToken;
    req.user = await User.findById(decodedToken.id);
 
    next();
@@ -28,6 +29,17 @@ exports.authRoles = (...roles) => {
              message: `Role: ${req.user.role} is not allowed to access the resource`
          });
       }
+
+      // Admin API access must be backed by a session created after a TOTP
+      // challenge. This is enforced here so it protects every admin route,
+      // rather than relying on the client-side dashboard guard.
+      if (req.user.role === 'admin' && !req.auth?.mfaVerified) {
+         return res.status(403).json({
+            success: false,
+            message: 'Two-factor authentication is required for admin access'
+         });
+      }
+
       next();
    };
 };
