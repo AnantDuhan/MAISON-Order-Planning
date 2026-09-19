@@ -7,11 +7,11 @@ const json429 = message => (req, res) =>
 
 // One shared ioredis CLIENT is fine; what must not be shared is the RedisStore
 // wrapper. So we make a factory that returns a new store (with a unique prefix)
-// per limiter. Falls back to the in-memory store when REDIS_URL is unset.
+// per limiter. Falls back to the in-memory store when REDIS_UPSTASH_URL is unset.
 let makeStore = () => undefined;
 
-if (process.env.REDIS_URL) {
-    const client = new IORedis(process.env.REDIS_URL, {
+if (process.env.REDIS_UPSTASH_URL) {
+    const client = new IORedis(process.env.REDIS_UPSTASH_URL, {
         maxRetriesPerRequest: null,
         enableReadyCheck: false,
     });

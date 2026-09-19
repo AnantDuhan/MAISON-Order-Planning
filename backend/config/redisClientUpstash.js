@@ -1,12 +1,15 @@
 const dotenv = require("dotenv");
+const path = require("path");
 
-dotenv.config({ path: './backend/config/config.env' });
+dotenv.config({
+  path: path.resolve(__dirname, "../config/config.env")
+});
 
 let redis;
 
 if (process.env.REDIS_URL) {
   const { createClient } = require('redis');
-  const client = createClient({ url: process.env.REDIS_URL });
+  const client = createClient({ url: process.env.REDIS_UPSTASH_URL });
   const ready = client.connect().then(() => {
     console.info('Redis connected');
     return client;

@@ -32,7 +32,7 @@ const io = new Server(createServer, {
 // event emitted on one instance never reaches clients connected to another.
 // Falls back to the in-memory adapter locally when REDIS_URL is unset.
 async function attachRedisAdapter(io) {
-    if (!process.env.REDIS_URL) {
+    if (!process.env.REDIS_UPSTASH_URL) {
         console.info('Socket.io: single-instance mode (no REDIS_URL)');
         return;
     }

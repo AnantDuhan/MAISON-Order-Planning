@@ -87,7 +87,7 @@ projects:
         sync: false
       - key: UPSTASH_REDIS_REST_TOKEN
         sync: false
-      - key: REDIS_URL
+      - key: REDIS_UPSTASH_URL
         sync: false
       - key: REDIS_HOSTED_URL
         sync: false
