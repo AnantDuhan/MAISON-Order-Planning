@@ -1,4 +1,4 @@
-[![Netlify Status](https://api.netlify.com/api/v1/badges/bfa19719-6a66-4a86-b462-22666ef3e580/deploy-status?branch=main)](https://app.netlify.com/projects/orderplanning/deploys)
+[![Netlify Status](https://api.netlify.com/api/v1/badges/6b235f56-a1b8-484c-af2c-5a0c5fff916b/deploy-status)](https://app.netlify.com/projects/maisonorderplanning/deploys)
 
 # Maison — MERN E‑Commerce Platform
 
