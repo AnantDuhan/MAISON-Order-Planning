@@ -32,7 +32,7 @@ const Dashboard = () => {
 
   const [range, setRange] = useState("30d");
   const [membershipAnalytics, setMembershipAnalytics] = useState(null);
-  const [twoFactorAnalytics, setTwoFactorAnalytics] = useState(null);
+  // const [twoFactorAnalytics, setTwoFactorAnalytics] = useState(null);
 
   const {
     analytics,
@@ -51,11 +51,6 @@ const Dashboard = () => {
       .get("/api/v1/admin/membership-analytics")
       .then(({ data }) => setMembershipAnalytics(data.analytics))
       .catch(() => setMembershipAnalytics(null));
-
-    axios
-      .get("/api/v1/admin/2fa-analytics")
-      .then(({ data }) => setTwoFactorAnalytics(data.analytics))
-      .catch(() => setTwoFactorAnalytics(null));
   }, [dispatch]);
 
   useEffect(() => {
