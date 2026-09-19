@@ -22,6 +22,11 @@ const getTransporter = () => {
         host: process.env.SMTP_HOST,
         port: Number(process.env.SMTP_PORT) || 587,
         secure: Number(process.env.SMTP_PORT) === 465,
+
+        // Render does not provide outbound IPv6. Gmail may resolve to an IPv6
+        // address first, so force the SMTP socket to use IPv4.
+        family: 4,
+
         auth: {
             user: process.env.SMTP_MAIL,
             pass: process.env.SMTP_PASSWORD,
