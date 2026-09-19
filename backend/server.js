@@ -33,10 +33,10 @@ const io = new Server(createServer, {
 // Falls back to the in-memory adapter locally when REDIS_URL is unset.
 async function attachRedisAdapter(io) {
     if (!process.env.REDIS_UPSTASH_URL) {
-        console.info('Socket.io: single-instance mode (no REDIS_URL)');
+        console.info('Socket.io: single-instance mode (no REDIS_UPSTASH_URL)');
         return;
     }
-    const pubClient = createClient({ url: process.env.REDIS_URL });
+    const pubClient = createClient({ url: process.env.REDIS_UPSTASH_URL });
     const subClient = pubClient.duplicate();
     pubClient.on('error', e => console.error('Socket pub error:', e.message));
     subClient.on('error', e => console.error('Socket sub error:', e.message));
