@@ -150,7 +150,7 @@ const ProductDetails = () => {
       process.env.REACT_APP_SOCKET_URL ||
         (process.env.NODE_ENV === "production"
           ? undefined
-          : "http://localhost:4000"),
+          : "https://maison-order-planning.onrender.com"),
     );
     socket.emit("joinProductRoom", id);
 
