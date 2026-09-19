@@ -34,7 +34,7 @@ const technology = [
     ['Database', 'MongoDB'],
     ['Caching & Real-Time Scaling', 'Redis, Socket.IO'],
     ['Search', 'Elasticsearch'],
-    ['Payments', 'Stripe'],
+    ['Payments', 'CashFree'],
     ['Storage', 'AWS S3'],
     ['Deployment', 'Netlify, Render'],
 ];
