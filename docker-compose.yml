@@ -1,40 +1,42 @@
 services:
   app:
-    build: .
+    build:
+      context: .
+      # CRA inlines REACT_APP_* at build time, so any client-visible vars must
+      # be passed as build args here (they come from your shell / .env).
+      args:
+        REACT_APP_GOOGLE_CLIENT_ID: ${REACT_APP_GOOGLE_CLIENT_ID:-}
+        REACT_APP_CASHFREE_MODE: ${REACT_APP_CASHFREE_MODE:-}
+        REACT_APP_SOCKET_URL: ${REACT_APP_SOCKET_URL:-}
     container_name: order_planning_ecommerce
     ports:
-      - "4001:4000"
+      - "8080:8080"
+    # Secrets (JWT_SECRET_KEY, GEMINI_API_KEY, Cashfree, AWS, SMTP, OAuth, ...)
+    # come from this file. The `environment:` block below overrides the service
+    # URLs so they point at the compose network, not localhost/Atlas/Upstash.
+    env_file:
+      - ./backend/config/config.env
     environment:
-      - DB_HOSTED_URI=mongodb://mongo:27017/e-commerce
+      - NODE_ENV=production
       - PORT=8080
-      - JWT_SECRET=development-secret
-      - JWT_EXPIRE=5d
+      # DB_HOSTED_URI is intentionally NOT set here — it is read from
+      # backend/config/config.env (the env_file above) so that file is the
+      # single source of truth for the Mongo connection string.
       - REDIS_URL=redis://redis:6379
+      - ELASTICSEARCH_NODE=http://elasticsearch:9200
     depends_on:
-      mongo:
+      redis:
+        condition: service_healthy
+      elasticsearch:
         condition: service_healthy
     restart: unless-stopped
 
-  mongo:
-    image: mongo:7.0
-    container_name: my_mongodb
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongo-data:/data/db
-    healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
-      interval: 10s
-      timeout: 10s
-      retries: 5
-      start_period: 40s
-    restart: unless-stopped
-  
   redis:
-    image: redis:alpine
+    image: redis:7-alpine
     container_name: my_redis
-    ports:
-      - "6379:6379"
+    # No host port published — the app reaches Redis over the internal Compose
+    # network as redis://redis:6379. Add `ports: ["6380:6379"]` only if you want
+    # to run redis-cli against it from your host on port 6380.
     volumes:
       - redis-data:/data
     healthcheck:
@@ -44,8 +46,32 @@ services:
       retries: 5
     restart: unless-stopped
 
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.0
+    container_name: my_elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false     # dev only — enable + TLS in production
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"  # cap heap; raise for larger catalogs
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    ports:
+      - "9200:9200"
+    volumes:
+      - es-data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -qE '\"status\":\"(green|yellow)\"'"]
+      interval: 15s
+      timeout: 10s
+      retries: 12
+      start_period: 60s
+    restart: unless-stopped
+
 volumes:
-  mongo-data:
-    driver: local
   redis-data:
+    driver: local
+  es-data:
     driver: local
