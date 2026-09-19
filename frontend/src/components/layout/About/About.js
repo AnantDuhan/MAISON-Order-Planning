@@ -13,17 +13,42 @@ const socials = [
     { icon: <LinkedInIcon />, href: 'https://www.linkedin.com/in/anantduhan/', label: 'LinkedIn' },
 ];
 
+const platformCapabilities = [
+    ['User Authentication & Authorization', 'Secure authentication, role-based access control, and two-factor authentication (2FA).'],
+    ['Product Management', 'Product catalogue, categories, inventory, reviews, and product search.'],
+    ['Shopping Experience', 'Cart, wishlist, coupons, memberships, and order management.'],
+    ['Payments', 'Secure payment processing through Stripe.'],
+    ['Order & Return Management', 'Order tracking, returns, refunds, and customer workflows.'],
+    ['Admin Dashboard', 'Business analytics for revenue, orders, products, inventory, returns, coupons, memberships, and 2FA adoption.'],
+    ['Real-Time Features', 'Socket.IO with Redis-based Pub/Sub for scalable real-time communication.'],
+    ['Caching & Rate Limiting', 'Redis-based performance improvements and API protection.'],
+    ['Search & Analytics', 'Elasticsearch integration for efficient product search and data analysis.'],
+    ['Cloud Storage', 'AWS S3 for product and media storage.'],
+    ['Responsive Interface', 'React.js, Tailwind CSS, and a TypeScript-based frontend experience.'],
+];
+
+const technology = [
+    ['Frontend', 'React.js, TypeScript, Tailwind CSS'],
+    ['Backend', 'Node.js, Express.js'],
+    ['Database', 'MongoDB'],
+    ['Caching & Real-Time Scaling', 'Redis, Socket.IO'],
+    ['Search', 'Elasticsearch'],
+    ['Payments', 'Stripe'],
+    ['Storage', 'AWS S3'],
+    ['Deployment', 'Netlify, Render'],
+];
+
 const About = () => {
     return (
         <div className='editorial-shell py-16'>
-            <MetaData title='About · Maison' />
+            <MetaData title='About · Order Planning' />
 
             {/* Masthead */}
             <div className='mx-auto max-w-3xl text-center'>
-                <p className='eyebrow'>Our Story</p>
-                <h1 className='heading-display mt-4 text-display-lg'>About Us</h1>
+                <p className='eyebrow'>The Platform</p>
+                <h1 className='heading-display mt-4 text-display-lg'>Order Planning</h1>
                 <p className='mx-auto mt-6 max-w-xl font-display text-2xl font-light italic leading-relaxed text-ink-soft'>
-                    “A house built on the belief that fewer, better things are worth the wait.”
+                    A modern MERN stack e-commerce platform built for secure, scalable, and seamless shopping.
                 </p>
             </div>
 
@@ -40,21 +65,19 @@ const About = () => {
                 </div>
 
                 <div>
-                    <p className='eyebrow'>Founder &amp; CEO</p>
+                    <p className='eyebrow'>Built By</p>
                     <h2 className='heading-display mt-3 text-display'>Anant Duhan</h2>
                     <p className='mt-6 max-w-xl font-sans text-base leading-relaxed text-ink-soft'>
-                        This is a MERN stack e-commerce website built by{' '}
+                        <strong className='font-semibold text-ink'>Order Planning</strong> is a production-oriented MERN stack e-commerce platform built by{' '}
                         <a
                             href='https://www.linkedin.com/in/anantduhan/'
                             target='_blank'
                             rel='noreferrer'
                             className='text-brass underline-offset-4 hover:underline'
                         >
-                            @anantduhan
+                            Anant Duhan
                         </a>
-                        . I'm a <b className='text-ink'>Full Stack Developer</b> and a{' '}
-                        <b className='text-ink'>B.Tech graduate</b> from{' '}
-                        <b className='text-ink'>SRM Institute of Science and Technology (2023 batch)</b>.
+                        , a <strong className='font-semibold text-ink'>Software Engineer and Full Stack Developer</strong>. It brings a complete shopping experience together with a secure and scalable backend.
                     </p>
 
                     <a
@@ -68,10 +91,42 @@ const About = () => {
                 </div>
             </div>
 
-            {/* Brands */}
+            {/* Platform capabilities */}
+            <section className='mt-24'>
+                <div className='mx-auto max-w-2xl text-center'>
+                    <p className='eyebrow'>What Order Planning Includes</p>
+                    <h2 className='heading-display mt-3 text-display'>Built for the full commerce journey</h2>
+                </div>
+                <div className='mt-12 grid gap-px border border-line bg-line sm:grid-cols-2 lg:grid-cols-3'>
+                    {platformCapabilities.map(([title, description]) => (
+                        <article key={title} className='bg-surface p-6'>
+                            <h3 className='font-display text-2xl text-ink'>{title}</h3>
+                            <p className='mt-3 font-sans text-sm leading-6 text-ink-soft'>{description}</p>
+                        </article>
+                    ))}
+                </div>
+            </section>
+
+            {/* Technology */}
+            <section className='mt-24 border-y border-line py-16'>
+                <div className='mx-auto max-w-2xl text-center'>
+                    <p className='eyebrow'>Technology</p>
+                    <h2 className='heading-display mt-3 text-display'>A modern, scalable stack</h2>
+                </div>
+                <dl className='mx-auto mt-12 grid max-w-4xl gap-x-12 gap-y-8 sm:grid-cols-2'>
+                    {technology.map(([name, value]) => (
+                        <div key={name} className='border-b border-line pb-5'>
+                            <dt className='eyebrow'>{name}</dt>
+                            <dd className='mt-2 font-sans text-sm leading-6 text-ink-soft'>{value}</dd>
+                        </div>
+                    ))}
+                </dl>
+            </section>
+
+            {/* Connect */}
             <div className='mt-24 text-center'>
                 <p className='eyebrow'>Elsewhere</p>
-                <h2 className='heading-display mt-3 text-display'>Our Brands</h2>
+                <h2 className='heading-display mt-3 text-display'>Connect with Anant</h2>
                 <div className='mt-10 flex items-center justify-center gap-8'>
                     {socials.map(s => (
                         <a
