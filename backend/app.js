@@ -58,11 +58,14 @@ const corsOptions = {
     if (
       !origin ||
       allowedOrigins.includes(origin) ||
+      /^http:\/\/localhost:\d+$/.test(origin) ||                 // any localhost port (dev)
       /^https:\/\/[-a-z0-9]+--orderplanning\.netlify\.app$/i.test(origin)
     ) {
       return callback(null, true);
     }
-    return callback(new Error("Origin is not allowed by CORS"));
+    // Do NOT throw — that returns a 500 with no CORS headers, which the browser
+    // reports as a generic CORS error. Reject cleanly instead.
+    return callback(null, false);
   },
   optionsSuccessStatus: 204,
   credentials: true,

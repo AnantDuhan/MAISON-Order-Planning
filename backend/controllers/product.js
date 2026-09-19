@@ -3,7 +3,7 @@ import User from "../models/user.js";
 import Review from "../models/review.js";
 import ApiFeatures from "../utils/apifeatures.js";
 import generateId from "../utils/generateId.js";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenAI } from "@google/genai";
 import redisClientPromise from "../config/redisClientUpstash.js";
 import dotenv from "dotenv";
 import { generateEmbedding } from "../utils/generateEmbedding.js";
@@ -12,6 +12,23 @@ dotenv.config({ path: "../config/config.env" });
 
 const timestamp = Date.now();
 const timestampInSeconds = Math.floor(timestamp / 1000);
+
+// Auto-generate a review summary the first time a product with enough reviews
+// is viewed, so nobody has to click "Generate". Guarded so each product only
+// generates once at a time.
+const summaryInProgress = new Set();
+
+function maybeAutoSummarize(product, app) {
+  if (!product || !product._id) return;
+  const id = String(product._id);
+  const hasSummary = product.aiSummary && product.aiSummary.overall;
+  if (product.numOfReviews > 3 && !hasSummary && !summaryInProgress.has(id)) {
+    summaryInProgress.add(id);
+    generateReviewSummary(id, app)
+      .catch((err) => console.error("Auto summary (on view) failed:", err.message))
+      .finally(() => summaryInProgress.delete(id));
+  }
+}
 
 // get all products
 // export const getAllProducts = async (req, res, next) => {
@@ -117,6 +134,7 @@ export const getProductDetails = async (req, res, next) => {
       const cachedProduct = await redisClient.get(cacheKey);
       if (cachedProduct) {
         const productData = JSON.parse(cachedProduct);
+        maybeAutoSummarize(productData, req.app);
         return res.status(200).json({
           success: true,
           product: productData,
@@ -146,6 +164,8 @@ export const getProductDetails = async (req, res, next) => {
     } catch (cacheError) {
       console.error("Redis cache write error:", cacheError.message);
     }
+
+    maybeAutoSummarize(product, req.app);
 
     res.status(200).json({
       success: true,
@@ -255,27 +275,75 @@ export const updateProduct = async (req, res, next) => {
   }
 };
 
-// create new review or update the review
-// Regenerate a product's AI review summary, invalidate its cache, and push the
-// update to viewers in real time. Reusable by the admin endpoint and the
-// automatic trigger when a new review is added.
+const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.5-flash";
+const MIN_REVIEWS_FOR_SUMMARY = 3;
+
+function buildSummaryPrompt(reviews) {
+  const reviewsText = reviews.map((r) => r.comment).join("\n");
+  return `You are an e-commerce review analyst.
+
+Analyze the following customer reviews and return a concise, useful summary.
+
+Return ONLY valid JSON in exactly this structure:
+{
+  "overall": "One or two sentence overall takeaway",
+  "pros": ["Short positive point", "Short positive point"],
+  "cons": ["Short negative point", "Short negative point"]
+}
+
+Rules:
+- "overall" must be concise and factual.
+- Provide 2-3 pros and 2-3 cons.
+- Each point must be short and specific.
+- No markdown, no bullet symbols, no emojis, and no text outside the JSON object.
+
+Customer reviews:
+---
+${reviewsText}
+---`;
+}
+
+async function generateStructuredSummary(reviews) {
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+
+  const response = await ai.models.generateContent({
+    model: GEMINI_MODEL,
+    contents: buildSummaryPrompt(reviews),
+    config: { responseMimeType: "application/json" },
+  });
+
+  const raw = (response.text || "").trim();
+
+  let summary;
+  try {
+    summary = JSON.parse(raw);
+  } catch {
+    throw new Error("AI returned an invalid summary format.");
+  }
+
+  if (
+    !summary ||
+    typeof summary.overall !== "string" ||
+    !Array.isArray(summary.pros) ||
+    !Array.isArray(summary.cons)
+  ) {
+    throw new Error("AI returned an invalid summary structure.");
+  }
+
+  return summary;
+}
+
 async function generateReviewSummary(productId, app) {
   if (!process.env.GEMINI_API_KEY) return null;
 
   const product = await Product.findById(productId);
-  if (!product || product.numOfReviews < 3) return null;
+  if (!product || product.numOfReviews < MIN_REVIEWS_FOR_SUMMARY) return null;
 
-  const reviewsText = product.reviews.map((r) => r.comment).join("\n");
-  const prompt = `You are an e-commerce assistant. Based on the following customer reviews, generate a concise summary. The summary should be a string containing a 'Pros' list and a 'Cons' list, each with 2-3 bullet points. Use emojis like \u2705 for pros and \u26a0\ufe0f for cons. Reviews: --- ${reviewsText} ---`;
+  const summary = await generateStructuredSummary(product.reviews);
 
-  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-  const result = await model.generateContent(prompt);
-
-  product.aiSummary = result.response.text();
+  product.aiSummary = summary;
   await product.save();
 
-  // Invalidate the cached product so the next fetch includes the new summary.
   try {
     const redisPromise = app && app.get("redisClient");
     const redisClient = redisPromise ? await redisPromise : null;
@@ -286,14 +354,11 @@ async function generateReviewSummary(productId, app) {
     console.error("Summary cache invalidation error:", cacheError.message);
   }
 
-  // Tell everyone viewing this product to refresh.
   const io = app && app.get("socketio");
   if (io) {
-    io.to(String(productId)).emit("summaryUpdate", {
-      aiSummary: product.aiSummary,
-    });
+    io.to(String(productId)).emit("summaryUpdate", { aiSummary: summary });
   }
-  return product.aiSummary;
+  return summary;
 }
 
 export const createProductReview = async (req, res, next) => {
@@ -603,148 +668,25 @@ export const summerizeProductReviews = async (req, res, next) => {
     if (!process.env.GEMINI_API_KEY) {
       return res.status(500).json({
         success: false,
-        message:
-          "GEMINI_API_KEY not found. Please check your server environment variables.",
+        message: "GEMINI_API_KEY not found. Please check your server environment variables.",
       });
     }
 
     const productId = req.params.id;
-
     const product = await Product.findById(productId);
 
     if (!product) {
-      return res.status(404).json({
-        success: false,
-        message: "Product not found",
-      });
+      return res.status(404).json({ success: false, message: "Product not found" });
     }
 
-    if (product.numOfReviews < 3) {
+    if (product.numOfReviews < MIN_REVIEWS_FOR_SUMMARY) {
       return res.status(400).json({
         success: false,
         message: "Not enough reviews to generate a summary.",
       });
     }
 
-    // if (product.numOfReviews < 3) {
-    //     return res.status(400).json({
-    //         success: false,
-    //         message: 'Review count mismatch. Not enough reviews to summarize.'
-    //     });
-    // }
-
-    const reviewsText = product.reviews.map((r) => r.comment).join("\n");
-
-    const prompt = `
-            You are an e-commerce review analyst.
-
-            Analyze the following customer reviews and return a concise, useful summary.
-
-            Return ONLY valid JSON in exactly this structure:
-
-            {
-            "overall": "One or two sentence overall takeaway",
-            "pros": [
-                "Short positive point",
-                "Short positive point",
-                "Short positive point"
-            ],
-            "cons": [
-                "Short negative point",
-                "Short negative point",
-                "Short negative point"
-            ]
-            }
-
-            Rules:
-            - "overall" must be concise and factual.
-            - Provide 2-3 pros.
-            - Provide 2-3 cons.
-            - Each point must be short and specific.
-            - Do not use markdown.
-            - Do not use bullet symbols.
-            - Do not include emojis.
-            - Do not include any text outside the JSON object.
-
-            Customer reviews:
-            ---
-            ${reviewsText}
-            ---
-        `;
-
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-
-    const model = genAI.getGenerativeModel({
-      model: "gemini-2.5-flash",
-      generationConfig: {
-        responseMimeType: "application/json",
-      },
-    });
-
-    const result = await model.generateContent(prompt);
-
-    const rawSummary = result.response.text().trim();
-
-    let summary;
-
-    try {
-      summary = JSON.parse(rawSummary);
-    } catch (parseError) {
-      console.error("❌ Failed to parse Gemini JSON response:", rawSummary);
-
-      return res.status(500).json({
-        success: false,
-        message: "AI returned an invalid summary format.",
-      });
-    }
-
-    // Basic validation of the AI response
-    if (
-      !summary ||
-      typeof summary.overall !== "string" ||
-      !Array.isArray(summary.pros) ||
-      !Array.isArray(summary.cons)
-    ) {
-      console.error("❌ Invalid AI summary structure:", summary);
-
-      return res.status(500).json({
-        success: false,
-        message: "AI returned an invalid summary structure.",
-      });
-    }
-
-    await Product.findByIdAndUpdate(
-      productId,
-      {
-        $set: {
-          aiSummary: summary,
-        },
-      },
-      {
-        new: true,
-      },
-    );
-
-    try {
-      const redisPromise = req.app.get("redisClient");
-      if (redisPromise) {
-        const redisClient = await redisPromise;
-
-        if (typeof redisClient.del === "function") {
-          const cacheKey = `product:${productId}`;
-          await redisClient.del(cacheKey);
-          console.log(`✅ CACHE INVALIDATED for product: ${productId}`);
-        } else {
-          console.log("⚠️ Redis client found, but .del is not available.");
-        }
-      } else {
-        console.log(
-          "Redis client not found in app, skipping cache invalidation.",
-        );
-      }
-    } catch (cacheError) {
-      console.error("Redis cache invalidation error:", cacheError);
-    }
+    const summary = await generateReviewSummary(productId, req.app);
 
     res.status(200).json({
       success: true,
@@ -753,19 +695,15 @@ export const summerizeProductReviews = async (req, res, next) => {
     });
   } catch (error) {
     console.error("AI Summarization Error:", error);
-
-    // Gracefully handle the Rate Limit error if it happens again
     if (error.status === 429) {
       return res.status(429).json({
         success: false,
-        message:
-          "The AI summary feature is currently busy. Please try again in a minute.",
+        message: "The AI summary feature is currently busy. Please try again in a minute.",
       });
     }
-
     res.status(500).json({
       success: false,
-      message: "Server Error during summarization",
+      message: error.message || "Server Error during summarization",
     });
   }
 };

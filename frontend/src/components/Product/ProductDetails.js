@@ -355,7 +355,7 @@ const ProductDetails = () => {
 
               {product.reviews &&
                 product.reviews.length > 0 &&
-                product.aiSummary && (
+                product.aiSummary?.overall && (
                   <section className="mb-12 overflow-hidden border border-brass/30 bg-surface">
                     {/* Header */}
                     <div className="border-b border-line bg-surface-2 px-6 py-5 sm:px-8">
