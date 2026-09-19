@@ -144,9 +144,18 @@ export const loadUser = () => async dispatch => {
 
         dispatch({ type: LOAD_USER_SUCCESS, payload: data.user });
     } catch (error) {
+        const status = error.response?.status;
+
+        // `/me` is a session probe run when the app starts. A 401/403 simply
+        // means the visitor has no valid session, not that something failed.
+        // Keep that expected state out of the global error field so it cannot
+        // become a misleading toast on the login page.
         dispatch({
             type: LOAD_USER_FAIL,
-            payload: error.response?.data?.message || error.message
+            payload:
+                status === 401 || status === 403
+                    ? null
+                    : error.response?.data?.message || error.message
         });
     }
 };
