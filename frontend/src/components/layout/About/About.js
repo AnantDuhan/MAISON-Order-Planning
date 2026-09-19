@@ -24,7 +24,8 @@ const platformCapabilities = [
     ['Caching & Rate Limiting', 'Redis-based performance improvements and API protection.'],
     ['Search & Analytics', 'Elasticsearch integration for efficient product search and data analysis.'],
     ['Cloud Storage', 'AWS S3 for product and media storage.'],
-    ['Responsive Interface', 'React.js, Tailwind CSS, and a TypeScript-based frontend experience.'],
+    ['Responsive Interface', 'React.js, Tailwind CSS, and a Javascript-based frontend experience.'],
+    ['Built for Growth', 'Security, scalability, performance, and a seamless commerce experience in one full-stack platform.'],
 ];
 
 const technology = [
@@ -84,8 +85,9 @@ const About = () => {
                         href='https://www.linkedin.com/in/anantduhan/'
                         target='_blank'
                         rel='noreferrer'
-                        className='btn-outline mt-8 inline-flex'
+                        className='btn-outline mt-8 inline-flex items-center gap-2'
                     >
+                        <LinkedInIcon fontSize='small' />
                         Visit LinkedIn
                     </a>
                 </div>
