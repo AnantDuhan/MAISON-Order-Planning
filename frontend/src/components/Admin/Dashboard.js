@@ -121,7 +121,7 @@ const Dashboard = () => {
   const statusBreakdown = analytics?.statusBreakdown || [];
   const couponUsage = analytics?.couponUsage || [];
   const membershipSummary = membershipAnalytics?.summary || {};
-  const twoFactorSummary = twoFactorAnalytics?.summary || {};
+  // const twoFactorSummary = twoFactorAnalytics?.summary || {};
 
   const twoFactorEnabled = stats?.twoFactorEnabled ?? 0;
   const twoFactorDisabled = stats?.twoFactorDisabled ?? 0;

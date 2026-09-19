@@ -32,7 +32,6 @@ import {
   SUMMARIZE_REVIEWS_RESET,
 } from "../../constants/productConstants";
 import MetaData from "../layout/MetaData";
-import ReviewCard from "./ReviewCard";
 import ReviewsSection from "./ReviewsSection";
 
 import "react-responsive-carousel/lib/styles/carousel.min.css";
@@ -53,7 +52,6 @@ const ProductDetails = () => {
   );
   const {
     loading: summaryLoading,
-    error: summaryError,
     isSummarized,
   } = useSelector((state) => state.reviewSummary);
 

@@ -16,7 +16,7 @@ const ReturnRequest = () => {
     const { id } = useParams();
     const navigate = useNavigate();
 
-    const { error, loading } = useSelector(state => state.returnRequest);
+    const { loading } = useSelector(state => state.returnRequest);
 
     const returnReasons = [
         'Defective Product',
