@@ -14,6 +14,7 @@ import axios from 'axios';
 
 import { clearErrors, login, register, loginWithGoogle } from '../../actions/userAction';
 import ButtonSpinner from '../layout/ButtonSpinner';
+import TryDemoButton from '../layout/TryDemoButton';
 
 const LoginAndRegister = () => {
     const dispatch = useDispatch();
@@ -227,18 +228,27 @@ const LoginAndRegister = () => {
                                         </div>
                                     )}
 
-                                    <button type='submit' disabled={loading} className='btn-solid w-full disabled:opacity-40'>
+                                    <button
+                                        type='submit'
+                                        disabled={loading}
+                                        className='btn-solid w-full disabled:opacity-40'
+                                    >
                                         {loading ? (
-                                        <>
-                                            <ButtonSpinner />
-                                            Signing in…
-                                        </>
-                                    ) : (
-                                        'Login'
-                                    )}
+                                            <>
+                                                <ButtonSpinner />
+                                                Signing in…
+                                            </>
+                                        ) : (
+                                            'Login'
+                                        )}
                                     </button>
 
+                                    <div className='flex justify-center'>
+                                        <TryDemoButton />
+                                    </div>
+
                                     <Divider />
+
                                     <div className='flex justify-center'>
                                         <GoogleLogin
                                             onSuccess={handleGoogleLoginSuccess}

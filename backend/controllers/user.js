@@ -234,7 +234,11 @@ exports.loginUser = async (req, res, next) => {
 
 exports.demoQuickLogin = async (req, res) => {
     try {
-        const user = await User.findOne({ email: 'demo@maisonorderplanning.in' });
+        const user = await User.findOne({ 
+            email: 'demo@maisonorderplanning.in',
+            isDemo: true,
+            role: 'admin'
+        });
 
     if(!user) {
         return res.status(404).json({
@@ -261,7 +265,7 @@ exports.demoQuickLogin = async (req, res) => {
         },
         process.env.JWT_SECRET_KEY,
         {
-            expiresIn: '90d'
+            expiresIn: '2h'
         }
     );
 

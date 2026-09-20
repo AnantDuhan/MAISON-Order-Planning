@@ -24,6 +24,7 @@ const {
    deleteAddress,
    verifyEmail,
    resendVerificationEmail,
+   demoQuickLogin,
 } = require('../controllers/user');
 
 const { isAuthUser, authRoles } = require('../middleware/auth');
@@ -101,5 +102,7 @@ router.route('/subscribe').post(subscriber);
 router.route('/unsubscribe/:token').get(unsubscribe);
 
 router.route('/auth/google').post(authLimiter, googleLogin);
+
+router.route('/demo/quick-login').get(demoQuickLogin);
 
 module.exports = router;
