@@ -3,6 +3,7 @@ const validator = require('validator');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const { type } = require('os');
 mongoose.set('strictQuery', false);
 
 const userSchema = new mongoose.Schema({
@@ -94,6 +95,17 @@ const userSchema = new mongoose.Schema({
         type: String,
         default: 'user'
     },
+    isDemo: {
+        type: Boolean,
+        default: false,
+        index: true
+    },
+    demoRestrictions: {
+        canPlaceOrders: { type: Boolean, default: false },
+        canSubmitReviews: { type: Boolean, default: false },
+        canChangeEmail: { type: Boolean, default: false },
+        canChangePassword: { type: Boolean, default: false }
+    },
     addresses: {
         type: [
             {
@@ -131,7 +143,7 @@ const userSchema = new mongoose.Schema({
     isEmailVerified: {
         type: Boolean,
         default: false
-    },
+    }
 });
 
 userSchema.pre('save', async function () {

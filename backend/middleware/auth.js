@@ -33,10 +33,18 @@ exports.authRoles = (...roles) => {
       // Admin API access must be backed by a session created after a TOTP
       // challenge. This is enforced here so it protects every admin route,
       // rather than relying on the client-side dashboard guard.
-      if (req.user.role === 'admin' && !req.auth?.mfaVerified) {
+      if (req.user.role === 'admin' && !req.auth?.mfaVerified && !req.user.isDemo) {
          return res.status(403).json({
             success: false,
             message: 'Two-factor authentication is required for admin access'
+         });
+      }
+
+      if(req.user.role === 'admin' && req.user.isDemo && !['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
+         return res.status(403).json({
+            success: false,
+            demoMode: true,
+            message: "Demo admin account are read-only"
          });
       }
 
