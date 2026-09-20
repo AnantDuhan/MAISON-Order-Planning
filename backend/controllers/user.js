@@ -130,7 +130,6 @@ exports.registerUser = async (req, res, next) => {
 };
 
 // Login User
-// Login User
 exports.loginUser = async (req, res, next) => {
     try {
         const { email, password } = req.body;
@@ -193,6 +192,7 @@ exports.loginUser = async (req, res, next) => {
                 name: user.name,
                 email: user.email,
                 avatar: user.avatar,
+                isDemo: user.isDemo,
                 mfaVerified: false,
             },
             process.env.JWT_SECRET_KEY,
@@ -225,6 +225,62 @@ exports.loginUser = async (req, res, next) => {
             success: false,
             message: err.message
         });
+    }
+};
+
+exports.demoQuickLogin = async (req, res) => {
+    try {
+        const user = await User.findOne({ email: 'demo@maisonorderplanning.in' });
+
+    if(!user) {
+        return res.status(404).json({
+            success: false,
+            message: 'Demo account not found. Please contact support.'
+        });
+    }
+
+    if(!user.isDemo) {
+        return res.status(400).json({
+            success: false,
+            message: 'The account is not a demo account. Please contact support.'
+        });
+    }
+
+    const token = jwt.sign(
+        {
+            id: user._id,
+            name: user.name,
+            email: user.email,
+            avatar: user.avatar,
+            isDemo: user.isDemo,
+            mfaVerified: false,
+        },
+        process.env.JWT_SECRET_KEY,
+        {
+            expiresIn: '90d'
+        }
+    );
+
+    const options = {
+        expires: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
+    };
+
+    return res.status(200)
+        .cookie('token', token, options)
+        .json({
+            success: true,
+            user,
+            message: "Demo account logged in successfully. You can now explore the application with limited functionality."
+        });
+    } catch (error) {
+        console.error('⚠️ Demo Quick Login Error:', error);
+        return res.status(500).json({
+            success: false,
+            message: error.message
+        })
     }
 };
 
@@ -696,7 +752,7 @@ exports.googleLogin = async (req, res, next) => {
             });
         }
 
-        const enrollmentRequired = user.role === 'admin' && !user.twoFactorAuth.enabled;
+        const enrollmentRequired = user.role === 'admin' && !user.twoFactorAuth.enabled && !user.isDemo;
         if (user.twoFactorAuth.enabled || enrollmentRequired) {
             return res.status(200).json({
                 success: true,

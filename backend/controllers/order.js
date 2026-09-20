@@ -20,6 +20,14 @@ exports.newOrder = async (req, res, next) => {
     try {
         const user = await User.findById(req.user._id);
 
+        if(user.isDemo) {
+            return res.status(403).json({
+                success: false,
+                isDemoUser: true,
+                message: "Demo accounts cannot place real orders. This is a demonstration account.",
+            });
+        }
+
         const {
             shippingInfo,
             orderItems,

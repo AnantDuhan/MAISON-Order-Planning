@@ -10,7 +10,8 @@
         "worker": "node worker.js",
         "reindex": "node scripts/reindexProducts.js",
         "seed:products": "node scripts/seedProducts.js",
-        "seed:reviews": "node scripts/seedReviews.js"
+        "seed:reviews": "node scripts/seedReviews.js",
+        "seed:demo-account": "node scripts/seed-demo-account.js"
     },
     "author": "Anant Duhan",
     "license": "ISC",

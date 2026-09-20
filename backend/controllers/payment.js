@@ -7,6 +7,14 @@ const {
 
 exports.createCashfreeOrder = async (req, res) => {
     try {
+        if(req.user?.isDemo) {
+            return res.status(403).json({
+                success: false,
+                isDemoUser: true,
+                message: "Demo mode — payments are disabled. This is a demonstration account.",
+            });
+        }
+
         const { amount } = req.body;
         const orderAmount = Number(amount);
         if (!Number.isFinite(orderAmount) || orderAmount <= 0) {
