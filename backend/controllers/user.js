@@ -172,20 +172,24 @@ exports.loginUser = async (req, res, next) => {
         }
 
         // 3. Email verified.
-        // If 2FA is enabled, require OTP before creating the session.
-        const enrollmentRequired = user.role === 'admin' && !user.twoFactorAuth.enabled;
-        if (user.twoFactorAuth.enabled || enrollmentRequired) {
-            const twoFactorToken = createTwoFactorPendingToken(user, enrollmentRequired);
+        // SKIP 2FA ENTIRELY for demo accounts
+        if (!user.isDemo) {
+            // Check 2FA for non-demo users only
+            const enrollmentRequired = user.role === 'admin' && !user.twoFactorAuth.enabled;
+            
+            if (user.twoFactorAuth.enabled || enrollmentRequired) {
+                const twoFactorToken = createTwoFactorPendingToken(user, enrollmentRequired);
 
-            return res.status(200).json({
-                success: true,
-                twoFactorRequired: true,
-                enrollmentRequired,
-                twoFactorToken
-            });
+                return res.status(200).json({
+                    success: true,
+                    twoFactorRequired: true,
+                    enrollmentRequired,
+                    twoFactorToken
+                });
+            }
         }
 
-        // 4. No 2FA → create normal login session
+        // 4. No 2FA required (or demo user) → create normal login session
         const token = jwt.sign(
             {
                 id: user._id,
@@ -752,7 +756,7 @@ exports.googleLogin = async (req, res, next) => {
             });
         }
 
-        const enrollmentRequired = user.role === 'admin' && !user.twoFactorAuth.enabled && !user.isDemo;
+        const enrollmentRequired = user.role === 'admin' && !user.twoFactorAuth.enabled;
         if (user.twoFactorAuth.enabled || enrollmentRequired) {
             return res.status(200).json({
                 success: true,
