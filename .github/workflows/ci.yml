@@ -2,33 +2,42 @@ name: Node.js CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
-  build:
+  backend:
+    name: Backend CI
     runs-on: ubuntu-latest
 
     strategy:
       matrix:
-        node-version: [18.x]
+        node-version: [22.x, 24.x]
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v3
-      with:
-        node-version: ${{ matrix.node-version }}
-        cache: 'npm'
-        cache-dependency-path: package-lock.json
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
 
-    - name: Install backend dependencies
-      run: npm install
-      working-directory: ./backend
+      - name: Install backend dependencies
+        working-directory: ./backend
+        run: npm ci
 
-    - name: Run linter for code quality check
-      run: npm run lint
-      working-directory: ./backend
+      - name: Run linter
+        working-directory: ./backend
+        run: npm run lint --if-present
+
+      - name: Run tests
+        working-directory: ./backend
+        run: npm test --if-present
+
+      - name: Build backend
+        working-directory: ./backend
+        run: npm run build --if-present
