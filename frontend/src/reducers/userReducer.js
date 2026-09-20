@@ -56,6 +56,9 @@ import {
   GOOGLE_LOGIN_SUCCESS,
   GOOGLE_LOGIN_FAIL,
   CLEAR_ERRORS,
+  DEMO_LOGIN_SUCCESS,
+  DEMO_LOGIN_REQUEST,
+  DEMO_LOGIN_FAIL,
 } from "../constants/userConstants";
 
 export const userReducer = (
@@ -77,6 +80,47 @@ export const userReducer = (
   action,
 ) => {
   switch (action.type) {
+    // --------------------------------------------------
+    // DEMO LOGIN
+    // --------------------------------------------------
+    case DEMO_LOGIN_REQUEST:
+        return {
+            ...state,
+            loading: true,
+            error: null,
+            twoFactorRequired: false,
+            twoFactorToken: null,
+            twoFactorEnrollmentRequired: false,
+        };
+
+    case DEMO_LOGIN_SUCCESS:
+        return {
+            ...state,
+            loading: false,
+            isAuthenticated: true,
+            user: action.payload,
+            twoFactorRequired: false,
+            twoFactorToken: null,
+            twoFactorEnrollmentRequired: false,
+
+            error: null,
+        };
+
+    case DEMO_LOGIN_FAIL:
+        return {
+            ...state,
+            loading: false,
+            isAuthenticated: false,
+
+            user: null,
+
+            twoFactorRequired: false,
+            twoFactorToken: null,
+            twoFactorEnrollmentRequired: false,
+
+            error: action.payload,
+        };
+
     // --------------------------------------------------
     // NORMAL LOGIN
     // --------------------------------------------------

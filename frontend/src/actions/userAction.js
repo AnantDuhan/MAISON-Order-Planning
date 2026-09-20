@@ -51,7 +51,10 @@ import {
     TWO_FACTOR_DISABLE_REQUEST,
     TWO_FACTOR_DISABLE_SUCCESS,
     TWO_FACTOR_DISABLE_FAIL,
-    CLEAR_2FA_ERROR
+    CLEAR_2FA_ERROR,
+    DEMO_LOGIN_SUCCESS,
+    DEMO_LOGIN_REQUEST,
+    DEMO_LOGIN_FAIL
 } from '../constants/userConstants';
 import axios from 'axios';
 
@@ -109,6 +112,45 @@ export const login = (email, password) => async dispatch => {
             payload:
                 error.response?.data?.message ||
                 error.message,
+        });
+
+        throw error;
+    }
+};
+
+export const demoLogin = () => async (dispatch) => {
+    try {
+        dispatch({
+            type: DEMO_LOGIN_REQUEST
+        });
+
+        const { data } = await axios.get(
+            '/api/v1/demo/quick-login',
+            {
+                withCredentials: true
+            }
+        );
+
+        if (!data.success) {
+            throw new Error(
+                data.message || 'Failed to start demo session'
+            );
+        }
+
+        dispatch({
+            type: DEMO_LOGIN_SUCCESS,
+            payload: data.user
+        });
+
+        return data.user;
+
+    } catch (error) {
+        dispatch({
+            type: DEMO_LOGIN_FAIL,
+            payload:
+                error.response?.data?.message ||
+                error.message ||
+                'Unable to start demo session'
         });
 
         throw error;
