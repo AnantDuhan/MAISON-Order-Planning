@@ -17,18 +17,19 @@ const TryDemoButton = () => {
         try {
             await dispatch(demoLogin());
 
-            toast.success('Welcome to the MAISON demo! 🎭', {
+            toast.success('Welcome to the MAISON demo.', {
                 position: 'top-right',
                 autoClose: 3000
             });
 
-            navigate('/products');
+            navigate('/admin/dashboard');
         } catch (error) {
             console.error('Demo login error:', error);
 
             toast.error(
-                error.message ||
-                'Unable to start demo session. Please try again.',
+                error.response?.data?.message ||
+                    error.message ||
+                    'Unable to start demo session. Please try again.',
                 {
                     position: 'top-right'
                 }
@@ -43,48 +44,74 @@ const TryDemoButton = () => {
             type="button"
             onClick={handleDemoClick}
             disabled={isLoading}
-            aria-label="Try MAISON demo account"
-            title="Explore MAISON without creating an account"
+            aria-label="Explore MAISON demo"
+            title="Explore MAISON using the demo account"
             className="
-                inline-flex items-center justify-center gap-2
-                rounded-lg
-                border-2 border-white
-                bg-gradient-to-r from-indigo-600 to-purple-600
+                group
+                inline-flex w-full items-center justify-center gap-2
+                border border-brass
+                bg-transparent
                 px-6 py-3
-                text-sm font-semibold text-white
-                shadow-lg shadow-indigo-500/20
-                transition-all duration-200
-                hover:-translate-y-0.5
-                hover:from-purple-600 hover:to-indigo-600
-                hover:shadow-xl hover:shadow-indigo-500/30
+                font-sans text-[0.72rem] font-semibold
+                uppercase tracking-luxe
+                text-brass
+                transition-all duration-300 ease-luxe
+
+                hover:bg-brass
+                hover:text-white
+
                 focus:outline-none
-                focus:ring-2 focus:ring-white/70
+                focus:ring-1
+                focus:ring-brass
                 focus:ring-offset-2
-                focus:ring-offset-indigo-600
+                focus:ring-offset-white
+
                 disabled:cursor-not-allowed
-                disabled:opacity-60
-                disabled:hover:translate-y-0
-                sm:px-7 sm:text-base
+                disabled:opacity-50
             "
         >
             {isLoading ? (
                 <>
                     <span
                         className="
-                            h-4 w-4
+                            h-3.5 w-3.5
                             animate-spin
                             rounded-full
-                            border-2 border-white/30
-                            border-t-white
+                            border
+                            border-brass/30
+                            border-t-brass
                         "
                         aria-hidden="true"
                     />
-                    <span>Loading Demo...</span>
+                    <span>Opening Demo</span>
                 </>
             ) : (
                 <>
-                    <span aria-hidden="true">🎭</span>
-                    <span>Try Demo</span>
+                    <span
+                        className="
+                            text-[0.65rem]
+                            transition-transform
+                            duration-300
+                            group-hover:translate-x-0.5
+                        "
+                        aria-hidden="true"
+                    >
+                        ◇
+                    </span>
+
+                    <span>Explore Demo</span>
+
+                    <span
+                        className="
+                            text-[0.65rem]
+                            transition-transform
+                            duration-300
+                            group-hover:translate-x-0.5
+                        "
+                        aria-hidden="true"
+                    >
+                        →
+                    </span>
                 </>
             )}
         </button>
