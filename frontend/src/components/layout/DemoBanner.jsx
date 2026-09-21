@@ -7,23 +7,32 @@ const DemoBanner = () => {
     if (!user?.isDemo) return null;
 
     return (
-        <div className="border-b border-indigo-400/30 bg-gradient-to-r from-indigo-600 via-purple-600 to-violet-700 text-white shadow-md">
-            <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6 lg:px-8">
-                <div className="flex flex-col items-center justify-center gap-2 text-center sm:flex-row sm:gap-4">
-                    <span className="inline-flex shrink-0 items-center rounded-full border border-white/30 bg-white/20 px-3 py-1 text-[10px] font-bold uppercase tracking-wider backdrop-blur-sm sm:text-xs">
-                        🎭 Demo Mode
+        <div className="border-b border-brass/30 bg-[#faf8f4] text-ink">
+            <div className="mx-auto flex min-h-10 max-w-7xl items-center justify-center px-4 py-2.5 sm:px-6 lg:px-8">
+                <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-center">
+                    {/* Demo label */}
+                    <span className="inline-flex items-center gap-1.5 font-sans text-[0.62rem] font-semibold uppercase tracking-luxe text-brass">
+                        <span
+                            className="h-1.5 w-1.5 rounded-full bg-brass"
+                            aria-hidden="true"
+                        />
+                        Demo
                     </span>
 
-                    <p className="m-0 text-xs font-medium leading-relaxed sm:text-sm">
-                        You're exploring a shared demonstration account.
-                        Payments and destructive actions are disabled.
-                    </p>
-                </div>
+                    {/* Divider */}
+                    <span
+                        className="hidden h-3 w-px bg-line sm:block"
+                        aria-hidden="true"
+                    />
 
-                <div className="mt-1.5 text-center">
-                    <span className="text-[10px] font-normal text-white/90 sm:text-xs">
-                        This is a read-only experience. Explore MAISON and its
-                        features freely.
+                    {/* Message */}
+                    <span className="font-sans text-[0.68rem] tracking-wide text-ink-soft sm:text-[0.72rem]">
+                        You're exploring a shared MAISON demonstration account.
+                    </span>
+
+                    {/* Read-only indicator */}
+                    <span className="font-sans text-[0.62rem] uppercase tracking-luxe text-ink-faint">
+                        Read-only
                     </span>
                 </div>
             </div>

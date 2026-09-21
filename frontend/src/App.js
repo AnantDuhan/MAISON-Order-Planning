@@ -18,6 +18,7 @@ import ErrorBoundary from "./components/layout/ErrorBoundary";
 import Loader from "./components/layout/Loader/Loader";
 import ProtectedAdminRoute from "./components/route/ProtectedAdminRoute";
 import TwoFactorLogin from "./components/User/TwoFactorLogin";
+import DemoBanner from "./components/layout/DemoBanner";
 
 /* Route-level code splitting.
    Home, the headers, the footer and the waker stay eager because they are
@@ -108,6 +109,8 @@ function App() {
             <AdminHeader />
           </Suspense>
         )}
+
+        <DemoBanner />
 
         <ErrorBoundary>
           <Suspense fallback={<Loader />}>
