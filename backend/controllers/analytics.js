@@ -5,6 +5,8 @@ const User = require('../models/user');
 const Refund = require('../models/refund');
 const Subscription = require('../models/plusMembership');
 
+const demoAnalytics = require('../data/demoAnalytics');
+
 /**
  * Admin analytics.
  *
@@ -40,6 +42,19 @@ const rangeToDate = range => {
 exports.getAnalytics = async (req, res, next) => {
   try {
     const range = req.query.range || '30d';
+
+    // Demo admin receives synthetic analytics only.
+    // Never expose production analytics to the demo account.
+    if (req.user?.isDemo) {
+        return res.status(200).json({
+            success: true,
+            range,
+            granularity: 'month',
+            demoMode: true,
+            analytics: demoAnalytics
+        });
+    }
+
     const since = rangeToDate(range);
 
     // Monthly buckets for the long window, daily otherwise.
@@ -242,6 +257,28 @@ exports.getAnalytics = async (req, res, next) => {
 // GET /api/v1/admin/stats
 exports.getAdminStats = async (req, res, next) => {
     try {
+        // Demo admin receives synthetic dashboard counts.
+        if (req.user?.isDemo) {
+            return res.status(200).json({
+                success: true,
+                demoMode: true,
+                stats: {
+                    products: 48,
+                    orders: 126,
+                    users: 84,
+                    returns: 9,
+                    refunds: 5,
+                    outOfStock: 3,
+                    inStock: 45,
+
+                    // Demo security metrics.
+                    twoFactorEnabled: 72,
+                    twoFactorDisabled: 12,
+                    twoFactorAdoptionRate: 85.7
+                }
+            });
+        }
+
         const [
             products,
             orders,
@@ -299,6 +336,85 @@ exports.getAdminStats = async (req, res, next) => {
 
 exports.getMembershipAnalytics = async (req, res) => {
     try {
+        if (req.user?.isDemo) {
+            return res.status(200).json({
+                success: true,
+                demoMode: true,
+                analytics: {
+                    summary: {
+                        total: 52,
+                        active: 46,
+                        recurringRevenue: 42800
+                    },
+
+                    statusBreakdown: [
+                        {
+                            status: 'Active',
+                            count: 46
+                        },
+                        {
+                            status: 'Expired',
+                            count: 6
+                        }
+                    ],
+
+                    planBreakdown: [
+                        {
+                            planId: 'MAISON Essential',
+                            members: 31,
+                            active: 28,
+                            amount: 600
+                        },
+                        {
+                            planId: 'MAISON Premium',
+                            members: 15,
+                            active: 13,
+                            amount: 1000
+                        },
+                        {
+                            planId: 'MAISON Elite',
+                            members: 6,
+                            active: 5,
+                            amount: 1800
+                        }
+                    ],
+
+                    recentMembers: [
+                        {
+                            _id: 'demo-membership-001',
+                            user: {
+                                name: 'Aarav Mehta',
+                                email: 'aarav.demo@example.com'
+                            },
+                            status: 'Active',
+                            planId: 'MAISON Premium',
+                            amount: 1000
+                        },
+                        {
+                            _id: 'demo-membership-002',
+                            user: {
+                                name: 'Isha Kapoor',
+                                email: 'isha.demo@example.com'
+                            },
+                            status: 'Active',
+                            planId: 'MAISON Essential',
+                            amount: 600
+                        },
+                        {
+                            _id: 'demo-membership-003',
+                            user: {
+                                name: 'Rohan Sharma',
+                                email: 'rohan.demo@example.com'
+                            },
+                            status: 'Active',
+                            planId: 'MAISON Elite',
+                            amount: 1800
+                        }
+                    ]
+                }
+            });
+        }
+
         const [totals, statusBreakdown, planBreakdown, recentMembers] = await Promise.all([
             Subscription.aggregate([
                 {
@@ -359,6 +475,55 @@ exports.getMembershipAnalytics = async (req, res) => {
 
 exports.getMemberships = async (req, res) => {
     try {
+                if (req.user?.isDemo) {
+            return res.status(200).json({
+                success: true,
+                demoMode: true,
+                memberships: [
+                    {
+                        _id: 'demo-membership-001',
+                        user: {
+                            name: 'Aarav Mehta',
+                            email: 'aarav.demo@example.com'
+                        },
+                        planId: 'MAISON Premium',
+                        status: 'Active',
+                        amount: 1000
+                    },
+                    {
+                        _id: 'demo-membership-002',
+                        user: {
+                            name: 'Isha Kapoor',
+                            email: 'isha.demo@example.com'
+                        },
+                        planId: 'MAISON Essential',
+                        status: 'Active',
+                        amount: 600
+                    },
+                    {
+                        _id: 'demo-membership-003',
+                        user: {
+                            name: 'Rohan Sharma',
+                            email: 'rohan.demo@example.com'
+                        },
+                        planId: 'MAISON Elite',
+                        status: 'Active',
+                        amount: 1800
+                    },
+                    {
+                        _id: 'demo-membership-004',
+                        user: {
+                            name: 'Meera Nair',
+                            email: 'meera.demo@example.com'
+                        },
+                        planId: 'MAISON Essential',
+                        status: 'Expired',
+                        amount: 600
+                    }
+                ]
+            });
+        }
+
         const memberships = await Subscription.find()
             .sort({ createdAt: -1 })
             .limit(100)

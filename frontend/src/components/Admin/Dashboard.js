@@ -30,6 +30,8 @@ const Dashboard = () => {
   const { theme } = useTheme();
   const isDark = theme === "dark";
 
+  const { user } = useSelector((state) => state.user);
+
   const [range, setRange] = useState("30d");
   const [membershipAnalytics, setMembershipAnalytics] = useState(null);
   // const [twoFactorAnalytics, setTwoFactorAnalytics] = useState(null);
@@ -216,8 +218,19 @@ const Dashboard = () => {
       <div className="editorial-shell py-12">
         <div className="mb-10 flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="eyebrow">Admin</p>
-            <h1 className="heading-display mt-2 text-display">Analytics</h1>
+            <div className="flex items-center gap-3">
+              <p className="eyebrow">Admin</p>
+
+              {user?.isDemo && (
+                  <span className="font-sans text-[0.6rem] font-semibold uppercase tracking-luxe text-brass">
+                      Demo Data
+                  </span>
+              )}
+          </div>
+
+          <h1 className="heading-display mt-2 text-display">
+              Analytics
+          </h1>
           </div>
 
           {/* Range selector */}
