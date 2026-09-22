@@ -23,6 +23,11 @@ const refundSchema = new mongoose.Schema({
     },
     completedAt: {
         type: Date
+    },
+    isDemo: {
+        type: Boolean,
+        default: false,
+        index: true
     }
 });
 

@@ -32,6 +32,11 @@ const reviewSchema = new mongoose.Schema({
         type: Date,
         default: Date.now,
     },
+    isDemo: {
+        type: Boolean,
+        default: false,
+        index: true
+    },
 });
 
 // Reviews are almost always fetched by product, newest first.

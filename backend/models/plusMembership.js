@@ -36,6 +36,11 @@ const subscription = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    isDemo: {
+        type: Boolean,
+        default: false,
+        index: true
+    },
     status: {
         type: String,
         default: 'INITIALIZED'

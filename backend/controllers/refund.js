@@ -207,15 +207,36 @@ exports.updateRefundStatus = async (req, res) => {
 
 exports.getAllRefunds = async (req, res) => {
     try {
-        let refunds;
+        // Demo admin must only see synthetic/demo refund records.
+        if (req.user?.isDemo) {
+            const demoRefunds = await Refund.find({ isDemo: true })
+                .populate({
+                    path: 'order',
+                    select: 'user refundRequestedAt totalPrice orderStatus',
+                    populate: {
+                        path: 'user',
+                        select: 'name email'
+                    }
+                })
+                .sort('-initiatedAt')
+                .limit(100)
+                .lean();
 
-        // FIXED CACHE BUG: Removed the semicolon typo and stopped stringifying arrays
-        refunds = await cache.getJSON('refunds');
+            return res.status(200).json({
+                success: true,
+                demoMode: true,
+                refunds: demoRefunds
+            });
+        }
+
+        // Real admin flow
+        let refunds = await cache.getJSON('refunds');
+
         if (!refunds) {
             refunds = await Refund.find()
                 .populate({
                     path: 'order',
-                    select: 'user refundRequestedAt totalPrice',
+                    select: 'user refundRequestedAt totalPrice orderStatus',
                     populate: {
                         path: 'user',
                         select: 'name email'
@@ -227,9 +248,16 @@ exports.getAllRefunds = async (req, res) => {
             await cache.setJSON('refunds', refunds);
         }
 
-        res.status(200).json({ success: true, refunds });
+        return res.status(200).json({
+            success: true,
+            refunds
+        });
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ success: false, message: 'Server error' });
+        console.error('Error fetching refunds:', error);
+
+        return res.status(500).json({
+            success: false,
+            message: 'Server error'
+        });
     }
 };
