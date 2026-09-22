@@ -69,16 +69,43 @@ exports.requestReturn = async (req, res) => {
 };
 
 // Get all return requests
+// Get all return requests
 exports.getAllReturns = async (req, res) => {
     try {
-        let returns;
+        // Demo admin must only see synthetic/demo return records.
+        if (req.user?.isDemo) {
+            const demoReturns = await Return.find({ isDemo: true })
+                .populate({
+                    path: 'order',
+                    select: 'user returnRequestedAt totalPrice orderStatus',
+                    populate: {
+                        path: 'user',
+                        select: 'name email'
+                    }
+                })
+                .populate({
+                    path: 'products.product',
+                    select: 'name price'
+                })
+                .sort('-requestedAt')
+                .limit(100)
+                .lean();
 
-        returns = await cache.getJSON('returns');
+            return res.status(200).json({
+                success: true,
+                demoMode: true,
+                returns: demoReturns
+            });
+        }
+
+        // Real admin flow
+        let returns = await cache.getJSON('returns');
+
         if (!returns) {
             returns = await Return.find()
                 .populate({
                     path: 'order',
-                    select: 'user returnRequestedAt totalPrice',
+                    select: 'user returnRequestedAt totalPrice orderStatus',
                     populate: {
                         path: 'user',
                         select: 'name email'
@@ -90,12 +117,21 @@ exports.getAllReturns = async (req, res) => {
                 })
                 .sort('-requestedAt')
                 .lean();
+
             await cache.setJSON('returns', returns);
         }
 
-        res.status(200).json({ success: true, returns });
+        return res.status(200).json({
+            success: true,
+            returns
+        });
     } catch (error) {
-        res.status(500).json({ success: false, message: 'Server error' });
+        console.error('Error fetching returns:', error);
+
+        return res.status(500).json({
+            success: false,
+            message: 'Server error'
+        });
     }
 };
 

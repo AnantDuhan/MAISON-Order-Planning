@@ -143,7 +143,12 @@ const userSchema = new mongoose.Schema({
     isEmailVerified: {
         type: Boolean,
         default: false
-    }
+    },
+    isDemo: {
+        type: Boolean,
+        default: false,
+        index: true
+    },
 });
 
 userSchema.pre('save', async function () {

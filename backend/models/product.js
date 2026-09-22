@@ -91,7 +91,12 @@ const productSchema = mongoose.Schema({
     embedding: {
         type: [Number],
         select: false
-    }
+    },
+    isDemo: {
+        type: Boolean,
+        default: false,
+        index: true
+    },
 });
 
 // Indexes for listing/filter/sort/search hot paths. The text index backs

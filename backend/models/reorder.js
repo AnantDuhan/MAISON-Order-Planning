@@ -12,7 +12,12 @@ const reorderSchema = new mongoose.Schema({
     timestamp: {
         type: Date,
         default: Date.now
-    }
+    },
+    isDemo: {
+        type: Boolean,
+        default: false,
+        index: true
+    },
 });
 
 module.exports = mongoose.model('Reorder', reorderSchema);

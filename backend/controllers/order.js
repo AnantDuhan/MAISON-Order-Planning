@@ -223,6 +223,18 @@ exports.getAllOrders = async (req, res, next) => {
             await cache.setJSON('orders', orders);
         }
 
+        if (req.user?.isDemo) {
+            const demoOrders = await Order.find({ isDemo: true })
+                .sort({ createdAt: -1 })
+                .limit(100);
+
+            return res.status(200).json({
+                success: true,
+                demoMode: true,
+                orders: demoOrders
+            });
+        }
+
         // 3. Calculate total amount safely
         if (orders && Array.isArray(orders)) {
             orders.forEach(order => {

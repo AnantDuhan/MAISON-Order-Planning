@@ -160,7 +160,16 @@ const orderSchema = new mongoose.Schema({
     discountedAmount: {
         type: Number,
         default: 0
-    }
+    },
+    isDemo: {
+        type: Boolean,
+        default: false,
+        index: true
+    },
+    paidAt: {
+        type: Date,
+        required: true
+    },
 });
 
 // Indexes for hot query paths (myOrders, admin filters, listings) and to

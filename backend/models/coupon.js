@@ -20,7 +20,12 @@ const couponSchema = new mongoose.Schema({
     createdAt: {
         type: Date,
         default: Date.now
-    }
+    },
+    isDemo: {
+        type: Boolean,
+        default: false,
+        index: true
+    },
 });
 
 module.exports = mongoose.model('Coupon', couponSchema);

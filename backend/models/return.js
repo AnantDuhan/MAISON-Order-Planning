@@ -12,7 +12,12 @@ const returnProductSchema = new mongoose.Schema({
     quantity: {
         type: Number,
         required: true
-    }
+    },
+    isDemo: {
+        type: Boolean,
+        default: false,
+        index: true
+    },
 });
 
 const returnSchema = new mongoose.Schema({
