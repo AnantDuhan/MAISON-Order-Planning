@@ -1,51 +1,56 @@
+const path = require("path");
+// Load env before anything that reads process.env at require time. Resolved
+// from this file so it works regardless of the working directory.
+require("dotenv").config({ path: path.join(__dirname, "config/config.env") });
+
 const cookieParser = require("cookie-parser");
 const compression = require("compression");
 const express = require("express");
-const app = express();
-app.set("trust proxy", 1);
-const bodyParser = require("body-parser");
 const cors = require("cors");
-const errorMiddleware = require("./middleware/error");
 const multer = require("multer");
-const url = require("url");
-const path = require("path");
 const {
   S3Client,
   PutObjectCommand,
-  DeleteObjectCommand,
-  UploadPartCommand,
   DeleteObjectsCommand,
 } = require("@aws-sdk/client-s3");
 const { fromEnv } = require("@aws-sdk/credential-provider-env");
-// const s3 = new S3Client();
+const swaggerUi = require("swagger-ui-express");
+
+const errorMiddleware = require("./middleware/error");
 const { isAuthUser, authRoles } = require("./middleware/auth");
-const User = require("./models/user");
+const { apiLimiter } = require("./middleware/rateLimiter");
 const Product = require("./models/product");
-const jwt = require("jsonwebtoken");
-const generateId = require('./utils/generateId');
-const { generateEmbedding } = require('./utils/generateEmbedding');
-const redisClientPromise = require('./config/redisClientUpstash');
-const swaggerUi = require('swagger-ui-express');
-const swaggerSpec = require('./config/swagger');
-require("dotenv").config({ path: "./config/config.env" });
+const generateId = require("./utils/generateId");
+const { generateEmbedding } = require("./utils/generateEmbedding");
+const cache = require("./utils/cache");
+const { indexProduct, deleteProductDoc } = require("./services/searchService");
+const swaggerSpec = require("./config/swagger");
+
+const app = express();
+app.set("trust proxy", 1);
+
+// Express 5 defaults to the "simple" query parser, which turns
+// `price[gte]=10` into the literal key "price[gte]" and silently broke the
+// price/rating filters. The extended parser restores nested objects;
+// ApiFeatures whitelists what can be filtered on.
+app.set("query parser", "extended");
 
 // Gzip response bodies. Registered first so every downstream response
 // (API JSON, docs, health) is compressed before it leaves the server.
 app.use(compression());
 app.use(cookieParser());
+
+// Webhook signatures are computed over the exact raw body, so keep a copy —
+// but only for webhook routes, not for every request.
 app.use(express.json({
-  limit: "50mb",
+  limit: "1mb",
   verify: (req, res, buffer) => {
-    req.rawBody = buffer.toString('utf8');
+    if (req.originalUrl.endsWith("/webhook")) {
+      req.rawBody = buffer.toString("utf8");
+    }
   },
 }));
-app.use(
-  bodyParser.urlencoded({
-    extended: true,
-    limit: "50mb",
-    parameterLimit: 50000,
-  }),
-);
+app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 
 const allowedOrigins = [
   "http://localhost:3000",
@@ -53,19 +58,17 @@ const allowedOrigins = [
   "https://orderplanning.netlify.app",
 ];
 
+const isAllowedOrigin = origin =>
+  !origin ||
+  allowedOrigins.includes(origin) ||
+  (process.env.NODE_ENV !== "production" && /^http:\/\/localhost:\d+$/.test(origin)) ||
+  /^https:\/\/[-a-z0-9]+--orderplanning\.netlify\.app$/i.test(origin);
+
 const corsOptions = {
   origin: (origin, callback) => {
-    if (
-      !origin ||
-      allowedOrigins.includes(origin) ||
-      /^http:\/\/localhost:\d+$/.test(origin) ||                 // any localhost port (dev)
-      /^https:\/\/[-a-z0-9]+--orderplanning\.netlify\.app$/i.test(origin)
-    ) {
-      return callback(null, true);
-    }
     // Do NOT throw — that returns a 500 with no CORS headers, which the browser
     // reports as a generic CORS error. Reject cleanly instead.
-    return callback(null, false);
+    callback(null, isAllowedOrigin(origin));
   },
   optionsSuccessStatus: 204,
   credentials: true,
@@ -73,28 +76,19 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
-// s3.config.update({
-//     region: process.env.AWS_BUCKET_REGION,
-//     accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-//     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
-// });
-
-// Initialize S3 client
 const s3 = new S3Client({
   region: process.env.AWS_BUCKET_REGION,
   credentials: fromEnv(),
 });
 
+const IMAGE_TYPES = ["image/png", "image/jpg", "image/jpeg", "image/webp"];
+
 // Configure Multer for file uploads
 const upload = multer({
   storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024, files: 10 },
   fileFilter: (req, file, cb) => {
-    if (
-      file.mimetype === "image/png" ||
-      file.mimetype === "image/jpg" ||
-      file.mimetype === "image/jpeg" ||
-      file.mimetype === "image/webp"
-    ) {
+    if (IMAGE_TYPES.includes(file.mimetype)) {
       cb(null, true);
     } else {
       cb(new Error("Invalid file type."));
@@ -102,11 +96,64 @@ const upload = multer({
   },
 });
 
-// app.use(upload.single('image'));
-// app.use(upload.array('product', 10));
+const bucketHost = () =>
+  `${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_BUCKET_REGION}.amazonaws.com`;
 
-const timestamp = Date.now();
-const timestampInSeconds = Math.floor(timestamp / 1000);
+// Unique key per upload so products never overwrite each other's images.
+const uploadProductImages = async (productId, files = []) => {
+  const images = [];
+  for (const file of files) {
+    const safeName = file.originalname.replace(/[^\w.-]/g, "_");
+    const key = `products/${productId}/${Date.now()}-${safeName}`;
+    await s3.send(new PutObjectCommand({
+      Bucket: process.env.AWS_BUCKET_NAME,
+      Key: key,
+      Body: file.buffer,
+      ContentType: file.mimetype,
+    }));
+    images.push({ _id: generateId(), url: `https://${bucketHost()}/${key}` });
+  }
+  return images;
+};
+
+// S3 key for an image in our bucket, or null for anything else.
+const getImageKeyFromUrl = imageUrl => {
+  try {
+    const parsed = new URL(imageUrl);
+    if (parsed.host !== bucketHost()) return null;
+    return decodeURIComponent(parsed.pathname.slice(1)) || null;
+  } catch {
+    return null;
+  }
+};
+
+// Best-effort cleanup. DeleteObjects rejects an empty list, so skip it then.
+const deleteImages = async (images = []) => {
+  const objects = images
+    .map(image => getImageKeyFromUrl(image.url))
+    .filter(Boolean)
+    .map(Key => ({ Key }));
+  if (!objects.length) return;
+  try {
+    await s3.send(new DeleteObjectsCommand({
+      Bucket: process.env.AWS_BUCKET_NAME,
+      Delete: { Objects: objects, Quiet: true },
+    }));
+  } catch (err) {
+    console.error("⚠️ S3 image cleanup failed:", err.message);
+  }
+};
+
+const pickProductFields = body => {
+  const fields = {};
+  for (const key of ["name", "description", "price", "category", "Stock"]) {
+    if (body[key] !== undefined && body[key] !== "") fields[key] = body[key];
+  }
+  return fields;
+};
+
+const syncSearchIndex = promise =>
+  promise.catch(err => console.error("Search index sync failed:", err.message));
 
 // Route Imports
 const productRoute = require("./routes/product");
@@ -121,7 +168,14 @@ const bannerRoute = require("./routes/banner");
 const cartRoute = require("./routes/cart");
 const redirectRoute = require("./routes/redirect");
 const searchRoute = require("./routes/search");
-const { apiLimiter } = require("./middleware/rateLimiter");
+
+app.get("/api/v1/health", (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: "Server is online and ready.",
+    timestamp: new Date().toISOString()
+  });
+});
 
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.get('/api-docs.json', (req, res) => {
@@ -142,6 +196,126 @@ app.use("/api/v1", bannerRoute);
 app.use("/api/v1", cartRoute);
 app.use(redirectRoute);
 
+// --- Admin product routes with image uploads ---------------------------------
+// These live outside /api/v1 because the frontend calls them at these paths.
+// Middleware is attached per route (not router.use) so it never runs for
+// unrelated requests such as the SPA fallback below.
+const adminProducts = express.Router();
+const adminOnly = [apiLimiter, isAuthUser, authRoles("admin")];
+
+adminProducts.post("/admin/add-product", adminOnly, upload.array("product", 10), async (req, res) => {
+  try {
+    const productId = generateId();
+    const images = await uploadProductImages(productId, req.files);
+    const fields = pickProductFields(req.body);
+
+    const embedding = await generateEmbedding(`${fields.name || ""} ${fields.description || ""}`);
+
+    const product = await Product.create({
+      _id: productId,
+      ...fields,
+      images,
+      ...(embedding ? { embedding } : {}),
+      user: req.user._id,
+    });
+
+    await cache.del(`product:${productId}`);
+    syncSearchIndex(indexProduct(product));
+
+    res.status(201).json({
+      success: true,
+      message: "✅ Product created successfully.",
+      product,
+    });
+  } catch (error) {
+    console.error("⚠️ Error creating product:", error);
+    const status = error.name === "ValidationError" ? 400 : 500;
+    res.status(status).json({
+      success: false,
+      message: status === 400 ? error.message : "Could not create product",
+    });
+  }
+});
+
+adminProducts.put("/admin/product/:id", adminOnly, upload.array("product", 10), async (req, res) => {
+  try {
+    const productId = req.params.id;
+    const product = await Product.findById(productId);
+
+    if (!product) {
+      return res.status(404).json({ success: false, message: "Product not found" });
+    }
+
+    // Only whitelisted fields; never ratings, reviews, user, isDemo, ...
+    const update = pickProductFields(req.body);
+
+    let oldImages = null;
+    if (req.files && req.files.length > 0) {
+      // Upload first, delete the old images only after the update succeeds,
+      // so a failed upload doesn't leave the product with no images.
+      update.images = await uploadProductImages(productId, req.files);
+      oldImages = product.images;
+    }
+
+    if (update.name || update.description) {
+      const vector = await generateEmbedding(
+        `${update.name || product.name} ${update.description || product.description}`
+      );
+      if (vector) update.embedding = vector;
+    }
+
+    const updatedProduct = await Product.findByIdAndUpdate(productId, update, {
+      new: true,
+      runValidators: true,
+    });
+
+    if (oldImages) await deleteImages(oldImages);
+
+    await cache.del(`product:${productId}`);
+    syncSearchIndex(indexProduct(updatedProduct));
+
+    res.status(200).json({
+      success: true,
+      message: "✅ Product updated successfully.",
+      product: updatedProduct,
+    });
+  } catch (error) {
+    console.error("Product Update Error:", error);
+    const status = error.name === "ValidationError" ? 400 : 500;
+    res.status(status).json({
+      success: false,
+      message: status === 400 ? error.message : "Server Error during update",
+    });
+  }
+});
+
+adminProducts.delete("/admin/product/:id", adminOnly, async (req, res) => {
+  try {
+    const productId = req.params.id;
+    const product = await Product.findById(productId);
+
+    if (!product) {
+      return res.status(404).json({ success: false, message: "Product not found" });
+    }
+
+    await Product.deleteOne({ _id: productId });
+    await deleteImages(product.images);
+    await cache.del(`product:${productId}`);
+    syncSearchIndex(deleteProductDoc(productId));
+
+    return res.status(200).json({
+      success: true,
+      message: "✅ Product deleted successfully.",
+      product,
+    });
+  } catch (error) {
+    console.error("⚠️ Error deleting product:", error);
+    return res.status(500).json({ success: false, message: "Could not delete product" });
+  }
+});
+
+app.use(adminProducts);
+
 // --- Serve the built React app (same-origin deployment) ---------------------
 // In production the backend serves the compiled frontend, so the whole app is
 // one origin: no CORS, no cross-site cookies, relative /api/v1 calls just work.
@@ -156,555 +330,15 @@ if (process.env.NODE_ENV === "production") {
   app.get(/^\/(?!api\/|api-docs|socket\.io\/).*/, (req, res) => {
     res.sendFile(path.join(buildPath, "index.html"));
   });
+} else {
+  app.get("/", (req, res) => {
+    res.send("Hello, welcome to my API!");
+  });
 }
 
-process.noDeprecation = true;
-
-// middleware for error
+// Error handler goes LAST so it catches errors from every route above
+// (including multer's "Invalid file type" and oversized uploads).
 app.use(errorMiddleware);
 
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).send("Internal Server Error");
-});
-
-app.get("/", (req, res) => {
-  res.send("Hello, welcome to my API!");
-});
-
-app.get("/api/v1/health", (req, res) => {
-    res.status(200).json({
-        success: true,
-        message: "Server is online and ready.",
-        timestamp: new Date().toISOString()
-    });
-});
-
-app.post("/register", upload.single("image"), async (req, res) => {
-  try {
-    const { name, whatsappNumber, email, password } = req.body;
-    const file = req.file;
-
-    if (!file) {
-      return res.status(400).json({
-        success: false,
-        message: "No file uploaded.",
-      });
-    }
-
-    const s3 = new S3Client({
-      region: process.env.AWS_BUCKET_REGION,
-      credentials: fromEnv(),
-    });
-
-    const uploadParams = {
-      Bucket: process.env.AWS_BUCKET_NAME,
-      Key: file.originalname,
-      Body: file.buffer,
-    };
-
-    const uploadCommand = new PutObjectCommand(uploadParams);
-    await s3.send(uploadCommand);
-
-    const cacheBuster = Date.now();
-
-    const avatarUrl = `https://${uploadParams.Bucket}.s3.${process.env.AWS_BUCKET_REGION}.amazonaws.com/${uploadParams.Key}?cacheBuster=${cacheBuster}`;
-
-    console.log("✅ Image uploaded successfully:", avatarUrl);
-
-    // 1. Create user
-    const user = await User.create({
-      _id: generateId(),
-      name,
-      whatsappNumber,
-      email,
-      password,
-      avatar: avatarUrl,
-      isEmailVerified: false,
-    });
-
-    // 2. Generate email verification token
-    const verificationToken = user.getEmailVerificationToken();
-
-    // 3. Save token and expiry
-    await user.save({
-      validateBeforeSave: false,
-    });
-
-    // 4. Create verification URL
-    const verificationURL =
-      `${process.env.FRONTEND_URL}/verify-email/${verificationToken}`;
-
-    // 5. Render verification email
-    const emailMessage = await ejs.renderFile(
-      path.join(__dirname, "../mails/verify-email.ejs"),
-      {
-        name: user.name,
-        verificationURL,
-      }
-    );
-
-    // 6. Send verification email
-    sendEmailInBackground({
-      email: user.email,
-      subject: "Verify Your Email - Ecommerce",
-      html: emailMessage,
-    });
-
-    // 7. DO NOT create JWT/cookie here
-    return res.status(201).json({
-      success: true,
-      message:
-        "Registration successful. Please check your email and verify your account before logging in.",
-      email: user.email,
-    });
-
-  } catch (err) {
-    console.error("⚠️ Registration Error:", err);
-
-    return res.status(500).json({
-      success: false,
-      message: "⚠️ Error: " + err.message,
-    });
-  }
-});
-
-app.put("/me/update", isAuthUser, upload.single("image"), async (req, res) => {
-  try {
-    const userId = req.user._id;
-    const { name, email } = req.body;
-    const file = req.file;
-
-    const updateData = { name, email };
-    if (file) {
-      const uploadParams = {
-        Bucket: process.env.AWS_BUCKET_NAME,
-        Key: `${userId}-${file.originalname}`,
-        Body: file.buffer,
-        ContentType: file.mimetype,
-      };
-
-      const s3 = new S3Client({
-        region: process.env.AWS_BUCKET_REGION,
-        credentials: fromEnv(),
-      });
-
-      await s3.send(new PutObjectCommand(uploadParams));
-
-      const cacheBuster = Date.now();
-      updateData.avatar = `https://${uploadParams.Bucket}.s3.${process.env.AWS_BUCKET_REGION}.amazonaws.com/${uploadParams.Key}?cacheBuster=${cacheBuster}`;
-    }
-
-    // Update the user profile in the database
-    const updatedUser = await User.findByIdAndUpdate(
-      userId,
-      updateData,
-      { new: true },
-    );
-
-    res.status(200).json({
-      message: "✅ Profile updated successfully.",
-      user: updatedUser,
-    });
-  } catch (error) {
-    console.error("⚠️ Error processing request:", error);
-    res.status(500).json({ error: "⚠️ Internal server error." });
-  }
-});
-
-// Extract image key from URL
-const getImageKeyFromUrl = (imageUrl) => {
-  const parsedUrl = url.parse(imageUrl);
-  const pathName = parsedUrl.pathname;
-  const key = pathName.substring(1); // Remove the leading slash (/)
-
-  return key;
-};
-
-app.delete(
-  "/admin/user/:id",
-  isAuthUser,
-  authRoles("admin"),
-  async (req, res) => {
-    try {
-      const userId = req.params.id;
-      const user = await User.findById(userId);
-
-      if (!user) {
-        return res.status(404).json({ error: "⚠️ User not found" });
-      }
-
-      // Initialize S3 client
-      const s3 = new S3Client({
-        region: process.env.AWS_BUCKET_REGION,
-        credentials: fromEnv(),
-      });
-
-      // Delete image from AWS S3
-      const imageKey = getImageKeyFromUrl(user.avatar);
-      const deleteParams = {
-        Bucket: process.env.AWS_BUCKET_NAME,
-        Key: imageKey,
-      };
-
-      // Delete the object from S3
-      await s3.send(new DeleteObjectCommand(deleteParams));
-
-      console.log("✅ Image deleted from AWS S3");
-
-      // Delete user from MongoDB
-      await User.findByIdAndDelete(userId);
-
-      console.log("✅ User deleted from MongoDB:", user);
-
-      return res.status(200).json({
-        success: true,
-        message: "✅ Profile deleted successfully.",
-      });
-    } catch (error) {
-      console.error("⚠️ Error processing request:", error);
-      return res.status(500).json({ error: "⚠️ Internal server error." });
-    }
-  },
-);
-
-app.post(
-  "/admin/add-product",
-  isAuthUser,
-  authRoles("admin"),
-  upload.array("product", 10),
-  async (req, res) => {
-    try {
-      const { name, description, price, category, Stock } = req.body;
-      const files = req.files;
-
-      const imageUrls = [];
-
-      if (files && files.length > 0) {
-        // Initialize S3 client
-        const s3 = new S3Client({
-          region: process.env.AWS_BUCKET_REGION,
-          credentials: fromEnv(),
-        });
-
-        for (const file of files) {
-          // Upload the product image to AWS S3
-          const uploadParams = {
-            Bucket: process.env.AWS_BUCKET_NAME,
-            Key: file.originalname,
-            Body: file.buffer,
-            ContentType: file.mimetype,
-          };
-
-          // Upload the file to S3
-          const uploadCommand = new PutObjectCommand(uploadParams);
-          await s3.send(uploadCommand);
-
-          const cacheBuster = Date.now();
-          const avatarUrl = `https://${uploadParams.Bucket}.s3.${process.env.AWS_BUCKET_REGION}.amazonaws.com/${uploadParams.Key}?cacheBuster=${cacheBuster}`;
-
-          console.log("✅ Image uploaded successfully:", avatarUrl);
-          imageUrls.push(avatarUrl);
-        }
-      }
-
-      // Create a new product in the database
-      const product = await Product.create({
-        _id: generateId(),
-        name,
-        description,
-        price,
-        category,
-        Stock,
-        images: imageUrls.map((url) => ({ url })),
-        user: req.user._id,
-      });
-
-      const newProduct = await product.save();
-
-      res.status(201).json({
-        message: "✅ Product created successfully.",
-        product: newProduct,
-      });
-    } catch (error) {
-      console.error("⚠️ Error creating product:", error);
-      res.status(500).json({
-        success: false,
-        error: "⚠️ Internal server error." + error,
-      });
-    }
-  },
-);
-
-app.put(
-  "/admin/product/:id",
-  isAuthUser,
-  authRoles("admin"),
-  upload.array("product", 10),
-  async (req, res) => {
-    try {
-      const productId = req.params.id;
-      const product = await Product.findById(productId);
-
-      if (!product) {
-        return res.status(404).json({ message: "Product not found" });
-      }
-
-      if (req.files && req.files.length > 0) {
-        const s3 = new S3Client({
-          region: process.env.AWS_BUCKET_REGION,
-          // Make sure your fromEnv() or credentials setup is correct here
-        });
-
-        // A. Safely Delete Old Images (Using Plural Command)
-        if (product.images && product.images.length > 0) {
-          const deleteObjects = product.images.map((image) => ({
-            Key: getImageKeyFromUrl(image.url), // Ensure this utility works!
-          }));
-
-          await s3.send(
-            new DeleteObjectsCommand({
-              Bucket: process.env.AWS_BUCKET_NAME,
-              Delete: { Objects: deleteObjects, Quiet: false },
-            }),
-          );
-          console.log("✅ Old Images deleted from AWS S3");
-        }
-
-        // B. Upload New Images (Using PutObjectCommand)
-        let imageUrls = [];
-        for (const file of req.files) {
-          // Ensure a unique key using Date.now() to prevent cache collisions
-          const uniqueKey = `${productId}-${Date.now()}-${file.originalname}`;
-
-          await s3.send(
-            new PutObjectCommand({
-              Bucket: process.env.AWS_BUCKET_NAME,
-              Key: uniqueKey,
-              Body: file.buffer,
-              ContentType: file.mimetype,
-            }),
-          );
-
-          const avatarUrl = `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_BUCKET_REGION}.amazonaws.com/${uniqueKey}`;
-          imageUrls.push({ key: uniqueKey, url: avatarUrl });
-        }
-
-        // Attach new images to the body so MongoDB saves them
-        req.body.images = imageUrls;
-      }
-
-      if (req.body.name || req.body.description) {
-        const existingProduct = await Product.findById(productId);
-        const textForEmbedding = `${req.body.name || existingProduct.name} ${req.body.description || existingProduct.description}`;
-
-        const vector = await generateEmbedding(textForEmbedding);
-        if (vector) {
-          req.body.embedding = vector;
-        }
-      }
-
-      const updatedProduct = await Product.findByIdAndUpdate(
-        productId,
-        req.body,
-        {
-          new: true,
-          runValidators: true,
-        },
-      );
-
-      // try {
-      //   const redisClient = await redisClientPromise;
-      //   const cacheKey = `product:${productId}`;
-
-      //   if (redisClient && typeof redisClient.del === 'function') {
-      //       await redisClient.del(cacheKey);
-      //       await redisClient.set(cacheKey, JSON.stringify(updatedProduct), { EX: 3600 });
-      //   } else {
-      //       console.warn('⚠️ Redis Warning: redisClient.del is not available. Skipping cache sync. Check config/redisClient.js export.');
-      //   }
-      // } catch (cacheError) {
-      //   console.error("Redis cache sync error:", cacheError);
-      // }
-
-      try {
-        const cacheKey = `product:${productId}`;
-
-        await redisClient.del(cacheKey);
-
-        await redisClient.set(
-            cacheKey,
-            JSON.stringify(updatedProduct),
-            {
-                ex: 3600
-            }
-        );
-      } catch (cacheError) {
-          console.error("⚠️ Redis cache sync error:", cacheError);
-      }
-
-      res.status(200).json({
-        success: true,
-        message: "✅ Product updated successfully.",
-        product: updatedProduct,
-      });
-    } catch (error) {
-      console.error("Product Update Error:", error);
-      res.status(500).json({ message: "Server Error during update" });
-    }
-  },
-);
-
-// app.put(
-//     '/admin/product/:id',
-//     isAuthUser,
-//     authRoles('admin'),
-//     upload.array('product', 10),
-//     async (req, res) => {
-//         try {
-//             const productId = req.params.id;
-//             const { name, description, price, category, stock } = req.body;
-//             const files = req.files;
-
-//             let imageUrls = [];
-
-//             const product = await Product.findById(productId);
-
-//             if (!product) {
-//                 return res.status(404).json({ error: '⚠️ Product not found' });
-//             }
-
-//             // Initialize S3 client
-//             const s3 = new S3Client({
-//                 region: process.env.AWS_BUCKET_REGION,
-//                 credentials: fromEnv()
-//             });
-
-//             // Delete images from AWS S3
-//             const deleteObjects = product.images.map(image => ({
-//                 Key: getImageKeyFromUrl(image.url)
-//             }));
-//             const deleteParams = {
-//                 Bucket: process.env.AWS_BUCKET_NAME,
-//                 Delete: {
-//                     Objects: deleteObjects,
-//                     Quiet: false
-//                 }
-//             };
-//             const deleteObject = new DeleteObjectCommand(deleteParams);
-//             await s3.send(deleteObject);
-
-//             console.log('✅ Images deleted from AWS S3');
-
-//             // Upload new images
-//             const uploadParams = {
-//                 Bucket: process.env.AWS_BUCKET_NAME,
-//                 Key: `${productId}-${files.originalname}`,
-//                 Body: files.buffer,
-//                 ContentType: files.mimetype
-//             };
-
-//             for (const file of files) {
-//                 uploadParams.Key = file.originalname;
-//                 uploadParams.ContentType = file.mimetype;
-//                 uploadParams.Body = file.buffer;
-
-//                 await s3.send(
-//                     new UploadPartCommand(uploadParams)
-//                 );
-
-//                 const cacheBuster = Date.now();
-//                 const avatarUrl = `https://${uploadParams.Bucket}.s3.${process.env.AWS_BUCKET_REGION}.amazonaws.com/${uploadParams.Key}?cacheBuster=${cacheBuster}`;
-
-//                 imageUrls.push({
-//                     key: file.originalname,
-//                     url: avatarUrl
-//                 });
-//             }
-
-//             // Update the product in the database
-//             const updatedProduct = await Product.findByIdAndUpdate(
-//                 productId,
-//                 {
-//                     name,
-//                     description,
-//                     price,
-//                     category,
-//                     stock,
-//                     images: imageUrls
-//                 },
-//                 { new: true }
-//             );
-
-//             if (!updatedProduct) {
-//                 return res
-//                     .status(404)
-//                     .json({ error: '⚠️⚠️ Product not found.' });
-//             }
-
-//             res.status(200).json({
-//                 message: '✅ Product updated successfully.',
-//                 product: updatedProduct
-//             });
-//         } catch (error) {
-//             console.error('⚠️ Error processing request:', error);
-//             res.status(500).json({
-//                 success: false,
-//                 error: '⚠️ Internal server error.'
-//             });
-//         }
-//     }
-// );
-
-app.delete(
-  "/admin/product/:id",
-  isAuthUser,
-  authRoles("admin"),
-  async (req, res) => {
-    try {
-      const productId = req.params.id;
-      const product = await Product.findById(productId);
-
-      if (!product) {
-        return res.status(404).json({ error: "⚠️ Product not found" });
-      }
-
-      // Initialize S3 client
-      const s3 = new S3Client({
-        region: process.env.AWS_BUCKET_REGION,
-        credentials: fromEnv(),
-      });
-
-      // Delete images from AWS S3
-      const deleteObjects = product.images.map((image) => ({
-        Key: getImageKeyFromUrl(image.url),
-      }));
-      const deleteParams = {
-        Bucket: process.env.AWS_BUCKET_NAME,
-        Delete: {
-          Objects: deleteObjects,
-          Quiet: false,
-        },
-      };
-      await s3.send(new DeleteObjectsCommand(deleteParams));
-
-      console.log("✅ Images deleted from AWS S3");
-
-      // Delete product from MongoDB
-      await Product.findByIdAndDelete(productId);
-
-      console.log("✅ Product deleted from MongoDB:", product);
-
-      return res.status(200).json({
-        success: true,
-        message: "✅ Product deleted successfully.",
-        product,
-      });
-    } catch (error) {
-      console.error("⚠️ Error processing request:", error);
-      return res.status(500).json({ error: "⚠️ Internal server error." });
-    }
-  },
-);
-
 module.exports = app;
+module.exports.isAllowedOrigin = isAllowedOrigin;

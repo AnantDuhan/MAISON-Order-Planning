@@ -73,9 +73,16 @@ const OrderDetails = () => {
     const handleReorder = async () => {
         try {
             setReordering(true);
-            await dispatch(reorder(order._id));
-            toast.success('Order placed again — added to your orders');
-            navigate('/orders');
+            const result = await dispatch(reorder(order._id));
+            if (!result?.items?.length) {
+                toast.info('None of these items are currently in stock.');
+                return;
+            }
+            if (result.unavailable?.length) {
+                toast.info(`${result.unavailable.length} item(s) are out of stock and were skipped.`);
+            }
+            toast.success('Items added to your cart');
+            navigate('/cart');
         } catch (error) {
             toast.error(error?.response?.data?.message || 'Reorder failed. Please try again.');
         } finally {
@@ -255,7 +262,7 @@ const OrderDetails = () => {
                                             aria-hidden='true'
                                         />
                                     )}
-                                    {reordering ? 'Placing order…' : 'Reorder'}
+                                    {reordering ? 'Adding to cart…' : 'Reorder'}
                                 </button>
                             </div>
                         </div>

@@ -1,7 +1,7 @@
 const IORedis = require('ioredis');
 const dotenv = require('dotenv');
 
-dotenv.config({ path: './backend/config/config.env' });
+dotenv.config({ path: require('path').join(__dirname, 'config.env') });
 
 // BullMQ requires ioredis (not node-redis) and maxRetriesPerRequest: null on a
 // TCP endpoint (Upstash rediss://). Keep this connection dedicated to the queue.

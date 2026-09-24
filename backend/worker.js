@@ -1,7 +1,7 @@
 const { Worker } = require('bullmq');
 const dotenv = require('dotenv');
 
-dotenv.config({ path: './backend/config/config.env' });
+dotenv.config({ path: require('path').join(__dirname, 'config/config.env') });
 
 const connection = require('./config/queueConnection');
 const connectDB = require('./config/database');
