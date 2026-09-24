@@ -3,7 +3,6 @@ const validator = require('validator');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
-const { type } = require('os');
 mongoose.set('strictQuery', false);
 
 const userSchema = new mongoose.Schema({
@@ -18,6 +17,8 @@ const userSchema = new mongoose.Schema({
         type: String,
         required: [true, 'Please Enter Your Email'],
         unique: true,
+        trim: true,
+        lowercase: true,
         validate: [validator.isEmail, 'Please Enter a valid Email']
     },
     password: {
@@ -25,9 +26,13 @@ const userSchema = new mongoose.Schema({
         minLength: [6, 'Password must be atleast of 6 characters long'],
         select: false
     },
+    // sparse: users without a number (e.g. Google sign-ups) must not collide
+    // on a shared "null" key. Existing deployments need the old index
+    // dropped once: db.users.dropIndex('whatsappNumber_1')
     whatsappNumber: {
         type: Number,
-        unique: [true, 'This number is already in use by another account!']
+        unique: [true, 'This number is already in use by another account!'],
+        sparse: true
     },
     authProvider: {
         type: String,
@@ -131,7 +136,12 @@ const userSchema = new mongoose.Schema({
     },
     resetPasswordToken: String,
     resetPasswordExpire: Date,
-    
+    // Sessions issued before this moment are rejected by isAuthUser.
+    passwordChangedAt: {
+        type: Date,
+        select: false
+    },
+
     emailVerificationToken: {
         type: String,
         select: false
@@ -144,11 +154,23 @@ const userSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
-    isDemo: {
-        type: Boolean,
-        default: false,
-        index: true
-    },
+});
+
+// Never serialise secrets, even when a query explicitly selected them.
+userSchema.set('toJSON', {
+    transform: (doc, ret) => {
+        delete ret.password;
+        delete ret.resetPasswordToken;
+        delete ret.resetPasswordExpire;
+        delete ret.emailVerificationToken;
+        delete ret.emailVerificationExpire;
+        delete ret.passwordChangedAt;
+        if (ret.twoFactorAuth) {
+            delete ret.twoFactorAuth.secret;
+            delete ret.twoFactorAuth.tempSecret;
+        }
+        return ret;
+    }
 });
 
 userSchema.pre('save', async function () {
@@ -157,6 +179,9 @@ userSchema.pre('save', async function () {
     }
 
     this.password = await bcrypt.hash(this.password, 12);
+    if (!this.isNew) {
+        this.passwordChangedAt = new Date();
+    }
 });
 
 // jwt token
@@ -174,6 +199,9 @@ userSchema.methods.getJWTToken = function () {
 
 // compare Password
 userSchema.methods.comparePassword = async function (enteredPassword) {
+    // Google-only accounts have no password; also guards against a query
+    // that forgot to select('+password').
+    if (!this.password || typeof enteredPassword !== 'string') return false;
     return await bcrypt.compare(enteredPassword, this.password);
 };
 

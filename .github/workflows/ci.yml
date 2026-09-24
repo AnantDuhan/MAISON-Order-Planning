@@ -41,3 +41,34 @@ jobs:
       - name: Build backend
         working-directory: ./backend
         run: npm run build --if-present
+
+      # There are no tests yet; at minimum make sure every module parses and
+      # the app wiring loads (catches broken requires / syntax errors).
+      - name: Syntax check
+        working-directory: ./backend
+        run: find . -name '*.js' -not -path './node_modules/*' -print0 | xargs -0 -n1 node --check
+
+  frontend:
+    name: Frontend build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 22.x
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22.x
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: ./frontend
+        env:
+          CI: false # CRA treats lint warnings as errors when CI=true
+        run: npm run build

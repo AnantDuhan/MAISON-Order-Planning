@@ -1,13 +1,15 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+// CommonJS like the rest of the backend (this file used to be ESM and only
+// loaded thanks to Node 22's require(esm) support).
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
-export const generateEmbedding = async (text) => {
+const generateEmbedding = async (text) => {
     const apiKey = process.env.GEMINI_API_KEY;
-    console.log('GEMINI_API_KEY:', apiKey ? 'Configured' : 'Not Configured');
 
     if (!apiKey) {
-        console.warn(
-            'GEMINI_API_KEY is not configured; skipping embedding generation.'
-        );
+        console.warn('GEMINI_API_KEY is not configured; skipping embedding generation.');
+        return null;
+    }
+    if (typeof text !== 'string' || !text.trim()) {
         return null;
     }
 
@@ -22,10 +24,9 @@ export const generateEmbedding = async (text) => {
 
         return result.embedding.values;
     } catch (error) {
-        console.error(
-            'Embedding Generation Error:',
-            error.message
-        );
+        console.error('Embedding Generation Error:', error.message);
         return null;
     }
 };
+
+module.exports = { generateEmbedding };

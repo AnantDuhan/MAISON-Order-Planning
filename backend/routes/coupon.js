@@ -2,9 +2,10 @@ const express = require('express');
 const router = express.Router();
 
 const { generateCoupon, getAllCoupons } = require('../controllers/coupon');
-const { authRoles, isAuthUser } = require('../middleware/auth');
+const { authRoles, isAuthUser, optionalAuth } = require('../middleware/auth');
 
 router.post('/coupon', isAuthUser, authRoles('admin'), generateCoupon);
-router.get('/coupons/all', getAllCoupons);
+// Customers see active coupons only; admins (after MFA) see all of them.
+router.get('/coupons/all', optionalAuth, getAllCoupons);
 
 module.exports = router;

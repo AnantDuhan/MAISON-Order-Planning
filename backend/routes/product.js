@@ -16,6 +16,7 @@ const {
 } = require('../controllers/product');
 
 const { isAuthUser, authRoles } = require('../middleware/auth');
+const demoGuard = require('../middleware/demoGuard');
 
 const router = express.Router();
 
@@ -38,13 +39,13 @@ router
 
 router.route('/product/:id').get(getProductDetails);
 
-router.route('/review').post(isAuthUser, createProductReview);
+router.route('/review').post(isAuthUser, demoGuard('submit-review'), createProductReview);
 
 router
     .route('/reviews')
     .get(getProductReviews);
 
-router.route('/review/:reviewId').delete(isAuthUser, deleteReview);
+router.route('/review/:reviewId').delete(isAuthUser, demoGuard('submit-review'), deleteReview);
 
 router.route('/products/:id/summarize-reviews').post(isAuthUser, authRoles('admin'), summerizeProductReviews);
 

@@ -26,6 +26,18 @@ const demoGuard = (operation) => {
           status: 403,
           message: "Demo mode — payments are disabled.",
         },
+        "update-profile": {
+          status: 403,
+          message: "Demo accounts cannot change the shared demo profile.",
+        },
+        "manage-2fa": {
+          status: 403,
+          message: "Demo accounts cannot change two-factor settings.",
+        },
+        "membership": {
+          status: 403,
+          message: "Demo accounts cannot start or change memberships.",
+        },
       };
 
       if (blockedOps[operation]) {

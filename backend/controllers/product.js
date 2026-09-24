@@ -1,17 +1,22 @@
-import Product from "../models/product.js";
-import User from "../models/user.js";
-import Review from "../models/review.js";
-import ApiFeatures from "../utils/apifeatures.js";
-import generateId from "../utils/generateId.js";
-import { GoogleGenAI } from "@google/genai";
-import redisClientPromise from "../config/redisClientUpstash.js";
-import dotenv from "dotenv";
-import { generateEmbedding } from "../utils/generateEmbedding.js";
+// CommonJS like the rest of the backend (this file used to be ESM and only
+// loaded thanks to Node 22's require(esm) support).
+const Product = require("../models/product");
+const User = require("../models/user");
+const ApiFeatures = require("../utils/apifeatures");
+const generateId = require("../utils/generateId");
+const { GoogleGenAI } = require("@google/genai");
+const cache = require("../utils/cache");
+const { generateEmbedding } = require("../utils/generateEmbedding");
+const { indexProduct } = require("../services/searchService");
 
-dotenv.config({ path: "../config/config.env" });
+// Fields an admin may change through the JSON update endpoint.
+const UPDATABLE_PRODUCT_FIELDS = ["name", "description", "price", "category", "Stock"];
 
-const timestamp = Date.now();
-const timestampInSeconds = Math.floor(timestamp / 1000);
+const LIST_CACHE_TTL = 60;
+const DETAIL_CACHE_TTL = 3600;
+
+const syncSearchIndex = product =>
+  indexProduct(product).catch(err => console.error("Search index sync failed:", err.message));
 
 // Auto-generate a review summary the first time a product with enough reviews
 // is viewed, so nobody has to click "Generate". Guarded so each product only
@@ -30,66 +35,27 @@ function maybeAutoSummarize(product, app) {
   }
 }
 
-// get all products
-// export const getAllProducts = async (req, res, next) => {
+exports.getAllProducts = async (req, res, next) => {
+  // Cache per query signature — listings vary by search/filter/page. Keys are
+  // built from a normalised, whitelisted view of the query so arbitrary
+  // parameters can't create unbounded numbers of cache entries.
+  const { keyword, category, page, price, ratings } = req.query;
+  const cacheKey = `products:list:${JSON.stringify({ keyword, category, page, price, ratings })}`;
 
-//     let products;
-
-//     const resultPerPage = process.env.RESULT_PER_PAGE;
-//     const productsCount = await Product.countDocuments();
-
-//     const apiFeature = new ApiFeatures(Product.find(), req.query)
-//         .search()
-//         .filter();
-
-//     products = await apiFeature.query;
-
-//     let filteredProductsCount = products.length;
-
-//     apiFeature.pagination(resultPerPage);
-
-//     products = await apiFeature.query.clone();
-
-//     res.status(200).json({
-//         success: true,
-//         products,
-//         productsCount,
-//         resultPerPage,
-//         filteredProductsCount
-//     });
-// };
-
-export const getAllProducts = async (req, res, next) => {
-  const redisClient = redisClientPromise;
-  // Cache per query signature — listings vary by search/filter/page, so a
-  // single flat key won't do. Reads dominate and the catalog changes rarely,
-  // so a short TTL removes almost all DB load from this route.
-  const cacheKey = `products:list:${JSON.stringify(req.query)}`;
-
-  try {
-    const cached = await redisClient.get(cacheKey);
-    if (cached) {
-      return res.status(200).json(JSON.parse(cached));
-    }
-  } catch (cacheError) {
-    console.error(
-      "Redis cache read error (getAllProducts):",
-      cacheError.message,
-    );
+  const cached = await cache.getJSON(cacheKey);
+  if (cached) {
+    return res.status(200).json(cached);
   }
 
-  const resultPerPage = process.env.RESULT_PER_PAGE;
-  const productsCount = await Product.countDocuments();
+  const resultPerPage = Number(process.env.RESULT_PER_PAGE) || 8;
+  const productsCount = await Product.estimatedDocumentCount();
 
-  const apiFeature = new ApiFeatures(Product.find(), req.query)
-    .search()
-    .filter();
+  const apiFeature = new ApiFeatures(Product.find(), req.query).search().filter();
 
-  let products = await apiFeature.query;
-  const filteredProductsCount = products.length;
+  const filteredProductsCount = await Product.countDocuments(apiFeature.query.getFilter());
 
   apiFeature.pagination(resultPerPage);
-  products = await apiFeature.query.clone();
+  const products = await apiFeature.query;
 
   const payload = {
     success: true,
@@ -99,22 +65,13 @@ export const getAllProducts = async (req, res, next) => {
     filteredProductsCount,
   };
 
-  try {
-    // 60s TTL: listings tolerate brief staleness. See the invalidation note
-    // below if you need writes to reflect immediately.
-    await redisClient.set(cacheKey, JSON.stringify(payload), { EX: 60 });
-  } catch (cacheError) {
-    console.error(
-      "Redis cache write error (getAllProducts):",
-      cacheError.message,
-    );
-  }
+  await cache.setJSON(cacheKey, payload, LIST_CACHE_TTL);
 
   res.status(200).json(payload);
 };
 
 // Get All Product (Admin)
-export const getAdminProducts = async (req, res, next) => {
+exports.getAdminProducts = async (req, res, next) => {
   const products = await Product.find();
 
   res.status(200).json({
@@ -124,24 +81,18 @@ export const getAdminProducts = async (req, res, next) => {
 };
 
 // get product details
-export const getProductDetails = async (req, res, next) => {
-  const redisClient = redisClientPromise;
+exports.getProductDetails = async (req, res, next) => {
   const productId = req.params.id;
   const cacheKey = `product:${productId}`;
 
   try {
-    try {
-      const cachedProduct = await redisClient.get(cacheKey);
-      if (cachedProduct) {
-        const productData = JSON.parse(cachedProduct);
-        maybeAutoSummarize(productData, req.app);
-        return res.status(200).json({
-          success: true,
-          product: productData,
-        });
-      }
-    } catch (cacheError) {
-      console.error("Redis cache read error:", cacheError.message);
+    const cachedProduct = await cache.getJSON(cacheKey);
+    if (cachedProduct) {
+      maybeAutoSummarize(cachedProduct, req.app);
+      return res.status(200).json({
+        success: true,
+        product: cachedProduct,
+      });
     }
 
     // --- 2. If Miss, Get from DB ---
@@ -157,13 +108,7 @@ export const getProductDetails = async (req, res, next) => {
       });
     }
     // --- 3. Store in Cache ---
-    try {
-      await redisClient.set(cacheKey, JSON.stringify(product), {
-        EX: 3600,
-      });
-    } catch (cacheError) {
-      console.error("Redis cache write error:", cacheError.message);
-    }
+    await cache.setJSON(cacheKey, product, DETAIL_CACHE_TTL);
 
     maybeAutoSummarize(product, req.app);
 
@@ -175,12 +120,13 @@ export const getProductDetails = async (req, res, next) => {
     console.error("Get product details error:", error);
     res.status(500).json({
       success: false,
-      message: error.message || "Internal Server Error",
+      message: "Internal Server Error",
     });
   }
 };
 
-export const updateProduct = async (req, res, next) => {
+// JSON-only admin update (images are handled by PUT /admin/product/:id in app.js).
+exports.updateProduct = async (req, res, next) => {
   try {
     const productId = req.params.id;
     const product = await Product.findById(productId);
@@ -189,80 +135,25 @@ export const updateProduct = async (req, res, next) => {
       return res.status(404).json({ message: "Product not found" });
     }
 
-    if (req.files && req.files.length > 0) {
-      const s3 = new S3Client({
-        region: process.env.AWS_BUCKET_REGION,
-        // Make sure your fromEnv() or credentials setup is correct here
-      });
-
-      // A. Safely Delete Old Images (Using Plural Command)
-      if (product.images && product.images.length > 0) {
-        const deleteObjects = product.images.map((image) => ({
-          Key: getImageKeyFromUrl(image.url), // Ensure this utility works!
-        }));
-
-        await s3.send(
-          new DeleteObjectsCommand({
-            Bucket: process.env.AWS_BUCKET_NAME,
-            Delete: { Objects: deleteObjects, Quiet: false },
-          }),
-        );
-        console.log("✅ Old Images deleted from AWS S3");
-      }
-
-      // B. Upload New Images (Using PutObjectCommand)
-      let imageUrls = [];
-      for (const file of req.files) {
-        // Ensure a unique key using Date.now() to prevent cache collisions
-        const uniqueKey = `${productId}-${Date.now()}-${file.originalname}`;
-
-        await s3.send(
-          new PutObjectCommand({
-            Bucket: process.env.AWS_BUCKET_NAME,
-            Key: uniqueKey,
-            Body: file.buffer,
-            ContentType: file.mimetype,
-          }),
-        );
-
-        const avatarUrl = `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_BUCKET_REGION}.amazonaws.com/${uniqueKey}`;
-        imageUrls.push({ key: uniqueKey, url: avatarUrl });
-      }
-
-      // Attach new images to the body so MongoDB saves them
-      req.body.images = imageUrls;
+    const update = {};
+    for (const field of UPDATABLE_PRODUCT_FIELDS) {
+      if (req.body[field] !== undefined) update[field] = req.body[field];
     }
 
-    if (req.body.name || req.body.description) {
-      const existingProduct = await Product.findById(productId);
-      const textForEmbedding = `${req.body.name || existingProduct.name} ${req.body.description || existingProduct.description}`;
-
-      const vector = await generateEmbedding(textForEmbedding);
-      if (vector) {
-        req.body.embedding = vector;
-      }
+    if (update.name || update.description) {
+      const vector = await generateEmbedding(
+        `${update.name || product.name} ${update.description || product.description}`,
+      );
+      if (vector) update.embedding = vector;
     }
 
-    const updatedProduct = await Product.findByIdAndUpdate(
-      productId,
-      req.body,
-      {
-        new: true,
-        runValidators: true,
-      },
-    );
+    const updatedProduct = await Product.findByIdAndUpdate(productId, update, {
+      new: true,
+      runValidators: true,
+    });
 
-    try {
-      const redisClient = redisClientPromise;
-      const cacheKey = `product:${productId}`;
-
-      await redisClient.del(cacheKey);
-      await redisClient.set(cacheKey, JSON.stringify(updatedProduct), {
-        EX: 3600,
-      });
-    } catch (cacheError) {
-      console.error("Redis cache sync error:", cacheError);
-    }
+    await cache.del(`product:${productId}`);
+    syncSearchIndex(updatedProduct);
 
     res.status(200).json({
       success: true,
@@ -344,15 +235,7 @@ async function generateReviewSummary(productId, app) {
   product.aiSummary = summary;
   await product.save();
 
-  try {
-    const redisPromise = app && app.get("redisClient");
-    const redisClient = redisPromise ? await redisPromise : null;
-    if (redisClient && typeof redisClient.del === "function") {
-      await redisClient.del(`product:${productId}`);
-    }
-  } catch (cacheError) {
-    console.error("Summary cache invalidation error:", cacheError.message);
-  }
+  await cache.del(`product:${productId}`);
 
   const io = app && app.get("socketio");
   if (io) {
@@ -361,8 +244,22 @@ async function generateReviewSummary(productId, app) {
   return summary;
 }
 
-export const createProductReview = async (req, res, next) => {
-  const { rating, comment, productId } = req.body;
+exports.createProductReview = async (req, res, next) => {
+  const { comment, productId } = req.body;
+  const rating = Number(req.body.rating);
+
+  if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+    return res.status(400).json({
+      success: false,
+      message: "Rating must be a whole number from 1 to 5",
+    });
+  }
+  if (typeof comment !== "string" || !comment.trim()) {
+    return res.status(400).json({
+      success: false,
+      message: "Please write a comment for your review",
+    });
+  }
 
   const product = await Product.findById(productId);
 
@@ -391,7 +288,7 @@ export const createProductReview = async (req, res, next) => {
       _id: generateId(),
       user: req.user._id,
       name: req.user.name,
-      rating: Number(rating),
+      rating,
       comment,
     };
     product.reviews.push(newReview);
@@ -407,18 +304,11 @@ export const createProductReview = async (req, res, next) => {
 
   await product.save({ validateBeforeSave: false });
 
-  // Invalidate Redis Cache
-  try {
-    const redisClient = req.app.get("redisClient");
-    const cacheKey = `product:${productId}`;
-    await redisClient.del(cacheKey);
-    await redisClient.set(`product:${productId}`, JSON.stringify(product));
-  } catch (cacheError) {
-    console.error("Redis cache invalidation error:", cacheError);
-  }
+  await cache.del(`product:${productId}`);
+  syncSearchIndex(product);
 
   const io = req.app.get("socketio");
-  io.to(productId).emit("reviewUpdate", {
+  io.to(String(productId)).emit("reviewUpdate", {
     reviews: product.reviews,
     ratings: product.ratings,
     numOfReviews: product.numOfReviews,
@@ -438,7 +328,7 @@ export const createProductReview = async (req, res, next) => {
   });
 };
 
-export const getAllWishlistProducts = async (req, res) => {
+exports.getAllWishlistProducts = async (req, res) => {
   try {
     const user = await User.findById(req.user._id);
 
@@ -469,7 +359,7 @@ export const getAllWishlistProducts = async (req, res) => {
   }
 };
 
-export const addToWishList = async (req, res) => {
+exports.addToWishList = async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
 
@@ -529,7 +419,7 @@ export const addToWishList = async (req, res) => {
   }
 };
 
-export const removeFromWishList = async (req, res) => {
+exports.removeFromWishList = async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
 
@@ -575,12 +465,12 @@ export const removeFromWishList = async (req, res) => {
 };
 
 // Get all reviews of a product
-export const getProductReviews = async (req, res, next) => {
+exports.getProductReviews = async (req, res, next) => {
   const productId = req.query.id;
   const product = await Product.findById(productId);
 
   if (!product) {
-    res.status(404).json({
+    return res.status(404).json({
       success: false,
       message: "Product not found",
     });
@@ -594,7 +484,7 @@ export const getProductReviews = async (req, res, next) => {
   });
 };
 
-export const deleteReview = async (req, res, next) => {
+exports.deleteReview = async (req, res, next) => {
   const productId = req.query.id;
   const reviewId = req.params.reviewId;
 
@@ -607,8 +497,26 @@ export const deleteReview = async (req, res, next) => {
     });
   }
 
+  const review = product.reviews.find((rev) => String(rev._id) === String(reviewId));
+  if (!review) {
+    return res.status(404).json({
+      success: false,
+      message: "Review not found",
+    });
+  }
+
+  // Only the review's author or an MFA-verified admin may delete it.
+  const isAuthor = String(review.user) === String(req.user._id);
+  const isAdmin = req.user.role === "admin" && req.auth?.mfaVerified;
+  if (!isAuthor && !isAdmin) {
+    return res.status(403).json({
+      success: false,
+      message: "You can only delete your own reviews",
+    });
+  }
+
   const reviews = product.reviews.filter(
-    (rev) => rev._id.toString() !== reviewId.toString(),
+    (rev) => String(rev._id) !== String(reviewId),
   );
 
   let avg = 0;
@@ -627,7 +535,7 @@ export const deleteReview = async (req, res, next) => {
 
   const numOfReviews = reviews.length;
 
-  await Product.findByIdAndUpdate(
+  const updatedProduct = await Product.findByIdAndUpdate(
     productId,
     {
       reviews,
@@ -637,24 +545,18 @@ export const deleteReview = async (req, res, next) => {
     {
       new: true,
       runValidators: true,
-      useFindAndModify: false,
     },
   );
 
-  try {
-    const redisClient = redisClientPromise;
-    const cacheKey = `product:${productId}`;
-    await redisClient.del(cacheKey);
-    console.log(`CACHE INVALIDATED for product: ${productId}`);
-  } catch (cacheError) {
-    console.error("Redis cache invalidation error:", cacheError);
-  }
+  await cache.del(`product:${productId}`);
+  syncSearchIndex(updatedProduct);
 
+  // Emit the post-delete state (previously the old reviews were sent).
   const io = req.app.get("socketio");
-  io.to(productId).emit("reviewUpdate", {
-    reviews: product.reviews,
-    ratings: product.ratings,
-    numOfReviews: product.numOfReviews,
+  io.to(String(productId)).emit("reviewUpdate", {
+    reviews: updatedProduct.reviews,
+    ratings: updatedProduct.ratings,
+    numOfReviews: updatedProduct.numOfReviews,
   });
 
   res.status(200).json({
@@ -663,7 +565,7 @@ export const deleteReview = async (req, res, next) => {
   });
 };
 
-export const summerizeProductReviews = async (req, res, next) => {
+exports.summerizeProductReviews = async (req, res, next) => {
   try {
     if (!process.env.GEMINI_API_KEY) {
       return res.status(500).json({

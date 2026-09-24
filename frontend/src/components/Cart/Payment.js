@@ -34,8 +34,17 @@ const Payment = () => {
                 throw new Error('Cashfree checkout is unavailable. Please refresh and try again.');
             }
 
+            // The server prices the order from the catalogue; only product ids,
+            // quantities and the coupon code are sent.
+            const pricedItems = cartItems.map(item => ({
+                product: item.product,
+                quantity: item.quantity,
+            }));
+            const couponCode = orderInfo.selectedCoupon?.code;
+
             const { data } = await axios.post('/api/v1/cashfree/order', {
-                amount: orderInfo.totalPrice,
+                orderItems: pricedItems,
+                couponCode,
                 phoneNumber: shippingInfo.phoneNumber,
             });
             const result = await cashfree.checkout({
@@ -60,12 +69,8 @@ const Payment = () => {
 
             const createdOrder = await dispatch(createOrder({
                 shippingInfo,
-                orderItems: cartItems,
-                itemsPrice: orderInfo.subtotal,
-                taxPrice: orderInfo.tax || 0,
-                shippingPrice: orderInfo.shippingCharges,
-                totalPrice: orderInfo.totalPrice,
-                couponCode: orderInfo.selectedCoupon?.code,
+                orderItems: pricedItems,
+                couponCode,
                 paymentInfo: {
                     id: data.orderId,
                     provider: 'cashfree',
