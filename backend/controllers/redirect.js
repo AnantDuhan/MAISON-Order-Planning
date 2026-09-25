@@ -11,6 +11,14 @@
 // a short window, the fallback below sends the browser on to the normal
 // web page instead.
 
+const escapeHtml = value =>
+    String(value).replace(/[&<>"']/g, ch => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    })[ch]);
+
+// JSON.stringify doesn't escape "</script>", so do it for inline scripts.
+const jsString = value => JSON.stringify(String(value)).replace(/</g, '\\u003c');
+
 function renderSmartRedirect({ appUrl, webUrl }) {
     return `<!DOCTYPE html>
 <html>
@@ -26,26 +34,35 @@ function renderSmartRedirect({ appUrl, webUrl }) {
 <body>
   <div class="wrap">
     <p style="color:#8A8278; font-size:13px;">Opening your order…</p>
-    <a id="fallback" href="${webUrl}">Continue in browser</a>
+    <a id="fallback" href="${escapeHtml(webUrl)}">Continue in browser</a>
   </div>
   <script>
     // Try the app first.
-    window.location.replace(${JSON.stringify(appUrl)});
+    window.location.replace(${jsString(appUrl)});
     // If the app didn't intercept navigation within this window
     // (not installed, or the platform blocked it), go to the web page.
     setTimeout(function () {
-      window.location.replace(${JSON.stringify(webUrl)});
+      window.location.replace(${jsString(webUrl)});
     }, 1200);
   </script>
 </body>
 </html>`;
 }
 
+// Order ids are generated server-side (short nanoid strings). Anything
+// else is rejected so the id can never inject markup or script into the page.
+const ORDER_ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
+
 // GET /go/order/:id
 exports.openOrder = (req, res) => {
     const { id } = req.params;
-    const appUrl = `orderplanning://orders/${id}`;
-    const webUrl = `${process.env.FRONTEND_URL}/order/${id}`;
+    if (!ORDER_ID_PATTERN.test(id)) {
+        return res.status(400).send('Invalid order link');
+    }
 
+    const appUrl = `orderplanning://orders/${encodeURIComponent(id)}`;
+    const webUrl = `${process.env.FRONTEND_URL}/order/${encodeURIComponent(id)}`;
+
+    res.set('Content-Security-Policy', "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'");
     res.status(200).send(renderSmartRedirect({ appUrl, webUrl }));
 };

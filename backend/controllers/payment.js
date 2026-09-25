@@ -1,4 +1,5 @@
 const generateId = require('../utils/generateId');
+const { priceOrder } = require('../utils/orderPricing');
 const {
     cashfreeRequest,
     getCashfreeOrder,
@@ -15,10 +16,12 @@ exports.createCashfreeOrder = async (req, res) => {
             });
         }
 
-        const { amount } = req.body;
-        const orderAmount = Number(amount);
-        if (!Number.isFinite(orderAmount) || orderAmount <= 0) {
-            return res.status(400).json({ success: false, message: 'A valid payment amount is required' });
+        // The amount is computed on the server from DB prices. Any `amount`
+        // the client sends is ignored.
+        const { orderItems, couponCode } = req.body;
+        const { totalPrice: orderAmount } = await priceOrder(orderItems, couponCode);
+        if (!(orderAmount > 0)) {
+            return res.status(400).json({ success: false, message: 'Order total must be greater than zero' });
         }
 
         const cashfreeOrderId = `order_${req.user._id}_${generateId()}`;
@@ -50,6 +53,7 @@ exports.createCashfreeOrder = async (req, res) => {
             success: true,
             orderId: cashfreeOrder.order_id,
             paymentSessionId: cashfreeOrder.payment_session_id,
+            amount: payload.order_amount,
         });
     } catch (error) {
         console.error(error);
@@ -92,10 +96,4 @@ exports.cashfreeWebhook = (req, res) => {
     }
 
     res.status(200).json({ success: true });
-};
-
-exports.sendStripeApiKey = async (req, res, next) => {
-    res.status(200).json({
-        stripeApiKey: 'MOCK_API_KEY_1234567890'
-    });
 };

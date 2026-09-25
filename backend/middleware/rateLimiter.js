@@ -46,4 +46,26 @@ const authLimiter = rateLimit({
     store: makeStore('rl:auth:'),
 });
 
-module.exports = { apiLimiter, authLimiter };
+// Endpoints that send an email to an arbitrary address (contact form,
+// newsletter, verification resend). Separate counter so they can't be used
+// to burn through the login budget, or to spam inboxes.
+const emailLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000,
+    limit: 5,
+    standardHeaders: 'draft-7',
+    legacyHeaders: false,
+    handler: json429('Too many requests - please try again later.'),
+    store: makeStore('rl:email:'),
+});
+
+// Authenticated account changes (password, 2FA) and the demo login.
+const accountLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: 20,
+    standardHeaders: 'draft-7',
+    legacyHeaders: false,
+    handler: json429('Too many attempts - please wait a few minutes and try again.'),
+    store: makeStore('rl:account:'),
+});
+
+module.exports = { apiLimiter, authLimiter, emailLimiter, accountLimiter };

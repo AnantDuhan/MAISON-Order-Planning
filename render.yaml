@@ -8,7 +8,7 @@ projects:
       name: Order Planning
       runtime: docker
       dockerfilePath: ./Dockerfile
-      repo: https://github.com/AnantDuhan/MERN-Ecommerce
+      repo: https://github.com/AnantDuhan/MAISON-Order-Planning
       plan: free
       region: oregon
       autoDeployTrigger: commit
@@ -50,14 +50,12 @@ projects:
       - key: CRON_SECRET             # required by POST /api/v1/jobs/*
         sync: false
 
-      # --- Email (pooled SMTP) ---
-      - key: SMTP_HOST
+      # --- Email (Resend HTTPS API — see backend/utils/sendEmail.js) ---
+      - key: RESEND_API_KEY
         sync: false
-      - key: SMTP_PORT
+      - key: RESEND_FROM_EMAIL
         sync: false
-      - key: SMTP_MAIL
-        sync: false
-      - key: SMTP_PASSWORD
+      - key: BACKEND_URL             # used for order links in emails
         sync: false
       - key: NEWSLETTER_UNSUBSCRIBE_URL
         sync: false

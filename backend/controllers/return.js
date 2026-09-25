@@ -7,10 +7,26 @@ exports.requestReturn = async (req, res) => {
     try {
         const order = await Order.findById(req.params.id);
 
-        if (!order) {
+        // Only the customer who placed the order may request a return.
+        if (!order || String(order.user) !== String(req.user._id)) {
             return res.status(404).json({
                 success: false,
                 message: 'Order not found'
+            });
+        }
+
+        if (order.isReturned || (order.return && order.return.length > 0)) {
+            return res.status(409).json({
+                success: false,
+                message: 'A return has already been requested for this order'
+            });
+        }
+
+        const reason = typeof req.body.returnReason === 'string' ? req.body.returnReason.trim() : '';
+        if (!reason) {
+            return res.status(400).json({
+                success: false,
+                message: 'Please choose a reason for the return'
             });
         }
 
@@ -39,7 +55,7 @@ exports.requestReturn = async (req, res) => {
             _id: generateId(),
             order: order._id,
             products: productsInOrder,
-            reason: req.body.returnReason,
+            reason,
             requestedAt: new Date(),
             status: 'Pending'
         });
@@ -49,10 +65,12 @@ exports.requestReturn = async (req, res) => {
         // Update the order to reference the single return request
         order.return.push(newReturn._id);
         order.isReturned = true;
-        order.returnReason = req.body.returnReason;
+        order.returnReason = reason;
         order.returnRequestedAt = new Date();
         order.refundStatus = 'Initiated';
         await order.save();
+
+        await cache.del('returns', 'orders', `order:${order._id}`, `orders:${order.user}`);
 
         res.status(200).json({
             success: true,

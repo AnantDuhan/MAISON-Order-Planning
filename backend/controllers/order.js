@@ -1,9 +1,7 @@
 const Order = require('../models/order');
 const Product = require('../models/product');
-const sendEmail = require('../utils/sendEmail');
 const { sendEmailInBackground } = require('../utils/sendEmail');
 const User = require('../models/user');
-const Coupon = require('../models/coupon');
 const cache = require('../utils/cache');
 const Reorder = require('../models/reorder');
 const generateId = require('../utils/generateId');
@@ -11,16 +9,35 @@ const ejs = require('ejs');
 const path = require('path');
 const { getCashfreeOrder } = require('../utils/cashfree');
 const { sendPushNotification } = require('../utils/pushNotifications');
+const { priceOrder } = require('../utils/orderPricing');
 
-const timestamp = Date.now();
-const timestampInSeconds = Math.floor(timestamp / 1000);
+// Valid forward transitions for an order. Anything else is rejected.
+const NEXT_STATUS = {
+    Processing: ['Shipped'],
+    Shipped: ['Delivered'],
+    Delivered: [],
+};
+
+const invalidateOrderCaches = (orderId, userId) =>
+    cache.del(orderId && `order:${orderId}`, 'orders', userId && `orders:${userId}`);
+
+const randomDeliveryDate = () => {
+    const d = new Date();
+    d.setDate(d.getDate() + Math.floor(Math.random() * 8)); // 0-7 days out
+    return d;
+};
+
+const canViewOrder = (order, user) =>
+    user && (String(order.user?._id || order.user) === String(user._id) || user.role === 'admin');
 
 // create new order
+// Prices, totals and the coupon discount are all recomputed on the server and
+// the Cashfree payment must be PAID for exactly that amount.
 exports.newOrder = async (req, res, next) => {
     try {
         const user = await User.findById(req.user._id);
 
-        if(user.isDemo) {
+        if (user.isDemo) {
             return res.status(403).json({
                 success: false,
                 isDemoUser: true,
@@ -28,104 +45,66 @@ exports.newOrder = async (req, res, next) => {
             });
         }
 
-        const {
-            shippingInfo,
-            orderItems,
-            paymentInfo,
-            itemsPrice,
-            taxPrice,
-            shippingPrice,
-            totalPrice,
-            couponCode
-        } = req.body;
+        const { shippingInfo, orderItems, paymentInfo, couponCode } = req.body;
 
-        const coupon = await Coupon.findOne({ code: couponCode });
-
-        if (paymentInfo?.provider === 'cashfree') {
-            if (!paymentInfo.id || !paymentInfo.id.startsWith(`order_${req.user._id}_`)) {
-                return res.status(403).json({
-                    success: false,
-                    message: 'You cannot use this payment for the order',
-                });
-            }
-            const cashfreeOrder = await getCashfreeOrder(paymentInfo.id);
-            if (
-                cashfreeOrder.order_status !== 'PAID'
-            ) {
-                return res.status(402).json({
-                    success: false,
-                    message: 'Cashfree payment has not been completed',
-                });
-            }
-            paymentInfo.status = 'PAID';
-            paymentInfo.id = cashfreeOrder.cf_order_id || paymentInfo.id;
+        if (paymentInfo?.provider !== 'cashfree' || typeof paymentInfo.id !== 'string') {
+            return res.status(400).json({
+                success: false,
+                message: 'A completed Cashfree payment is required to place an order',
+            });
         }
+        if (!paymentInfo.id.startsWith(`order_${req.user._id}_`)) {
+            return res.status(403).json({
+                success: false,
+                message: 'You cannot use this payment for the order',
+            });
+        }
+
+        const pricing = await priceOrder(orderItems, couponCode);
+
+        const cashfreeOrder = await getCashfreeOrder(paymentInfo.id);
+        if (cashfreeOrder.order_status !== 'PAID') {
+            return res.status(402).json({
+                success: false,
+                message: 'Cashfree payment has not been completed',
+            });
+        }
+        if (Math.abs(Number(cashfreeOrder.order_amount) - pricing.totalPrice) > 0.01) {
+            return res.status(409).json({
+                success: false,
+                message: 'The amount paid does not match the order total. Please contact support.',
+            });
+        }
+
+        const paymentId = String(cashfreeOrder.cf_order_id || paymentInfo.id);
 
         // Prevent duplicate orders for the same completed payment
         // (protects against double-submit / client retries).
-        if (paymentInfo?.id) {
-            const existingOrder = await Order.findOne({ 'paymentInfo.id': paymentInfo.id }).select('_id');
-            if (existingOrder) {
-                return res.status(200).json({ success: true, order: existingOrder, deduped: true });
-            }
+        const existingOrder = await Order.findOne({ 'paymentInfo.id': paymentId }).select('_id');
+        if (existingOrder) {
+            return res.status(200).json({ success: true, order: existingOrder, deduped: true });
         }
 
-        let discountedTotalPrice = totalPrice;
-        if (coupon) {
-            if (
-                totalPrice >= coupon.minOrderAmount &&
-                totalPrice <= coupon.maxOrderAmount
-            ) {
-                discountedTotalPrice =
-                    totalPrice - (totalPrice * coupon.discountPercent) / 100;
-            }
-        }
-
-        // Modify the orderItems to include the image data
-        const orderItemsWithImages = await Promise.all(
-            orderItems.map(async item => {
-                const product = await Product.findById(item.product);
-                if (!product) {
-                    const error = new Error(`Product ${item.product} not found`);
-                    error.statusCode = 404;
-                    throw error;
-                }
-
-                return {
-                    name: item.name,
-                    price: item.price,
-                    quantity: item.quantity,
-                    images: product.images,
-                    product: item.product
-                };
-            })
-        );
+        const estimatedDeliveryDate = randomDeliveryDate();
 
         const order = await Order.create({
             _id: generateId(),
             shippingInfo,
-            orderItems: orderItemsWithImages,
-            paymentInfo,
-            itemsPrice,
-            taxPrice,
-            shippingPrice,
-            totalPrice: discountedTotalPrice,
+            orderItems: pricing.orderItems,
+            paymentInfo: { id: paymentId, status: 'PAID' },
+            itemsPrice: pricing.itemsPrice,
+            taxPrice: pricing.taxPrice,
+            shippingPrice: pricing.shippingPrice,
+            totalPrice: pricing.totalPrice,
+            discountedAmount: pricing.discount,
             paidAt: Date.now(),
             user: req.user._id,
-            couponUsed: coupon ? true : false,
-            couponCode: couponCode
+            couponUsed: Boolean(pricing.coupon),
+            couponCode: pricing.coupon ? pricing.coupon.code : undefined,
+            estimatedDeliveryDate,
         });
 
-        const randomDays = Math.floor(Math.random() * 8); // Generate random number between 0 and 7
-        const currentDate = new Date();
-        const estimatedDeliveryDate = new Date(
-            currentDate.getFullYear(),
-            currentDate.getMonth(),
-            currentDate.getDate() + randomDays
-        ); // Add random days
-
-        order.estimatedDeliveryDate = estimatedDeliveryDate;
-        await order.save({ validateBeforeSave: false });
+        await invalidateOrderCaches(order._id, req.user._id);
 
         sendPushNotification(
             user.pushToken,
@@ -141,7 +120,7 @@ exports.newOrder = async (req, res, next) => {
                 user,
                 status: 'placed',
                 estimatedDeliveryDate: estimatedDeliveryDate.toDateString(),
-                orderLink: `${process.env.BACKEND_URL}/order/${order._id}`
+                orderLink: `${process.env.BACKEND_URL}/go/order/${order._id}`
             }
         );
 
@@ -156,9 +135,9 @@ exports.newOrder = async (req, res, next) => {
             order
         });
     } catch (error) {
-        res.status(500).json({
+        res.status(error.statusCode || 500).json({
             success: false,
-            message: error.message
+            message: error.statusCode ? error.message : 'Could not place the order'
         });
     }
 };
@@ -177,7 +156,8 @@ exports.getSingleOrder = async (req, res, next) => {
         if (order) await cache.setJSON(cacheKey, order, 600);
     }
 
-    if (!order) {
+    // Return 404 (not 403) for other users' orders so ids can't be probed.
+    if (!order || !canViewOrder(order, req.user)) {
         return res.status(404).json({
             success: false,
             message: 'Order📦 not found with this Id'
@@ -214,15 +194,6 @@ exports.getAllOrders = async (req, res, next) => {
         let orders;
         let totalAmount = 0;
 
-        // 1. Check if it's in the cache
-        orders = await cache.getJSON('orders');
-        if (!orders) {
-            // 2. If not in cache, get from DB
-            orders = await Order.find().lean();
-
-            await cache.setJSON('orders', orders);
-        }
-
         if (req.user?.isDemo) {
             const demoOrders = await Order.find({ isDemo: true })
                 .sort({ createdAt: -1 })
@@ -233,6 +204,12 @@ exports.getAllOrders = async (req, res, next) => {
                 demoMode: true,
                 orders: demoOrders
             });
+        }
+
+        orders = await cache.getJSON('orders');
+        if (!orders) {
+            orders = await Order.find().sort({ createdAt: -1 }).lean();
+            await cache.setJSON('orders', orders);
         }
 
         // 3. Calculate total amount safely
@@ -261,9 +238,8 @@ exports.getAllOrders = async (req, res, next) => {
 exports.updateOrder = async (req, res, next) => {
     try {
         const orderId = req.params.id;
+        const { status } = req.body;
         const order = await Order.findById(orderId);
-
-        const user = await User.findById(req.user._id);
 
         if (!order) {
             return res.status(404).json({
@@ -272,30 +248,34 @@ exports.updateOrder = async (req, res, next) => {
             });
         }
 
-        if (order.orderStatus === 'Delivered') {
+        const allowed = NEXT_STATUS[order.orderStatus] || [];
+        if (!allowed.includes(status)) {
             return res.status(400).json({
                 success: false,
-                message: 'You have already delivered this order'
+                message: `Cannot change an order from ${order.orderStatus} to ${status}`
             });
         }
 
-        if (req.body.status === 'Shipped') {
+        // Stock leaves the warehouse exactly once, on Processing -> Shipped.
+        if (status === 'Shipped') {
             await Promise.all(
                 order.orderItems.map(item => updateStock(item.product, item.quantity))
             );
         }
 
-        order.orderStatus = req.body.status;
-
-        if (req.body.status === 'Delivered') {
+        order.orderStatus = status;
+        let estimatedDeliveryDate = null;
+        if (status === 'Delivered') {
             order.DeliveredAt = Date.now();
             order.estimatedDeliveryDate = null;
+        } else {
+            estimatedDeliveryDate = order.estimatedDeliveryDate || randomDeliveryDate();
+            order.estimatedDeliveryDate = estimatedDeliveryDate;
         }
 
-        // Save the updated order
         await order.save({ validateBeforeSave: false });
 
-        // Push the new status to anyone viewing this order in real time.
+        // Push the new status to the owner viewing this order in real time.
         const io = req.app.get('socketio');
         if (io) {
             io.to(`order:${orderId}`).emit('orderStatusUpdate', {
@@ -304,30 +284,9 @@ exports.updateOrder = async (req, res, next) => {
             });
         }
 
-        // Clear the shared cache for the updated order (reaches all instances)
-        await cache.del(`order:${orderId}`, 'orders', `orders:${order.user}`);
+        await invalidateOrderCaches(orderId, order.user);
 
-        const randomDays = Math.floor(Math.random() * 8); // Generate random number between 0 and 7
-        const currentDate = new Date();
-        const estimatedDeliveryDate = new Date(
-            currentDate.getFullYear(),
-            currentDate.getMonth(),
-            currentDate.getDate() + randomDays
-        ); // Add random days
-
-        if (order.orderStatus !== 'Delivered') {
-            order.estimatedDeliveryDate = estimatedDeliveryDate;
-            await order.save({ validateBeforeSave: false });
-        }
-
-        if (order.orderStatus !== 'Delivered') {
-            order.estimatedDeliveryDate = estimatedDeliveryDate;
-            await order.save({ validateBeforeSave: false });
-        }
-
-        // NOTE: `user` above is the ADMIN performing this update (req.user._id),
-        // not the customer who placed the order — so notifications about the
-        // order must go to the order's own owner instead.
+        // Notify the customer who placed the order (not the admin making the change).
         const orderOwner = await User.findById(order.user);
         if (orderOwner) {
             sendPushNotification(
@@ -336,65 +295,48 @@ exports.updateOrder = async (req, res, next) => {
                 `Your order is now ${order.orderStatus}.`,
                 { orderId: order._id, type: 'order-status' }
             ).catch(() => {});
-        }
 
-        const emailMessage = await ejs.renderFile(
-            path.join(__dirname, '../mails/order-confirmation.ejs'),
-            {
-                order,
-                user,
-                status: order.orderStatus,
-                estimatedDeliveryDate: estimatedDeliveryDate.toDateString(),
-                orderLink: `${process.env.BACKEND_URL}/go/order/${order._id}`
-            }
-        );
-        sendEmailInBackground({
-            email: user.email,
-            subject: `Your Order📦 Status Update: ${order.orderStatus}`,
-            html: emailMessage
-        });
+            const emailMessage = await ejs.renderFile(
+                path.join(__dirname, '../mails/order-confirmation.ejs'),
+                {
+                    order,
+                    user: orderOwner,
+                    status: order.orderStatus,
+                    estimatedDeliveryDate: estimatedDeliveryDate ? estimatedDeliveryDate.toDateString() : '',
+                    orderLink: `${process.env.BACKEND_URL}/go/order/${order._id}`
+                }
+            );
+            sendEmailInBackground({
+                email: orderOwner.email,
+                subject: `Your Order📦 Status Update: ${order.orderStatus}`,
+                html: emailMessage
+            });
+        }
 
         res.status(200).json({
             success: true,
-            message: 'WhatsApp & Email sent successfully',
+            message: 'Order updated and customer notified',
             order
         });
     } catch (error) {
         console.error(error);
-        res.status(500).json({
+        res.status(error.statusCode || 500).json({
             success: false,
-            message: 'Internal Server Error'
+            message: error.statusCode ? error.message : 'Internal Server Error'
         });
     }
 };
 
-async function getOrderFromCache(orderId) {
-    // Check if order data is in the cache
-    const cacheKey = `order:${orderId}`;
-    let order = await cache.getJSON(cacheKey);
-
-    // If not in the cache, fetch from the database
-    if (!order) {
-        order = await Order.findById(orderId).lean();
-
-        // Cache the order data for future use
-        if (order) {
-            await cache.setJSON(cacheKey, order, 600);
-        }
-    }
-
-    return order;
-}
-
 async function updateStock(id, quantity) {
-    const product = await Product.findById(id);
-    if (!product) {
-        const error = new Error(`Product ${id} not found for order stock update`);
-        error.statusCode = 404;
+    const result = await Product.updateOne(
+        { _id: id, Stock: { $gte: quantity } },
+        { $inc: { Stock: -quantity } }
+    );
+    if (result.matchedCount === 0) {
+        const error = new Error(`Not enough stock for product ${id} to ship this order`);
+        error.statusCode = 409;
         throw error;
     }
-    product.Stock -= quantity;
-    await product.save({ validateBeforeSave: false });
 }
 
 // delete Order -- Admin
@@ -408,7 +350,8 @@ exports.deleteOrder = async (req, res, next) => {
         });
     }
 
-    await order.remove();
+    await order.deleteOne();
+    await invalidateOrderCaches(order._id, order.user);
 
     res.status(200).json({
         success: true,
@@ -416,46 +359,41 @@ exports.deleteOrder = async (req, res, next) => {
     });
 };
 
-// Re-place a past order as a fresh order for the same user.
+// Reorder: return the items of a past order (at current prices, in stock)
+// so the client can put them back in the cart and go through checkout.
+// It deliberately does NOT create an order — the old one's payment can't be
+// reused.
 // POST /api/v1/order/reorder/:orderId
 exports.reorder = async (req, res, next) => {
     try {
-        const { orderId } = req.params;
+        const originalOrder = await Order.findById(req.params.orderId).lean();
 
-        const originalOrder = await Order.findById(orderId);
-
-        if (!originalOrder) {
+        // Same 404 for missing and not-yours so ids can't be probed.
+        if (!originalOrder || String(originalOrder.user) !== String(req.user._id)) {
             return res.status(404).json({
                 success: false,
                 message: 'Original order not found'
             });
         }
 
-        // A user may only reorder their own order.
-        if (String(originalOrder.user) !== String(req.user._id)) {
-            return res.status(403).json({
-                success: false,
-                message: 'You are not allowed to reorder this order'
+        const ids = originalOrder.orderItems.map(item => String(item.product));
+        const products = await Product.find({ _id: { $in: ids } }).select('name price Stock images');
+        const byId = new Map(products.map(p => [String(p._id), p]));
+
+        const items = [];
+        const unavailable = [];
+        for (const item of originalOrder.orderItems) {
+            const product = byId.get(String(item.product));
+            if (!product || product.Stock < 1) {
+                unavailable.push({ product: String(item.product), name: item.name });
+                continue;
+            }
+            items.push({
+                product: String(product._id),
+                quantity: Math.min(item.quantity, product.Stock),
             });
         }
 
-        // Clone the purchasable content into a brand-new order. `_id` is a
-        // required String across all models, so it must be generated
-        // explicitly. Status/refund/return flags reset to a fresh order.
-        const newOrder = await Order.create({
-            _id: generateId(),
-            shippingInfo: originalOrder.shippingInfo,
-            orderItems: originalOrder.orderItems,
-            user: req.user._id,
-            paymentInfo: originalOrder.paymentInfo,
-            paidAt: Date.now(),
-            itemsPrice: originalOrder.itemsPrice,
-            shippingPrice: originalOrder.shippingPrice,
-            totalPrice: originalOrder.totalPrice,
-            orderStatus: 'Processing'
-        });
-
-        // Audit trail linking the new order back to the one it was copied from.
         await Reorder.create({
             _id: generateId(),
             originalOrder: originalOrder._id
@@ -463,7 +401,8 @@ exports.reorder = async (req, res, next) => {
 
         res.status(200).json({
             success: true,
-            order: newOrder
+            items,
+            unavailable
         });
     } catch (error) {
         console.error(error);

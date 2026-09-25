@@ -1,10 +1,5 @@
 const Coupon = require('../models/coupon');
-const nodeCache = require('node-cache');
-const NodeCache = new nodeCache();
 const generateId = require('../utils/generateId');
-
-const timestamp = Date.now();
-const timestampInSeconds = Math.floor(timestamp / 1000);
 
 // Generate a new coupon code
 exports.generateCoupon = async (req, res, next) => {
@@ -19,10 +14,10 @@ exports.generateCoupon = async (req, res, next) => {
         }
 
         const discountValue = Number(discount);
-        if (Number.isNaN(discountValue) || discountValue <= 0) {
+        if (Number.isNaN(discountValue) || discountValue <= 0 || discountValue > 100) {
             return res.status(400).json({
                 success: false,
-                message: 'Discount must be a positive number'
+                message: 'Discount must be a percentage between 0 and 100'
             });
         }
 
@@ -75,7 +70,13 @@ exports.generateCoupon = async (req, res, next) => {
 // Get all coupon codes
 exports.getAllCoupons = async (req, res, next) => {
     try {
-        const coupons = await Coupon.find();
+        const isAdmin = req.user?.role === 'admin' && (req.auth?.mfaVerified || req.user.isDemo);
+
+        const coupons = isAdmin
+            ? await Coupon.find(req.user.isDemo ? { isDemo: true } : {}).sort({ createdAt: -1 })
+            : await Coupon.find({ expiresAt: { $gt: new Date() }, isDemo: { $ne: true } })
+                .select('code discount expiresAt')
+                .sort({ discount: -1 });
 
         res.status(200).json({
             success: true,
@@ -84,8 +85,7 @@ exports.getAllCoupons = async (req, res, next) => {
     } catch (error) {
         res.status(500).json({
             success: false,
-            message: 'Failed to fetch coupon codes',
-            error: error.message
+            message: 'Failed to fetch coupon codes'
         });
     }
 };

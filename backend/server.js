@@ -1,6 +1,9 @@
+const path = require('path');
+// Load env first, from a path relative to this file (not the working dir).
+require('dotenv').config({ path: path.join(__dirname, 'config/config.env') });
+
 const app = require('./app');
-// const cronJob = require('./cronJob');
-const dotenv = require('dotenv');
+const { isAllowedOrigin } = require('./app');
 const connectDB = require('./config/database');
 const http = require('http');
 const { Server } = require('socket.io');
@@ -10,6 +13,9 @@ const redisClient = require('./config/redisClientUpstash');
 const { warmUpEmailTransport } = require('./utils/sendEmail');
 const runWeeklyNewsletter = require('./newsletterJob');
 const runWishlistReminders = require('./wishlistJob');
+const { resolveSession } = require('./middleware/auth');
+const Order = require('./models/order');
+const Product = require('./models/product');
 
 // Handling Uncaught Exceptions
 // process.on('uncaughtException', (err) => {
@@ -18,13 +24,11 @@ const runWishlistReminders = require('./wishlistJob');
 //     process.exit(1);
 // })
 
-// config
-dotenv.config({ path: './backend/config/config.env' });
-
 const createServer = http.createServer(app);
 const io = new Server(createServer, {
     cors: {
-        origin: "http://localhost:3000",
+        origin: (origin, callback) => callback(null, isAllowedOrigin(origin)),
+        credentials: true,
     }
 });
 
@@ -46,15 +50,64 @@ async function attachRedisAdapter(io) {
 }
 attachRedisAdapter(io).catch(err => console.error('Redis adapter setup failed:', err.message));
 
+const readCookie = (header, name) => {
+    for (const part of String(header || '').split(';')) {
+        const [key, ...rest] = part.trim().split('=');
+        if (key === name) return decodeURIComponent(rest.join('='));
+    }
+    return null;
+};
+
+// Identify the socket's user from the same httpOnly session cookie the API
+// uses. Anonymous sockets are allowed, but can only join public product rooms.
+io.use(async (socket, next) => {
+    try {
+        const session = await resolveSession(readCookie(socket.handshake.headers.cookie, 'token'));
+        socket.data.user = session ? session.user : null;
+        socket.data.mfaVerified = Boolean(session?.decoded?.mfaVerified);
+    } catch {
+        socket.data.user = null;
+    }
+    next();
+});
+
+// Room access rules:
+//   order:<id>  -> only the order's owner or an MFA-verified admin
+//   <userId>    -> only that user (wishlist updates)
+//   <productId> -> anyone (public reviews / AI summary updates)
+const canJoinRoom = async (socket, room) => {
+    if (typeof room !== 'string' || !room || room.length > 100) return false;
+    const user = socket.data.user;
+
+    if (room.startsWith('order:')) {
+        if (!user) return false;
+        const isAdmin = user.role === 'admin' && socket.data.mfaVerified;
+        if (isAdmin) return true;
+        const order = await Order.findById(room.slice('order:'.length)).select('user').lean();
+        return Boolean(order) && String(order.user) === String(user._id);
+    }
+
+    if (user && room === String(user._id)) return true;
+
+    return Boolean(await Product.exists({ _id: room }));
+};
+
+const joinIfAllowed = socket => async room => {
+    try {
+        if (await canJoinRoom(socket, room)) socket.join(room);
+    } catch (err) {
+        console.error('Socket join check failed:', err.message);
+    }
+};
+
 io.on('connection', socket => {
-    // Generic rooms — order status uses room `order:<orderId>`; future
-    // per-entity channels can reuse joinRoom/leaveRoom.
-    socket.on('joinRoom', room => room && socket.join(room));
-    socket.on('leaveRoom', room => room && socket.leave(room));
+    // Generic rooms — order status uses room `order:<orderId>`.
+    socket.on('joinRoom', joinIfAllowed(socket));
+    socket.on('leaveRoom', room => typeof room === 'string' && socket.leave(room));
 
     // Back-compat with the product page, which joins a room named by productId.
-    socket.on('joinProductRoom', productId => productId && socket.join(productId));
-    socket.on('leaveProductRoom', productId => productId && socket.leave(productId));
+    socket.on('joinProductRoom', joinIfAllowed(socket));
+    socket.on('leaveProductRoom', productId => typeof productId === 'string' && socket.leave(productId));
 });
 
 app.set('socketio', io);
@@ -107,8 +160,9 @@ const gracefulShutdown = signal => {
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
-// Unhandled promise rejection safety net.
+// Unhandled promise rejection safety net. Log instead of exiting: the app
+// fires several best-effort background promises (emails, push, search
+// indexing, cache), and one of those failing shouldn't take the API down.
 process.on('unhandledRejection', err => {
-    console.error(`Unhandled Rejection: ${err.message}`);
-    server.close(() => process.exit(1));
+    console.error('Unhandled Rejection:', err);
 });

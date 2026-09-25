@@ -1,3 +1,4 @@
+import { addItemsToCart } from './cartAction';
 import {
     CREATE_ORDER_REQUEST,
     CREATE_ORDER_SUCCESS,
@@ -267,10 +268,13 @@ export const clearErrors = () => async dispatch => {
     dispatch({ type: CLEAR_ERRORS });
 };
 
-// Re-place a past order. Loading/toast/redirect are handled by the caller,
-// so this stays a thin thunk: it POSTs and returns the new order, letting any
-// error propagate to the component's catch.
-export const reorder = orderId => async () => {
+// Reorder: the server returns the past order's items that are still in
+// stock; they go back into the cart and through normal checkout (a past
+// payment can't be reused). Errors propagate to the component's catch.
+export const reorder = orderId => async dispatch => {
     const { data } = await axios.post(`/api/v1/order/reorder/${orderId}`);
+    for (const item of data.items || []) {
+        await dispatch(addItemsToCart(item.product, item.quantity));
+    }
     return data;
 };
