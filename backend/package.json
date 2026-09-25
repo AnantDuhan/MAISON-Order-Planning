@@ -24,7 +24,7 @@
         "@socket.io/redis-adapter": "^8.3.0",
         "@upstash/redis": "^1.38.0",
         "bcryptjs": "^2.4.3",
-        "bullmq": "^5.34.0",
+        "bullmq": "^6.3.8",
         "compression": "^1.8.1",
         "cookie-parser": "^1.4.6",
         "cors": "^2.8.5",
