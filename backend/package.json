@@ -17,7 +17,7 @@
     "license": "ISC",
     "dependencies": {
         "@aws-sdk/client-s3": "^3.609.0",
-        "@aws-sdk/credential-provider-env": "^3.972.46",
+        "@aws-sdk/credential-provider-env": "^3.972.71",
         "@elastic/elasticsearch": "^8.19.2",
         "@google/genai": "^2.22.0",
         "@google/generative-ai": "^0.24.1",
@@ -32,7 +32,7 @@
         "ejs": "^5.0.1",
         "express": "^5.2.1",
         "express-rate-limit": "^8.7.0",
-        "google-auth-library": "^10.2.0",
+        "google-auth-library": "^11.1.0",
         "ioredis": "^5.4.2",
         "jsonwebtoken": "^9.0.2",
         "mongoose": "^9.3.1",
