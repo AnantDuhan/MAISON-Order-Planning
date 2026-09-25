@@ -1,7 +1,7 @@
 const path = require("path");
 // Load env before anything that reads process.env at require time. Resolved
 // from this file so it works regardless of the working directory.
-require("dotenv").config({ path: path.join(__dirname, "config/config.env") });
+require("dotenv").config({ path: path.join(__dirname, "config/config.env"), quiet: true });
 
 const cookieParser = require("cookie-parser");
 const compression = require("compression");
@@ -17,6 +17,7 @@ const { fromEnv } = require("@aws-sdk/credential-provider-env");
 const swaggerUi = require("swagger-ui-express");
 
 const errorMiddleware = require("./middleware/error");
+const securityHeaders = require("./middleware/securityHeaders");
 const { isAuthUser, authRoles } = require("./middleware/auth");
 const { apiLimiter } = require("./middleware/rateLimiter");
 const Product = require("./models/product");
@@ -34,6 +35,10 @@ app.set("trust proxy", 1);
 // price/rating filters. The extended parser restores nested objects;
 // ApiFeatures whitelists what can be filtered on.
 app.set("query parser", "extended");
+
+// Security headers (helmet): HSTS, nosniff, frame protection, referrer
+// policy and a Content-Security-Policy. See middleware/securityHeaders.js.
+app.use(securityHeaders);
 
 // Gzip response bodies. Registered first so every downstream response
 // (API JSON, docs, health) is compressed before it leaves the server.

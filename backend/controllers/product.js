@@ -2,12 +2,13 @@
 // loaded thanks to Node 22's require(esm) support).
 const Product = require("../models/product");
 const User = require("../models/user");
+const Order = require("../models/order");
 const ApiFeatures = require("../utils/apifeatures");
 const generateId = require("../utils/generateId");
 const { GoogleGenAI } = require("@google/genai");
 const cache = require("../utils/cache");
 const { generateEmbedding } = require("../utils/generateEmbedding");
-const { indexProduct } = require("../services/searchService");
+const searchService = require("../services/searchService");
 
 // Fields an admin may change through the JSON update endpoint.
 const UPDATABLE_PRODUCT_FIELDS = ["name", "description", "price", "category", "Stock"];
@@ -16,7 +17,7 @@ const LIST_CACHE_TTL = 60;
 const DETAIL_CACHE_TTL = 3600;
 
 const syncSearchIndex = product =>
-  indexProduct(product).catch(err => console.error("Search index sync failed:", err.message));
+  searchService.indexProduct(product).catch(err => console.error("Search index sync failed:", err.message));
 
 // Auto-generate a review summary the first time a product with enough reviews
 // is viewed, so nobody has to click "Generate". Guarded so each product only
@@ -267,6 +268,19 @@ exports.createProductReview = async (req, res, next) => {
     return res.status(404).json({
       success: false,
       message: "Product not found",
+    });
+  }
+
+  // Only customers who have received this product can review it.
+  const hasPurchased = await Order.exists({
+    user: req.user._id,
+    orderStatus: "Delivered",
+    "orderItems.product": String(productId),
+  });
+  if (!hasPurchased) {
+    return res.status(403).json({
+      success: false,
+      message: "You can review this product once an order containing it has been delivered",
     });
   }
 

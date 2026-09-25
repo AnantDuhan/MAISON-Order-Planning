@@ -5,7 +5,7 @@ import axios from 'axios';
 import MetaData from '../layout/MetaData';
 
 const cashfree = window.Cashfree
-    ? window.Cashfree({ mode: process.env.REACT_APP_CASHFREE_MODE || 'sandbox' })
+    ? window.Cashfree({ mode: import.meta.env.REACT_APP_CASHFREE_MODE || 'sandbox' })
     : null;
 
 const Membership = () => {

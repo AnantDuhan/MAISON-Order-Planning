@@ -69,6 +69,4 @@ jobs:
 
       - name: Build frontend
         working-directory: ./frontend
-        env:
-          CI: false # CRA treats lint warnings as errors when CI=true
         run: npm run build

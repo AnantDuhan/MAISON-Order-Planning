@@ -155,7 +155,7 @@ const LoginAndRegister = () => {
     return (
         <Fragment>
             <LoadingBar color='#A07C4B' progress={progress} onLoaderFinished={onLoaderFinished} />
-            <GoogleOAuthProvider clientId={process.env.REACT_APP_GOOGLE_CLIENT_ID}>
+            <GoogleOAuthProvider clientId={import.meta.env.REACT_APP_GOOGLE_CLIENT_ID}>
                     <div className='form-shell'>
                         <div className='form-card'>
                             {/* Tab switch */}

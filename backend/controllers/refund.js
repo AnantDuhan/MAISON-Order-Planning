@@ -1,6 +1,7 @@
 const Return = require('../models/return');
 const Refund = require('../models/refund');
 const Order = require('../models/order');
+const Product = require('../models/product');
 const generateId = require('../utils/generateId');
 const cache = require('../utils/cache');
 
@@ -171,10 +172,26 @@ exports.updateRefundStatus = async (req, res) => {
             });
         }
 
+        // A completed refund is final: money has gone back to the customer.
+        if (order.isRefunded && refundStatus !== 'Refunded') {
+            return res.status(409).json({
+                success: false,
+                message: 'This order has already been refunded'
+            });
+        }
+
         // MOCK GATEWAY: We removed Stripe. We just update the database directly.
         if (refundStatus === 'Refunded') {
             order.isRefunded = true;
-            order.refundedAt = new Date(); 
+            order.refundedAt = order.refundedAt || new Date();
+
+            // The refund covers the whole order, so every item goes back into
+            // stock — but only if stock was taken out (on Shipped), and only once.
+            const stockWasTaken = ['Shipped', 'Delivered'].includes(order.orderStatus);
+            if (stockWasTaken && !order.stockRestoredAt) {
+                await restoreStock(order.orderItems);
+                order.stockRestoredAt = new Date();
+            }
         }
 
         // Dynamically update based on what the Admin selected in the dropdown
@@ -188,7 +205,13 @@ exports.updateRefundStatus = async (req, res) => {
         await refund.save();
 
         // CLEAR shared CACHE so the DataGrid in React updates immediately
-        await cache.del('refunds', 'orders', `order:${order._id}`, `orders:${order.user}`);
+        await cache.del(
+            'refunds',
+            'orders',
+            `order:${order._id}`,
+            `orders:${order.user}`,
+            ...order.orderItems.map(item => `product:${item.product}`)
+        );
 
         res.status(200).json({
             success: true,
@@ -204,6 +227,22 @@ exports.updateRefundStatus = async (req, res) => {
         });
     }
 };
+
+async function restoreStock(orderItems = []) {
+    const ops = orderItems
+        .filter(item => item.product && item.quantity > 0)
+        .map(item => ({
+            updateOne: {
+                filter: { _id: String(item.product) },
+                update: { $inc: { Stock: item.quantity } }
+            }
+        }));
+    if (ops.length) {
+        await Product.bulkWrite(ops, { ordered: false });
+    }
+}
+
+exports.restoreStock = restoreStock;
 
 exports.getAllRefunds = async (req, res) => {
     try {

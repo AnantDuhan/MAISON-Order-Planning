@@ -9,7 +9,7 @@ const BackendWaker = ({ children }) => {
     const { isAwake } = useSelector(state => state.server);
     const [dots, setDots] = useState('');
 
-    const isDevelopment = process.env.NODE_ENV === 'development';
+    const isDevelopment = import.meta.env.DEV;
 
     useEffect(() => {
         if (isDevelopment) {

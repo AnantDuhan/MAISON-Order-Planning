@@ -7,7 +7,7 @@ const { sendEmailInBackground } = require('../utils/sendEmail');
 const {
     cashfreeRequest,
     getCashfreePlan,
-    verifyCashfreeWebhookSignature,
+    verifyCashfreeWebhook,
 } = require('../utils/cashfree');
 
 const planConfig = {
@@ -274,13 +274,11 @@ exports.cancelMembership = async (req, res) => {
 };
 
 exports.membershipWebhook = async (req, res) => {
-    const valid = verifyCashfreeWebhookSignature(
-        req.headers['x-webhook-timestamp'],
-        req.rawBody || '',
-        req.headers['x-webhook-signature'],
-    );
-    if (!valid) {
-        return res.status(400).json({ success: false, message: 'Invalid webhook signature' });
+    // Signature + freshness + duplicate check: an old or replayed webhook
+    // can't flip a membership back to an earlier status.
+    const check = await verifyCashfreeWebhook(req);
+    if (!check.ok) {
+        return res.status(check.status).json({ success: check.status === 200, message: check.message });
     }
 
     res.status(200).json({ success: true });
