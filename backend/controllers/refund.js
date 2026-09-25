@@ -149,7 +149,7 @@ exports.updateRefundStatus = async (req, res) => {
         const refund = await Refund.findById(refundId);
         const order = await Order.findById(orderId);
 
-        if (!refund || !order) {
+        if (!refund || !order || String(refund.order) !== String(order._id)) {
             return res.status(404).json({
                 success: false,
                 message: 'Refund or Order not found'
