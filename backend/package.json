@@ -11,7 +11,8 @@
         "reindex": "node scripts/reindexProducts.js",
         "seed:products": "node scripts/seedProducts.js",
         "seed:reviews": "node scripts/Seedreviews.js",
-        "seed:demo-account": "node scripts/seed-demo-account.js"
+        "seed:demo-account": "node scripts/seed-demo-account.js",
+        "test": "node --test --test-force-exit \"tests/**/*.test.js\""
     },
     "author": "Anant Duhan",
     "license": "ISC",
@@ -33,6 +34,7 @@
         "express": "^5.2.1",
         "express-rate-limit": "^8.7.0",
         "google-auth-library": "^11.1.0",
+        "helmet": "^8.3.0",
         "ioredis": "^5.4.2",
         "jsonwebtoken": "^9.0.2",
         "mongoose": "^9.10.1",

@@ -1,6 +1,5 @@
 import Slider from '@mui/material/Slider';
 import React, { Fragment, useEffect, useState } from 'react';
-import Pagination from 'react-js-pagination';
 import { useDispatch, useSelector } from 'react-redux';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
@@ -9,6 +8,7 @@ import LoadingBar from 'react-top-loading-bar';
 import { clearErrors, getProduct } from '../../actions/productAction';
 import ProductCard from '../Home/ProductCard';
 import MetaData from '../layout/MetaData';
+import Pager from '../layout/Pager/Pager';
 
 const Products = () => {
     const dispatch = useDispatch();
@@ -60,6 +60,7 @@ const Products = () => {
         return () => clearTimeout(timer);
     }, [dispatch, navigate, keyword, currentPage, price, category, ratings, error]);
 
+    // Pages are counted from the FILTERED total, not the whole catalogue.
     let count = filteredProductsCount;
 
     return (
@@ -152,21 +153,11 @@ const Products = () => {
 
                                 {resultPerPage < count && (
                                     <div className='mt-16'>
-                                        <Pagination
-                                            activePage={currentPage}
-                                            itemsCountPerPage={Number(resultPerPage)}
-                                            totalItemsCount={productsCount}
+                                        <Pager
+                                            currentPage={currentPage}
+                                            perPage={Number(resultPerPage)}
+                                            totalItems={count}
                                             onChange={setCurrentPageNo}
-                                            nextPageText='Next'
-                                            prevPageText='Prev'
-                                            firstPageText='1st'
-                                            lastPageText='Last'
-                                            itemClass='page-item'
-                                            linkClass='page-link'
-                                            activeClass='pageItemActive'
-                                            activeLinkClass='pageLinkActive'
-                                            hideFirstLastPages={true}
-                                            hidePrevNextPages={true}
                                         />
                                     </div>
                                 )}

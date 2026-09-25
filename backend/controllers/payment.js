@@ -3,7 +3,7 @@ const { priceOrder } = require('../utils/orderPricing');
 const {
     cashfreeRequest,
     getCashfreeOrder,
-    verifyCashfreeWebhookSignature,
+    verifyCashfreeWebhook,
 } = require('../utils/cashfree');
 
 exports.createCashfreeOrder = async (req, res) => {
@@ -83,16 +83,11 @@ exports.verifyCashfreePayment = async (req, res) => {
     }
 };
 
-exports.cashfreeWebhook = (req, res) => {
-    const rawBody = req.rawBody || '';
-    const valid = verifyCashfreeWebhookSignature(
-        req.headers['x-webhook-timestamp'],
-        rawBody,
-        req.headers['x-webhook-signature'],
-    );
-
-    if (!valid) {
-        return res.status(400).json({ success: false, message: 'Invalid webhook signature' });
+exports.cashfreeWebhook = async (req, res) => {
+    const check = await verifyCashfreeWebhook(req);
+    if (!check.ok) {
+        // Duplicates get a 200 so Cashfree stops retrying them.
+        return res.status(check.status).json({ success: check.status === 200, message: check.message });
     }
 
     res.status(200).json({ success: true });

@@ -21,7 +21,9 @@ const resolveSession = async token => {
    // cookie.
    if (decoded.twoFactorPending) return null;
 
-   const user = await User.findById(decoded.id);
+   // passwordChangedAt is select:false, so ask for it explicitly — without
+   // it the revocation check below would never run.
+   const user = await User.findById(decoded.id).select('+passwordChangedAt');
    if (!user) return null;
 
    // Sessions issued before the last password change are revoked.
