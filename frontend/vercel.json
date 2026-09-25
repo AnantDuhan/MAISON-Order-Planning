@@ -1,13 +1,12 @@
 {
   "version": 2,
-  "framework": "create-react-app",
+  "framework": "vite",
   "buildCommand": "npm run build",
   "outputDirectory": "build",
-  "env": {
-    "CI": "false",
-    "GENERATE_SOURCEMAP": "false"
-  },
   "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
   ]
 }

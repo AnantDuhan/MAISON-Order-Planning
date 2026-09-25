@@ -72,8 +72,53 @@ const verifyCashfreeWebhookSignature = (timestamp, rawBody, signature) => {
     );
 };
 
+// Webhooks older than this are rejected, so a captured request can't be
+// replayed later. Cashfree retries within this window use a new timestamp.
+const WEBHOOK_TOLERANCE_MS = 5 * 60 * 1000;
+
+// x-webhook-timestamp is epoch time; accept seconds or milliseconds.
+const isFreshWebhookTimestamp = (timestamp, now = Date.now()) => {
+    const value = Number(timestamp);
+    if (!Number.isFinite(value) || value <= 0) return false;
+    const ms = value < 1e12 ? value * 1000 : value;
+    return Math.abs(now - ms) <= WEBHOOK_TOLERANCE_MS;
+};
+
+/**
+ * Full check for an incoming Cashfree webhook: valid signature, recent
+ * timestamp, and not seen before. Returns { ok: true } or
+ * { ok: false, status, message }.
+ */
+const verifyCashfreeWebhook = async req => {
+    const timestamp = req.headers['x-webhook-timestamp'];
+    const signature = req.headers['x-webhook-signature'];
+    const rawBody = req.rawBody || '';
+
+    if (!verifyCashfreeWebhookSignature(timestamp, rawBody, signature)) {
+        return { ok: false, status: 400, message: 'Invalid webhook signature' };
+    }
+    if (!isFreshWebhookTimestamp(timestamp)) {
+        return { ok: false, status: 400, message: 'Webhook timestamp is too old' };
+    }
+
+    // The signature is unique per (timestamp, body), so it identifies this
+    // exact delivery. Keep it slightly longer than the freshness window.
+    const cache = require('./cache');
+    const firstTime = await cache.claimOnce(
+        `webhook:cashfree:${signature}`,
+        Math.ceil((WEBHOOK_TOLERANCE_MS * 2) / 1000)
+    );
+    if (!firstTime) {
+        return { ok: false, status: 200, duplicate: true, message: 'Duplicate webhook ignored' };
+    }
+
+    return { ok: true };
+};
+
 module.exports = {
     cashfreeRequest,
+    isFreshWebhookTimestamp,
+    verifyCashfreeWebhook,
     getCashfreeOrder,
     getCashfreePlan,
     getCashfreeBaseUrl,

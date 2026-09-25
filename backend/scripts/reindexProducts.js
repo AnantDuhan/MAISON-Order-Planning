@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 
-dotenv.config({ path: require('path').join(__dirname, '../config/config.env') });
+dotenv.config({ path: require('path').join(__dirname, '../config/config.env'), quiet: true });
 
 const { bulkReindex } = require('../services/searchService');
 

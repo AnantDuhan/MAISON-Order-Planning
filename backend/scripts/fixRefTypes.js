@@ -25,8 +25,8 @@ const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 const path = require('path');
 
-dotenv.config({ path: path.join(__dirname, '../config/config.env') });
-dotenv.config({ path: path.join(__dirname, '../config/.env') });
+dotenv.config({ path: path.join(__dirname, '../config/config.env'), quiet: true });
+dotenv.config({ path: path.join(__dirname, '../config/.env'), quiet: true });
 
 const APPLY = process.argv.includes('--apply');
 

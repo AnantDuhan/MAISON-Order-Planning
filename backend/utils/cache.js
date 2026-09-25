@@ -40,4 +40,18 @@ async function del(...keys) {
     }
 }
 
-module.exports = { getJSON, setJSON, del, DEFAULT_TTL };
+// Atomically claim `key` for `ttl` seconds (Redis SET NX). Returns true the
+// first time and false while the key exists. Used to reject duplicate
+// deliveries (e.g. replayed webhooks). If Redis is unavailable it returns
+// true (fail open), so a cache outage can't block legitimate traffic.
+async function claimOnce(key, ttl = DEFAULT_TTL) {
+    try {
+        const result = await redis.set(key, '1', { NX: true, EX: ttl, nx: true, ex: ttl });
+        return result === 'OK' || result === true;
+    } catch (err) {
+        console.error(`cache.claimOnce(${key}) failed:`, err.message);
+        return true;
+    }
+}
+
+module.exports = { getJSON, setJSON, del, claimOnce, DEFAULT_TTL };
