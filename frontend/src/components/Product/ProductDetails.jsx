@@ -144,12 +144,9 @@ const ProductDetails = () => {
   }, [dispatch, id, error, reviewError, success, isSummarized]);
 
   useEffect(() => {
-    const socket = io(
-      process.env.REACT_APP_SOCKET_URL ||
-        (process.env.NODE_ENV === "production"
-          ? undefined
-          : "https://maison-order-planning.onrender.com"),
-    );
+    // Same origin by default: in dev the Vite server proxies /socket.io to
+    // the local backend, in production the backend serves the app.
+    const socket = io(import.meta.env.REACT_APP_SOCKET_URL || undefined);
     socket.emit("joinProductRoom", id);
 
     const handleProductUpdate = (updatedProduct) => {

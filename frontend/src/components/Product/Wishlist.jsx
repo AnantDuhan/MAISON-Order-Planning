@@ -1,5 +1,4 @@
 import React, { Fragment, useEffect, useState } from 'react';
-import Pagination from 'react-js-pagination';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
@@ -7,6 +6,7 @@ import { toast } from 'react-toastify';
 import { clearErrors, fetchWishlist } from '../../actions/productAction';
 import Loader from '../layout/Loader/Loader';
 import MetaData from '../layout/MetaData';
+import Pager from '../layout/Pager/Pager';
 import WishlistProductCard from './WishlistProductCard';
 
 const Wishlist = () => {
@@ -27,6 +27,7 @@ const Wishlist = () => {
         dispatch(fetchWishlist());
     }, [dispatch, error]);
 
+    // Pages are counted from the FILTERED total, not the whole catalogue.
     let count = filteredProductsCount;
 
     return (
@@ -59,21 +60,11 @@ const Wishlist = () => {
 
                         {resultPerPage < count && (
                             <div className='mt-16'>
-                                <Pagination
-                                    activePage={currentPage}
-                                    itemsCountPerPage={resultPerPage}
-                                    totalItemsCount={productsCount}
+                                <Pager
+                                    currentPage={currentPage}
+                                    perPage={resultPerPage}
+                                    totalItems={count}
                                     onChange={setCurrentPageNo}
-                                    nextPageText='Next'
-                                    prevPageText='Prev'
-                                    firstPageText='1st'
-                                    lastPageText='Last'
-                                    itemClass='page-item'
-                                    linkClass='page-link'
-                                    activeClass='pageItemActive'
-                                    activeLinkClass='pageLinkActive'
-                                    hideFirstLastPages={true}
-                                    hidePrevNextPages={true}
                                 />
                             </div>
                         )}

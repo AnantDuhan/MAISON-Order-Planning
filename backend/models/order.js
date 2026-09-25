@@ -146,6 +146,12 @@ const orderSchema = new mongoose.Schema({
         status: String,
         createdAt: Date
     },
+    // Set when a completed refund put the items back into stock, so it can
+    // never happen twice for the same order.
+    stockRestoredAt: {
+        type: Date,
+        default: null
+    },
     refundedAt: {
         type: Date
     },

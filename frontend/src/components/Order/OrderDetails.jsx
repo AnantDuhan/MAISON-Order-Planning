@@ -104,7 +104,8 @@ const OrderDetails = () => {
     // admin advances the status, so the page reflects Processing -> Shipped ->
     // Delivered without a manual refresh.
     useEffect(() => {
-        const socket = io(process.env.REACT_APP_SOCKET_URL || (process.env.NODE_ENV === 'production' ? undefined : 'https://maison-order-planning.onrender.com'));
+        // Same origin by default (Vite proxies /socket.io to the local backend in dev).
+        const socket = io(import.meta.env.REACT_APP_SOCKET_URL || undefined);
         const room = `order:${id}`;
         socket.emit('joinRoom', room);
 

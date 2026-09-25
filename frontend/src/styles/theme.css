@@ -162,7 +162,7 @@
   color: rgb(var(--c-line)) !important;
 }
 
-/* react-js-pagination — editorial pager */
+/* Pager (components/layout/Pager) — editorial pager */
 .pagination {
   @apply flex list-none items-center justify-center gap-1;
 }

@@ -1,6 +1,6 @@
 const path = require('path');
 // Load env first, from a path relative to this file (not the working dir).
-require('dotenv').config({ path: path.join(__dirname, 'config/config.env') });
+require('dotenv').config({ path: path.join(__dirname, 'config/config.env'), quiet: true });
 
 const app = require('./app');
 const { isAllowedOrigin } = require('./app');
