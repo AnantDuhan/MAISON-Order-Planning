@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import MetaData from '../MetaData';
 
 export const LEGAL_EMAIL = import.meta.env.VITE_LEGAL_EMAIL || 'duhananant@gmail.com';
-export const LAST_UPDATED = '29 September 2026';
+export const LAST_UPDATED = '30 September 2026';
 
 /** Shared editorial layout for Privacy / Terms. `sections` = [{ heading, body: [node] }]. */
 const LegalPage = ({ title, metaTitle, description, intro, sections }) => (

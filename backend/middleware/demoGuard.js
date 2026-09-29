@@ -30,6 +30,10 @@ const demoGuard = (operation) => {
           status: 403,
           message: "Demo accounts cannot change the shared demo profile.",
         },
+        "manage-passkeys": {
+          status: 403,
+          message: "Demo accounts cannot add passkeys.",
+        },
         "manage-2fa": {
           status: 403,
           message: "Demo accounts cannot change two-factor settings.",

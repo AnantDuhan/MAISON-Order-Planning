@@ -29,7 +29,23 @@ const {
 } = require('../controllers/user');
 
 const { isAuthUser, authRoles } = require('../middleware/auth');
-const { authLimiter, emailLimiter, accountLimiter } = require('../middleware/rateLimiter');
+const { authLimiter, emailLimiter, accountLimiter, otpSendLimiter } = require('../middleware/rateLimiter');
+const {
+   loginMethods,
+   requestEmailCode,
+   verifyEmailCode,
+   verifyMagicLink,
+   requestPhoneOtp,
+   verifyPhoneOtp,
+} = require('../controllers/passwordless');
+const {
+   listPasskeys,
+   passkeyRegisterOptions,
+   passkeyRegisterVerify,
+   deletePasskey,
+   passkeyLoginOptions,
+   passkeyLoginVerify,
+} = require('../controllers/passkey');
 const demoGuard = require('../middleware/demoGuard');
 const multer = require('multer');
 const { contactUs } = require('../controllers/contact');
@@ -58,6 +74,22 @@ const router = express.Router();
 router.route('/register').post(authLimiter, upload.single('image'), registerUser);
 
 router.route('/login').post(authLimiter, loginUser);
+
+// Passwordless sign-in (existing accounts). All end in the same 2FA step.
+router.route('/login/methods').get(loginMethods);
+router.route('/login/email-code').post(otpSendLimiter, requestEmailCode);
+router.route('/login/email-code/verify').post(authLimiter, verifyEmailCode);
+router.route('/login/magic').post(authLimiter, verifyMagicLink);
+router.route('/login/phone-otp').post(otpSendLimiter, requestPhoneOtp);
+router.route('/login/phone-otp/verify').post(authLimiter, verifyPhoneOtp);
+router.route('/login/passkey/options').post(authLimiter, passkeyLoginOptions);
+router.route('/login/passkey/verify').post(authLimiter, passkeyLoginVerify);
+
+// Passkey management (signed in)
+router.route('/passkeys').get(isAuthUser, listPasskeys);
+router.route('/passkeys/register/options').post(isAuthUser, demoGuard('manage-passkeys'), accountLimiter, passkeyRegisterOptions);
+router.route('/passkeys/register/verify').post(isAuthUser, demoGuard('manage-passkeys'), accountLimiter, passkeyRegisterVerify);
+router.route('/passkeys/:id').delete(isAuthUser, demoGuard('manage-passkeys'), deletePasskey);
 
 router.route("/verify-email/:token").get(authLimiter, verifyEmail);
 

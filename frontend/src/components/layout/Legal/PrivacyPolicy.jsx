@@ -12,6 +12,7 @@ const sections = [
             'Order details: shipping addresses, items purchased, order history, returns and refunds, and any product reviews you write.',
             'Payment details are entered on Cashfree’s secure checkout. We never see or store your full card or UPI credentials; we only receive a payment reference and status.',
             'Messages you send through our contact form, newsletter sign-ups, and (if you enable them) two-factor authentication settings and push-notification tokens.',
+            'Sign-in data: if you sign in with a one-time code, we briefly store a scrambled (hashed) copy of the code for up to 10 minutes. If you add a passkey, we store only its public key and a device name — your fingerprint, face or PIN never leaves your device.',
             'Technical data such as your IP address, browser type and pages visited, used for security, rate-limiting and — only if you accept analytics cookies — anonymised usage statistics.',
         ],
     },
@@ -35,7 +36,7 @@ const sections = [
     {
         heading: 'Who we share it with',
         body: [
-            'We do not sell your personal data. We share only what is needed with service providers that run the store: Cashfree (payments), Resend (transactional email), Google (sign-in and, with consent, analytics), MongoDB Atlas (database), Amazon Web Services (image storage) and Render (hosting). Some of these providers process data outside India.',
+            'We do not sell your personal data. We share only what is needed with service providers that run the store: Cashfree (payments), Resend (transactional email), our SMS provider (to deliver sign-in codes to your mobile number), Google (sign-in and, with consent, analytics), MongoDB Atlas (database), Amazon Web Services (image storage) and Render (hosting). Some of these providers process data outside India.',
             'We may disclose information if required by law or to protect our users and the store.',
         ],
     },

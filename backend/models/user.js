@@ -154,7 +154,35 @@ const userSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    // Set once the user has signed in with an SMS code sent to whatsappNumber.
+    isPhoneVerified: {
+        type: Boolean,
+        default: false
+    },
+
+    // WebAuthn passkeys. _id is the credential ID (base64url); publicKey is
+    // base64url of the COSE public key. select:false keeps them out of /me.
+    passkeys: {
+        type: [
+            {
+                _id: String,
+                publicKey: { type: String, required: true },
+                counter: { type: Number, default: 0 },
+                transports: { type: [String], default: [] },
+                deviceType: String,     // 'singleDevice' | 'multiDevice'
+                backedUp: Boolean,      // synced via iCloud/Google Password Manager
+                name: { type: String, default: 'Passkey', maxLength: 60 },
+                createdAt: { type: Date, default: Date.now },
+                lastUsedAt: Date
+            }
+        ],
+        default: [],
+        select: false
+    },
 });
+
+// Passkey login looks users up by credential ID.
+userSchema.index({ 'passkeys._id': 1 }, { sparse: true });
 
 // Never serialise secrets, even when a query explicitly selected them.
 userSchema.set('toJSON', {
@@ -165,6 +193,7 @@ userSchema.set('toJSON', {
         delete ret.emailVerificationToken;
         delete ret.emailVerificationExpire;
         delete ret.passwordChangedAt;
+        delete ret.passkeys;
         if (ret.twoFactorAuth) {
             delete ret.twoFactorAuth.secret;
             delete ret.twoFactorAuth.tempSecret;

@@ -12,7 +12,11 @@ import LoadingBar from 'react-top-loading-bar';
 import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
 import axios from 'axios';
 
+import FingerprintIcon from '@mui/icons-material/Fingerprint';
+
 import { clearErrors, login, register, loginWithGoogle } from '../../actions/userAction';
+import { getLoginMethods, loginWithPasskey, passkeysSupported } from '../../actions/authAction';
+import PasswordlessLogin from './PasswordlessLogin';
 import ButtonSpinner from '../layout/ButtonSpinner';
 import TryDemoButton from '../layout/TryDemoButton';
 
@@ -31,6 +35,20 @@ const LoginAndRegister = () => {
     } = useSelector(state => state.user);
 
     const [tab, setTab] = useState('login');
+    // How to sign in on the Login tab: 'password' | 'email' | 'phone'
+    const [method, setMethod] = useState('password');
+    const [methods, setMethods] = useState({ phone: false });
+    const [canUsePasskey] = useState(() => passkeysSupported());
+
+    useEffect(() => {
+        getLoginMethods().then(setMethods);
+    }, []);
+
+    const loginMethodTabs = [
+        { id: 'password', label: 'Password' },
+        { id: 'email', label: 'Email Code' },
+        ...(methods.phone ? [{ id: 'phone', label: 'Phone OTP' }] : []),
+    ];
     const [loginIdentifier, setLoginIdentifier] = useState('');
     const [loginPassword, setLoginPassword] = useState('');
     const [showLoginPassword, setShowLoginPassword] = useState(false);
@@ -181,12 +199,33 @@ const LoginAndRegister = () => {
 
                             {/* LOGIN */}
                             {tab === 'login' && (
-                                <form className='flex flex-col gap-6 animate-fade-in' onSubmit={loginSubmit}>
+                                <div className='animate-fade-in'>
+                                    {/* Sign-in method */}
+                                    <div role='tablist' aria-label='Sign-in method' className='mb-6 flex border border-line'>
+                                        {loginMethodTabs.map(m => (
+                                            <button
+                                                key={m.id}
+                                                type='button'
+                                                role='tab'
+                                                aria-selected={method === m.id}
+                                                onClick={() => setMethod(m.id)}
+                                                className={`flex-1 py-2.5 font-sans text-[0.62rem] uppercase tracking-luxe transition-colors ${
+                                                    method === m.id ? 'bg-ink text-canvas' : 'text-ink-soft hover:text-ink'
+                                                }`}
+                                            >
+                                                {m.label}
+                                            </button>
+                                        ))}
+                                    </div>
+
+                                    {method === 'password' && (
+                                <form className='flex flex-col gap-6' onSubmit={loginSubmit}>
                                     <div className='field-row'>
                                         <MailOutlineIcon />
                                         <input
-                                            type='text'
-                                            placeholder='Email or Mobile Number'
+                                            type='email'
+                                            autoComplete='username webauthn'
+                                            placeholder='Email'
                                             required
                                             value={loginIdentifier}
                                             onChange={e => setLoginIdentifier(e.target.value)}
@@ -243,13 +282,28 @@ const LoginAndRegister = () => {
                                         )}
                                     </button>
 
-                                    <div className='flex justify-center'>
+                                </form>
+                                    )}
+
+                                    {method !== 'password' && <PasswordlessLogin key={method} channel={method} />}
+
+                                    <div className='mt-6 flex justify-center'>
                                         <TryDemoButton />
                                     </div>
 
                                     <Divider />
 
-                                    <div className='flex justify-center'>
+                                    <div className='flex flex-col items-center gap-4'>
+                                        {canUsePasskey && (
+                                            <button
+                                                type='button'
+                                                onClick={() => dispatch(loginWithPasskey())}
+                                                disabled={loading}
+                                                className='btn-outline w-full max-w-[300px] disabled:opacity-40'
+                                            >
+                                                <FingerprintIcon fontSize='small' /> Sign in with a passkey
+                                            </button>
+                                        )}
                                         <GoogleLogin
                                             onSuccess={handleGoogleLoginSuccess}
                                             onError={handleGoogleLoginError}
@@ -259,7 +313,7 @@ const LoginAndRegister = () => {
                                             width='300'
                                         />
                                     </div>
-                                </form>
+                                </div>
                             )}
 
                             {/* REGISTER */}

@@ -69,6 +69,7 @@ const UpdatePassword = lazy(() => import("./components/User/UpdatePassword"));
 const UpdateProfile = lazy(() => import("./components/User/UpdateProfile"));
 const Membership = lazy(() => import("./components/User/Membership"));
 const VerifyEmail = lazy(() => import("./components/User/VerifyEmail"));
+const MagicLinkLogin = lazy(() => import("./components/User/MagicLinkLogin"));
 const PrivacyPolicy = lazy(() => import("./components/layout/Legal/PrivacyPolicy"));
 const TermsAndConditions = lazy(() => import("./components/layout/Legal/TermsAndConditions"));
 const MembershipAnalytics = lazy(() => import("./components/Admin/MembershipAnalytics"));
@@ -131,6 +132,7 @@ function App() {
               {/* Auth Routes */}
               <Route path="/login" element={<LoginAndRegister />} exact />
               <Route path="/login/2fa" element={<TwoFactorLogin />} />
+              <Route path="/login/magic/:token" element={<MagicLinkLogin />} />
               <Route path="/verify-email/:token" element={<VerifyEmail />} />
               <Route
                 path="/password/forgot"
