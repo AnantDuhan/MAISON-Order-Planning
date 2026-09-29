@@ -267,20 +267,34 @@ const LoginAndRegister = () => {
                                         </div>
                                     )}
 
-                                    <button
-                                        type='submit'
-                                        disabled={loading}
-                                        className='btn-solid w-full disabled:opacity-40'
-                                    >
-                                        {loading ? (
-                                            <>
-                                                <ButtonSpinner />
-                                                Signing in…
-                                            </>
-                                        ) : (
-                                            'Login'
+                                    <div className='flex gap-3'>
+                                        <button
+                                            type='submit'
+                                            disabled={loading}
+                                            className='btn-solid h-14 flex-1 py-0 disabled:opacity-40'
+                                        >
+                                            {loading ? (
+                                                <>
+                                                    <ButtonSpinner />
+                                                    Signing in…
+                                                </>
+                                            ) : (
+                                                'Login'
+                                            )}
+                                        </button>
+                                        {canUsePasskey && (
+                                            <button
+                                                type='button'
+                                                onClick={() => dispatch(loginWithPasskey())}
+                                                disabled={loading}
+                                                title='Sign in with a passkey'
+                                                aria-label='Sign in with a passkey'
+                                                className='btn-outline h-14 w-14 shrink-0 px-0 py-0 disabled:opacity-40'
+                                            >
+                                                <FingerprintIcon />
+                                            </button>
                                         )}
-                                    </button>
+                                    </div>
 
                                 </form>
                                     )}
@@ -294,7 +308,7 @@ const LoginAndRegister = () => {
                                     <Divider />
 
                                     <div className='flex flex-col items-center gap-4'>
-                                        {canUsePasskey && (
+                                        {canUsePasskey && method !== 'password' && (
                                             <button
                                                 type='button'
                                                 onClick={() => dispatch(loginWithPasskey())}
