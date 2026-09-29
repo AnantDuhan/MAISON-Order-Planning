@@ -124,7 +124,7 @@ ensureIndex().catch(err => console.error("Elasticsearch index init failed:", err
 warmUpEmailTransport();
 
 const server = createServer.listen(process.env.PORT || 8080, () => {
-    console.log(`✅ Server is working on http://localhost:${process.env.PORT || 8080}`)
+    console.log(`✅ Server is working on https://maison-order-planning.onrender.com`)
 })
 
 // In-process schedulers. Off by default: production drives these via the
