@@ -1,3 +1,4 @@
+import PasskeySettings from "./PasskeySettings";
 import React, { Fragment, useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Link, useNavigate } from "react-router-dom";
@@ -667,6 +668,8 @@ const Profile = () => {
                     )}
                   </div>
                 </div>
+
+                <PasskeySettings isDemo={user?.isDemo === true} />
 
                 {/* ================================================== */}
                 {/* ACCOUNT ACTIONS */}

@@ -65,16 +65,7 @@ const sendVerificationEmail = async user => {
     });
 };
 
-const createTwoFactorPendingToken = (user, enrollmentRequired = false) =>
-    jwt.sign(
-        {
-            id: user._id,
-            twoFactorPending: true,
-            enrollmentRequired,
-        },
-        process.env.JWT_SECRET_KEY,
-        { expiresIn: '5m' }
-    );
+const { createTwoFactorPendingToken, issueSession } = require('../utils/session');
 
 // register user
 // Register User
@@ -920,22 +911,7 @@ exports.deleteAddress = async (req, res) => {
 
 // ===================== Two-Factor Authentication (TOTP) =====================
 
-// Issue the authenticated session cookie (shared by login completion).
-const issueSession = (user, res, statusCode = 200, mfaVerified = false) => {
-    const isAdmin = user.role === 'admin';
-    const token = jwt.sign(
-        { id: user._id, name: user.name, email: user.email, avatar: user.avatar, mfaVerified },
-        process.env.JWT_SECRET_KEY,
-        { expiresIn: isAdmin ? '12h' : '90d' }
-    );
-    const options = {
-        expires: new Date(Date.now() + (isAdmin ? 12 : 90 * 24) * 60 * 60 * 1000),
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-    };
-    return res.status(statusCode).cookie('token', token, options).json({ success: true, user });
-};
+// Session cookies are issued by utils/session.js (shared by every login method).
 
 // Begin setup: create a secret, stash it as a TEMP secret (not yet active),
 // and return a QR code the user scans in their authenticator app.

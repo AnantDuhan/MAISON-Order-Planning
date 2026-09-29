@@ -1,0 +1,50 @@
+<%- include('partials/head', { title: 'Your Maison sign-in code', preheader: code + ' is your Maison sign-in code. It expires in ' + minutes + ' minutes.' }) %>
+
+<p style="margin:0; font-family:Helvetica,Arial,sans-serif; font-size:10px; font-weight:bold; letter-spacing:3px; text-transform:uppercase; color:#85663C;">
+  Sign In
+</p>
+
+<h1 style="margin:14px 0 0 0; font-family:Georgia,'Times New Roman',serif; font-size:34px; font-weight:500; line-height:1.15; color:#1A1816;">
+  Your sign-in code
+</h1>
+
+<p style="margin:24px 0 0 0; font-family:Helvetica,Arial,sans-serif; font-size:15px; line-height:1.75; color:#4A453F;">
+  Hello <%= name %>, enter this code on the sign-in page:
+</p>
+
+<!-- Code -->
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:24px 0 0 0;">
+  <tr>
+    <td style="border:1px solid #E0D9CE; background-color:#F7F4EF; padding:18px 30px;">
+      <span style="font-family:'Courier New',Courier,monospace; font-size:34px; font-weight:bold; letter-spacing:10px; color:#1A1816;"><%= code %></span>
+    </td>
+  </tr>
+</table>
+
+<p style="margin:28px 0 0 0; font-family:Helvetica,Arial,sans-serif; font-size:15px; line-height:1.75; color:#4A453F;">
+  Or sign in on this device with one click:
+</p>
+
+<!-- Button -->
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:18px 0 0 0;">
+  <tr>
+    <td align="center" bgcolor="#1A1816" style="background-color:#1A1816;">
+      <a href="<%= magicLink %>"
+         style="display:inline-block; padding:16px 34px; font-family:Helvetica,Arial,sans-serif; font-size:11px; font-weight:bold; letter-spacing:3px; text-transform:uppercase; color:#F7F4EF; text-decoration:none;">
+        Sign In to Maison
+      </a>
+    </td>
+  </tr>
+</table>
+
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:32px 0 0 0;">
+  <tr><td style="border-top:1px solid #E0D9CE; font-size:0; line-height:0;">&nbsp;</td></tr>
+</table>
+
+<p style="margin:20px 0 0 0; font-family:Helvetica,Arial,sans-serif; font-size:13px; line-height:1.7; color:#6E675E;">
+  The code and link expire in <%= minutes %> minutes and work once. Maison will never
+  ask you for this code by phone or chat. Didn't try to sign in? You can ignore
+  this email — nobody can get in without it.
+</p>
+
+<%- include('partials/foot') %>
