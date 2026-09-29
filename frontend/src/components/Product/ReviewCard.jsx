@@ -19,6 +19,8 @@ const ReviewCard = ({ review }) => {
                 <img
                     src={avatar}
                     alt={review.name || 'User'}
+                    loading='lazy'
+                    decoding='async'
                     className='h-10 w-10 rounded-full object-cover'
                     onError={(e) => {
                         e.currentTarget.src = profilePng;

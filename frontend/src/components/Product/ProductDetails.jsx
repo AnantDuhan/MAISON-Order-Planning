@@ -187,7 +187,12 @@ const ProductDetails = () => {
         />
       ) : (
         <Fragment>
-          <MetaData title={`${product?.name} · Maison`} />
+          <MetaData
+            title={`${product?.name} · Maison`}
+            description={product?.description}
+            image={product?.images?.[0]?.url}
+            type="product"
+          />
 
           <div className="editorial-shell py-14">
             <div className="grid gap-12 lg:grid-cols-2 lg:gap-16">

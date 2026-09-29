@@ -84,6 +84,8 @@ const Home = () => {
                                         <img
                                             src={featuredImg}
                                             alt={featured?.name}
+                                            loading='lazy'
+                                            decoding='async'
                                             className='absolute inset-0 h-full w-full object-cover'
                                         />
                                     </div>

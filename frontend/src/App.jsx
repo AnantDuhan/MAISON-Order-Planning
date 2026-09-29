@@ -4,7 +4,6 @@
 import { Fragment, Suspense, lazy, useEffect } from "react";
 import { useSelector } from "react-redux";
 import { Route, Routes, useLocation } from "react-router-dom";
-import WebFont from "webfontloader";
 
 import { loadUser } from "./actions/userAction";
 import Home from "./components/Home/Home";
@@ -19,6 +18,8 @@ import Loader from "./components/layout/Loader/Loader";
 import ProtectedAdminRoute from "./components/route/ProtectedAdminRoute";
 import TwoFactorLogin from "./components/User/TwoFactorLogin";
 import DemoBanner from "./components/layout/DemoBanner";
+import CookieConsent from "./components/layout/CookieConsent";
+import { trackPageView } from "./utils/analytics";
 
 /* Route-level code splitting.
    Home, the headers, the footer and the waker stay eager because they are
@@ -68,6 +69,8 @@ const UpdatePassword = lazy(() => import("./components/User/UpdatePassword"));
 const UpdateProfile = lazy(() => import("./components/User/UpdateProfile"));
 const Membership = lazy(() => import("./components/User/Membership"));
 const VerifyEmail = lazy(() => import("./components/User/VerifyEmail"));
+const PrivacyPolicy = lazy(() => import("./components/layout/Legal/PrivacyPolicy"));
+const TermsAndConditions = lazy(() => import("./components/layout/Legal/TermsAndConditions"));
 const MembershipAnalytics = lazy(() => import("./components/Admin/MembershipAnalytics"));
 
 function App() {
@@ -89,16 +92,14 @@ function App() {
     //     }
     // }
 
-    WebFont.load({
-      google: {
-        families: ["Roboto", "Droid Sans", "Chilanka"],
-      },
-    });
     store.dispatch(loadUser());
     // getStripeApiKey();
   }, []);
 
-  window.addEventListener("contextmenu", (e) => e.preventDefault());
+  // SPA page views for analytics (no-op until the visitor consents).
+  useEffect(() => {
+    trackPageView(location.pathname + location.search);
+  }, [location.pathname, location.search]);
 
   return (
     <Fragment>
@@ -124,6 +125,8 @@ function App() {
               <Route path="/about" element={<About />} exact />
               <Route path="/contact-us" element={<Contact />} exact />
               <Route path="/cart" element={<Cart />} exact />
+              <Route path="/privacy" element={<PrivacyPolicy />} />
+              <Route path="/terms" element={<TermsAndConditions />} />
 
               {/* Auth Routes */}
               <Route path="/login" element={<LoginAndRegister />} exact />
@@ -318,6 +321,7 @@ function App() {
         </ErrorBoundary>
 
         {!isAdminRoute && <Footer />}
+        {!isAdminRoute && <CookieConsent />}
       </BackendWaker>
     </Fragment>
   );

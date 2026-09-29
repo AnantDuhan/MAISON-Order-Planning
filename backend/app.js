@@ -18,6 +18,7 @@ const swaggerUi = require("swagger-ui-express");
 
 const errorMiddleware = require("./middleware/error");
 const securityHeaders = require("./middleware/securityHeaders");
+const enforceHttps = require("./middleware/enforceHttps");
 const { isAuthUser, authRoles } = require("./middleware/auth");
 const { apiLimiter } = require("./middleware/rateLimiter");
 const Product = require("./models/product");
@@ -38,6 +39,7 @@ app.set("query parser", "extended");
 
 // Security headers (helmet): HSTS, nosniff, frame protection, referrer
 // policy and a Content-Security-Policy. See middleware/securityHeaders.js.
+app.use(enforceHttps);
 app.use(securityHeaders);
 
 // Gzip response bodies. Registered first so every downstream response
@@ -86,7 +88,26 @@ const s3 = new S3Client({
   credentials: fromEnv(),
 });
 
+const sharp = require("sharp");
+
 const IMAGE_TYPES = ["image/png", "image/jpg", "image/jpeg", "image/webp"];
+
+// Resize to a sensible max and re-encode as WebP before upload. A 4 MB phone
+// photo typically lands around 150–300 KB with no visible quality loss.
+// Falls back to the original bytes if sharp can't read the file.
+const compressImage = async file => {
+  try {
+    const buffer = await sharp(file.buffer)
+      .rotate() // respect EXIF orientation
+      .resize({ width: 1600, height: 1600, fit: "inside", withoutEnlargement: true })
+      .webp({ quality: 80 })
+      .toBuffer();
+    return { buffer, mimetype: "image/webp", ext: "webp" };
+  } catch (err) {
+    console.error("⚠️ Image compression failed, uploading original:", err.message);
+    return { buffer: file.buffer, mimetype: file.mimetype, ext: null };
+  }
+};
 
 // Configure Multer for file uploads
 const upload = multer({
@@ -108,13 +129,17 @@ const bucketHost = () =>
 const uploadProductImages = async (productId, files = []) => {
   const images = [];
   for (const file of files) {
-    const safeName = file.originalname.replace(/[^\w.-]/g, "_");
+    const { buffer, mimetype, ext } = await compressImage(file);
+    let safeName = file.originalname.replace(/[^\w.-]/g, "_");
+    if (ext) safeName = safeName.replace(/\.[^.]+$/, "") + `.${ext}`;
     const key = `products/${productId}/${Date.now()}-${safeName}`;
     await s3.send(new PutObjectCommand({
       Bucket: process.env.AWS_BUCKET_NAME,
       Key: key,
-      Body: file.buffer,
-      ContentType: file.mimetype,
+      Body: buffer,
+      ContentType: mimetype,
+      // Filenames are unique per upload, so images can be cached forever.
+      CacheControl: "public, max-age=31536000, immutable",
     }));
     images.push({ _id: generateId(), url: `https://${bucketHost()}/${key}` });
   }
@@ -173,6 +198,7 @@ const bannerRoute = require("./routes/banner");
 const cartRoute = require("./routes/cart");
 const redirectRoute = require("./routes/redirect");
 const searchRoute = require("./routes/search");
+const seoRoute = require("./routes/seo");
 
 app.get("/api/v1/health", (req, res) => {
   res.status(200).json({
@@ -200,6 +226,7 @@ app.use("/api/v1", jobsRoute);
 app.use("/api/v1", bannerRoute);
 app.use("/api/v1", cartRoute);
 app.use(redirectRoute);
+app.use(seoRoute); // /sitemap.xml
 
 // --- Admin product routes with image uploads ---------------------------------
 // These live outside /api/v1 because the frontend calls them at these paths.
@@ -327,7 +354,17 @@ app.use(adminProducts);
 // Guarded by NODE_ENV so local dev (CRA dev server + proxy) is unaffected.
 if (process.env.NODE_ENV === "production") {
   const buildPath = path.join(__dirname, "../frontend/build");
-  app.use(express.static(buildPath));
+  // Vite fingerprints everything in /assets, so those can be cached for a year;
+  // index.html must always be revalidated so new deploys are picked up.
+  app.use(express.static(buildPath, {
+    setHeaders: (res, filePath) => {
+      if (filePath.includes(`${path.sep}assets${path.sep}`)) {
+        res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+      } else if (filePath.endsWith(".html")) {
+        res.setHeader("Cache-Control", "no-cache");
+      }
+    },
+  }));
 
   // SPA fallback: any non-API GET returns index.html so client-side routes
   // (e.g. /product/:id, /account/addresses) resolve. Express 5 needs a RegExp
