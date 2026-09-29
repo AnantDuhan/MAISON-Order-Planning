@@ -444,7 +444,7 @@ exports.forgotPassword = async (req, res, next) => {
 
         sendEmailInBackground({
             email: user.email,
-            subject: `Password Recovery - Ecommerce`,
+            subject: `Password Recovery - MAISON`,
             html: emailMessage
         });
 
