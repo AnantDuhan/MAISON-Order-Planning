@@ -236,9 +236,7 @@ export const updatePassword = passwords => async dispatch => {
 
         const config = { headers: { 'Content-Type': 'application/json' } };
 
-        const { data } = await axios.put(`/api/v1/password/update`, passwords, {
-            config
-        });
+        const { data } = await axios.put(`/api/v1/password/update`, passwords, config);
 
         dispatch({ type: UPDATE_PASSWORD_SUCCESS, payload: data.success });
     } catch (error) {
@@ -277,7 +275,7 @@ export const resetPassword = (token, passwords) => async dispatch => {
         const { data } = await axios.put(
             `/api/v1/password/reset/${token}`,
             passwords,
-            { config }
+            config
         );
 
         dispatch({ type: RESET_PASSWORD_SUCCESS, payload: data.success });
@@ -328,8 +326,8 @@ export const updateUser = (id, userData) => async dispatch => {
 
         const { data } = await axios.put(
             `/api/v1/admin/user/${id}`,
-            { userData },
-            { config }
+            userData,
+            config
         );
 
         console.log('DATA', data.user);
