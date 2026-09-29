@@ -13,8 +13,7 @@ const path = require('path');
 const speakeasy = require('speakeasy');
 const QRCode = require('qrcode');
 
-// GOOGLE_OAUTH_CLIENT_ID is the name used in the old .env template.
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || process.env.GOOGLE_OAUTH_CLIENT_ID;
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID
 const client = new OAuth2Client(GOOGLE_CLIENT_ID);
 
 const normalizeEmail = email => (typeof email === 'string' ? email.trim().toLowerCase() : '');
@@ -804,6 +803,12 @@ exports.googleLogin = async (req, res, next) => {
         });
     } catch (error) {
         console.error('🔐 Google login error: ', error.message);
+        if (error.code === 11000) {
+            return res.status(409).json({
+                success: false,
+                message: 'An account with these details already exists. Try logging in with email instead.',
+            });
+        }
         res.status(401).json({
             success: false,
             message: 'Invalid or expired Google Token'
