@@ -53,7 +53,12 @@ projects:
       # --- Email (Resend HTTPS API — see backend/utils/sendEmail.js) ---
       - key: RESEND_API_KEY
         sync: false
-      - key: RESEND_FROM_EMAIL
+
+      - key: EMAIL_FROM_NOREPLY
+        sync: false
+      - key: EMAIL_FROM_SUPPORT
+        sync: false
+      - key: EMAIL_REPLY_TO
         sync: false
       - key: BACKEND_URL             # used for order links in emails
         sync: false

@@ -200,6 +200,7 @@ const cartRoute = require("./routes/cart");
 const redirectRoute = require("./routes/redirect");
 const searchRoute = require("./routes/search");
 const seoRoute = require("./routes/seo");
+const invoiceRoute = require("./routes/invoice");
 
 app.get("/api/v1/health", (req, res) => {
   res.status(200).json({
@@ -226,6 +227,7 @@ app.use("/api/v1", analyticsRoute);
 app.use("/api/v1", jobsRoute);
 app.use("/api/v1", bannerRoute);
 app.use("/api/v1", cartRoute);
+app.use("/api/v1", invoiceRoute);
 app.use(redirectRoute);
 app.use(seoRoute); // /sitemap.xml
 

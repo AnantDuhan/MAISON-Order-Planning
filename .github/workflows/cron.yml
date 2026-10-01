@@ -15,6 +15,7 @@ on:
   schedule:
     - cron: '30 4 * * *'    # daily 04:30 UTC (10:00 IST) — wishlist reminders
     - cron: '30 4 * * 1'    # Mondays 04:30 UTC — weekly newsletter
+    - cron: '15 */3 * * *'  # every 3 hours — re-send failed invoice emails
   workflow_dispatch:
     inputs:
       job:
@@ -22,7 +23,7 @@ on:
         required: true
         default: 'wishlist'
         type: choice
-        options: [wishlist, newsletter]
+        options: [wishlist, newsletter, invoice-retry]
 
 jobs:
   trigger:
@@ -48,6 +49,16 @@ jobs:
         run: |
           curl -fsS --max-time 120 --retry 3 --retry-all-errors \
             -X POST "$BACKEND_URL/api/v1/jobs/newsletter" \
+            -H "x-cron-secret: $CRON_SECRET"
+        env:
+          BACKEND_URL: ${{ secrets.BACKEND_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+
+      - name: Retry invoice emails
+        if: github.event.schedule == '15 */3 * * *' || github.event.inputs.job == 'invoice-retry'
+        run: |
+          curl -fsS --max-time 120 --retry 3 --retry-all-errors \
+            -X POST "$BACKEND_URL/api/v1/jobs/invoice-retry" \
             -H "x-cron-secret: $CRON_SECRET"
         env:
           BACKEND_URL: ${{ secrets.BACKEND_URL }}

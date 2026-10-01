@@ -33,6 +33,16 @@ const assertEmailOptions = (options) => {
   if (!options.html) throw new Error("Email HTML content is required");
 };
 
+// Resend expects attachment content as base64. Accept Buffers for convenience.
+const toResendAttachments = (attachments = []) =>
+  attachments.map((attachment) => ({
+    filename: attachment.filename,
+    content: Buffer.isBuffer(attachment.content)
+      ? attachment.content.toString("base64")
+      : attachment.content,
+    ...(attachment.contentType && { content_type: attachment.contentType }),
+  }));
+
 const getResponseBody = async (response) => {
   try {
     return await response.json();
@@ -59,8 +69,11 @@ const sendEmail = async (options) => {
       reply_to: options.replyTo || replyTo,
       subject: options.subject,
       html: options.html,
+      ...(options.attachments?.length && {
+        attachments: toResendAttachments(options.attachments),
+      }),
     }),
-    signal: AbortSignal.timeout(15_000),
+    signal: AbortSignal.timeout(options.attachments?.length ? 30_000 : 15_000),
   });
 
   const body = await getResponseBody(response);

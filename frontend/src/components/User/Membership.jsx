@@ -12,6 +12,7 @@ const Membership = () => {
     const [plans, setPlans] = useState([]);
     const [membership, setMembership] = useState(null);
     const [loading, setLoading] = useState(false);
+    const [invoices, setInvoices] = useState([]);
 
     useEffect(() => {
         axios.get('/api/v1/membership/plans').then(({ data }) => setPlans(data.plans)).catch(error => {
@@ -32,6 +33,10 @@ const Membership = () => {
                 .then(({ data }) => setMembership(data.membership))
                 .catch(() => {});
         }
+
+        axios.get('/api/v1/invoices/me', { params: { type: 'membership' } })
+            .then(({ data }) => setInvoices(data.invoices || []))
+            .catch(() => {});
     }, []);
 
     const startMembership = async interval => {
@@ -133,6 +138,37 @@ const Membership = () => {
                         {membership && !['CANCELLED', 'COMPLETED', 'EXPIRED', 'CUSTOMER_CANCELLED'].includes(membership.status) && (
                             <button onClick={cancelMembership} className='mt-6 font-sans text-xs uppercase tracking-luxe text-brass'>Cancel membership</button>
                         )}
+                    </div>
+                )}
+                {invoices.length > 0 && (
+                    <div className='mt-12 border border-line bg-surface p-8'>
+                        <p className='eyebrow'>Billing history</p>
+                        <ul className='mt-5 divide-y divide-line'>
+                            {invoices.map(invoice => (
+                                <li key={invoice._id} className='flex flex-wrap items-center justify-between gap-3 py-4'>
+                                    <div>
+                                        <p className='font-display text-lg text-ink'>{invoice.invoiceNumber}</p>
+                                        <p className='font-sans text-xs text-ink-soft'>
+                                            {new Date(invoice.issuedAt).toLocaleDateString(undefined, {
+                                                day: 'numeric',
+                                                month: 'short',
+                                                year: 'numeric',
+                                            })}
+                                        </p>
+                                    </div>
+                                    <div className='flex items-center gap-6'>
+                                        <span className='font-display text-lg text-ink'>₹{invoice.total}</span>
+                                        <a
+                                            href={`/api/v1/invoice/${invoice._id}/download`}
+                                            download
+                                            className='font-sans text-[0.68rem] uppercase tracking-luxe text-brass transition-opacity hover:opacity-70'
+                                        >
+                                            Download ↓
+                                        </a>
+                                    </div>
+                                </li>
+                            ))}
+                        </ul>
                     </div>
                 )}
                 {(!membership || (!isMember && !isAuthorizationPending)) && (

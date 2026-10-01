@@ -10,6 +10,7 @@ const path = require('path');
 const { getCashfreeOrder } = require('../utils/cashfree');
 const { sendPushNotification } = require('../utils/pushNotifications');
 const { priceOrder } = require('../utils/orderPricing');
+const { sendOrderConfirmationWithInvoice } = require('../services/invoiceService');
 
 // Valid forward transitions for an order. Anything else is rejected.
 const NEXT_STATUS = {
@@ -124,8 +125,11 @@ exports.newOrder = async (req, res, next) => {
             }
         );
 
-        sendEmailInBackground({
-            email: user.email,
+        // Generates the invoice and sends the confirmation with the PDF attached,
+        // after the response has gone out.
+        sendOrderConfirmationWithInvoice({
+            order,
+            user,
             sender: "support",
             subject: `Your Order📦 has been placed successfully`,
             html: emailMessage
