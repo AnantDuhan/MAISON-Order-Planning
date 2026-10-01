@@ -13,7 +13,8 @@
         "seed:reviews": "node scripts/Seedreviews.js",
         "seed:demo-account": "node scripts/seed-demo-account.js",
         "test": "node --test --test-force-exit \"tests/**/*.test.js\"",
-        "backfill:invoices": "node scripts/backfillInvoices.js"
+        "backfill:invoices": "node scripts/backfillInvoices.js",
+        "sign:invoices": "node scripts/signInvoices.js"
     },
     "author": "Anant Duhan",
     "license": "ISC",

@@ -24,4 +24,11 @@
   </tr>
 </table>
 
+<% if (typeof verifyLink !== 'undefined' && verifyLink) { %>
+<p style="margin:26px 0 0 0; font-family:Helvetica,Arial,sans-serif; font-size:12px; line-height:1.7; color:#8A8278;">
+  Every MAISON invoice carries a verification code. You can confirm this one is genuine at
+  <a href="<%= verifyLink %>" style="color:#A07C4B; text-decoration:none;">maisonorderplanning.in/verify</a>.
+</p>
+<% } %>
+
 <%- include('partials/foot') %>

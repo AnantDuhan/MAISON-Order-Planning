@@ -1,4 +1,12 @@
 const PDFDocument = require('pdfkit');
+const QRCode = require('qrcode');
+const logger = require('../config/logger');
+const {
+    fingerprint,
+    verifyUrl,
+    pdfOwnerPassword,
+    isSigningConfigured,
+} = require('./invoiceSigning');
 
 // MAISON palette (mirrors the email templates).
 const INK = '#1A1816';
@@ -22,18 +30,59 @@ const formatDate = d => new Date(d).toLocaleDateString('en-IN', {
 
 const invoiceFilename = invoice => `${invoice.invoiceNumber.replace(/\//g, '-')}.pdf`;
 
+let warnedUnsigned = false;
+
+// QR + permissions need INVOICE_SIGNING_SECRET. If it is missing, invoices still
+// render (downloads and emails must keep working) but without the verification
+// block — and we say so loudly in the logs.
+const getSecurity = async invoice => {
+    if (!invoice.contentHash || !isSigningConfigured()) {
+        if (!warnedUnsigned && !isSigningConfigured()) {
+            logger.warn('INVOICE_SIGNING_SECRET is not set: invoices are rendered without verification QR codes');
+            warnedUnsigned = true;
+        }
+        return null;
+    }
+    const url = verifyUrl(invoice);
+    const qr = await QRCode.toBuffer(url, {
+        type: 'png',
+        margin: 0,
+        width: 300,
+        errorCorrectionLevel: 'M',
+        color: { dark: INK, light: '#FFFFFF' },
+    });
+    return { url, qr, ownerPassword: pdfOwnerPassword(invoice) };
+};
+
 /**
- * Render an invoice snapshot to a PDF buffer. Pure function of the invoice
- * document, so the same invoice always produces the same PDF and nothing has
- * to be stored.
+ * Render an invoice snapshot to a PDF buffer, with a verification QR code and
+ * edit-restricted permissions when signing is configured.
  *
  * @param {import('mongoose').Document|object} invoice
  * @returns {Promise<Buffer>}
  */
-const renderInvoicePdf = invoice => new Promise((resolve, reject) => {
+const renderInvoicePdf = async invoice => {
+    const security = await getSecurity(invoice);
+    return drawPdf(invoice, security);
+};
+
+const drawPdf = (invoice, security) => new Promise((resolve, reject) => {
     const doc = new PDFDocument({
         size: 'A4',
         margin: 50,
+        ...(security && {
+            pdfVersion: '1.7',
+            ownerPassword: security.ownerPassword, // no user password: opens normally
+            permissions: {
+                printing: 'highResolution',
+                copying: true,
+                contentAccessibility: true,
+                modifying: false,
+                annotating: false,
+                fillingForms: false,
+                documentAssembly: false,
+            },
+        }),
         info: {
             Title: `Invoice ${invoice.invoiceNumber}`,
             Author: 'MAISON',
@@ -176,8 +225,31 @@ const renderInvoicePdf = invoice => new Promise((resolve, reject) => {
     y += 8;
     totalRow('Total paid', money(invoice.total), true);
 
-    // ---- Footer ------------------------------------------------------------
+    // ---- Verification -------------------------------------------------------
     const footY = doc.page.height - 90;
+    if (security) {
+        const qrSize = 68;
+        const boxY = footY - qrSize - 26;
+        if (y > boxY - 10) {
+            doc.addPage();
+        }
+        doc.rect(left, boxY - 10, width, qrSize + 20).fill(PAPER);
+        doc.image(security.qr, left + 10, boxY, { width: qrSize, height: qrSize });
+
+        const textX = left + qrSize + 26;
+        const textW = right - textX - 10;
+        doc.font('Helvetica-Bold').fontSize(7).fillColor(BRASS)
+            .text('VERIFY THIS INVOICE', textX, boxY + 2, { characterSpacing: 2, width: textW });
+        doc.font('Helvetica').fontSize(8.5).fillColor(SOFT)
+            .text('Scan the code or open the link below. A genuine invoice shows the same number, '
+                + 'date and amount as this document on maisonorderplanning.in.', textX, doc.y + 4, { width: textW });
+        doc.font('Helvetica').fontSize(7).fillColor(BRASS)
+            .text(security.url, textX, doc.y + 4, { width: textW, link: security.url, underline: false });
+        doc.font('Courier').fontSize(7.5).fillColor(FAINT)
+            .text(`Fingerprint  ${fingerprint(invoice)}`, textX, doc.y + 4, { width: textW });
+    }
+
+    // ---- Footer ------------------------------------------------------------
     doc.moveTo(left, footY).lineTo(right, footY).lineWidth(0.5).strokeColor(LINE).stroke();
     doc.font('Helvetica').fontSize(8).fillColor(FAINT)
         .text('All prices are inclusive of applicable taxes.', left, footY + 12, { width })

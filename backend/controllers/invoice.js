@@ -2,6 +2,7 @@ const Invoice = require('../models/invoice');
 const Order = require('../models/order');
 const { createOrderInvoice } = require('../services/invoiceService');
 const { renderInvoicePdf, invoiceFilename } = require('../utils/invoicePdf');
+const { computeContentHash, tokenMatches, fingerprint } = require('../utils/invoiceSigning');
 
 const isOwnerOrAdmin = (doc, user) =>
     user && (String(doc.user?._id || doc.user) === String(user._id) || user.role === 'admin');
@@ -58,4 +59,70 @@ exports.downloadOrderInvoice = async (req, res) => {
 
     if (!isOwnerOrAdmin(invoice, req.user)) return notFound(res);
     await sendPdf(res, invoice);
+};
+
+// "Anant Duhan" -> "A**** D****"
+const maskName = name => String(name || '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map(word => word[0] + '*'.repeat(Math.max(1, word.length - 1)))
+    .join(' ');
+
+const VERIFY_REF = /^([0-9a-z]{4,32})\.([A-Za-z0-9_-]{22})$/;
+
+// GET /api/v1/invoice/verify/:ref   (public, rate-limited)
+// ref = "<invoiceId>.<token>" exactly as printed in the invoice QR code.
+// Returns only what is needed to compare against a paper/PDF copy.
+exports.verifyInvoice = async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    const notGenuine = () => res.status(404).json({
+        success: false,
+        valid: false,
+        message: 'No MAISON invoice matches this verification code.',
+    });
+
+    const match = VERIFY_REF.exec(String(req.params.ref || ''));
+    if (!match) return notGenuine();
+
+    const invoice = await Invoice.findById(match[1]);
+    if (!invoice) return notGenuine();
+
+    let tokenOk = false;
+    try {
+        tokenOk = tokenMatches(invoice, match[2]);
+    } catch (error) {
+        // Signing secret not configured: verification is unavailable, not "fake".
+        return res.status(503).json({
+            success: false,
+            valid: false,
+            message: 'Invoice verification is temporarily unavailable.',
+        });
+    }
+    if (!tokenOk) return notGenuine();
+
+    // Recompute from the stored row: catches edits made directly in the DB.
+    const intact = computeContentHash(invoice) === invoice.contentHash;
+    if (!intact) {
+        console.error(`Invoice ${invoice.invoiceNumber} failed its integrity check`);
+    }
+
+    res.status(200).json({
+        success: true,
+        valid: intact && !invoice.isDemo,
+        status: intact ? invoice.status : 'integrity-failed',
+        isDemo: invoice.isDemo,
+        invoice: {
+            invoiceNumber: invoice.invoiceNumber,
+            type: invoice.type,
+            issuedAt: invoice.issuedAt,
+            total: invoice.total,
+            currency: invoice.currency,
+            billedTo: maskName(invoice.billedTo?.name),
+            lineCount: invoice.lines.length,
+            fingerprint: fingerprint(invoice),
+            statusUpdatedAt: invoice.statusUpdatedAt,
+        },
+        issuer: { name: 'MAISON', website: 'maisonorderplanning.in' },
+    });
 };

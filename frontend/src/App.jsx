@@ -73,6 +73,7 @@ const MagicLinkLogin = lazy(() => import("./components/User/MagicLinkLogin"));
 const PrivacyPolicy = lazy(() => import("./components/layout/Legal/PrivacyPolicy"));
 const TermsAndConditions = lazy(() => import("./components/layout/Legal/TermsAndConditions"));
 const MembershipAnalytics = lazy(() => import("./components/Admin/MembershipAnalytics"));
+const VerifyInvoice = lazy(() => import("./components/Invoice/VerifyInvoice"));
 
 function App() {
   const { isAuthenticated } = useSelector((state) => state.user);
@@ -134,6 +135,8 @@ function App() {
               <Route path="/login/2fa" element={<TwoFactorLogin />} />
               <Route path="/login/magic/:token" element={<MagicLinkLogin />} />
               <Route path="/verify-email/:token" element={<VerifyEmail />} />
+              <Route path="/verify" element={<VerifyInvoice />} />
+              <Route path="/verify/:ref" element={<VerifyInvoice />} />
               <Route
                 path="/password/forgot"
                 element={<ForgotPassword />}

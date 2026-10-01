@@ -7,6 +7,7 @@ const generateId = require('../utils/generateId');
 const nextInvoiceNumber = require('../utils/invoiceNumber');
 const { renderInvoicePdf, invoiceFilename } = require('../utils/invoicePdf');
 const { sendEmail } = require('../utils/sendEmail');
+const { computeContentHash, verifyUrl, isSigningConfigured } = require('../utils/invoiceSigning');
 const logger = require('../config/logger');
 
 const MAX_EMAIL_ATTEMPTS = 5;
@@ -22,7 +23,12 @@ const createOnce = async (type, sourceId, build) => {
     if (existing) return existing;
 
     try {
-        return await Invoice.create(await build());
+        const data = await build();
+        // Hash what was billed before it is written, so the stored row and its
+        // hash are created together.
+        data.contentHash = computeContentHash(data);
+        data.status = 'issued';
+        return await Invoice.create(data);
     } catch (error) {
         if (error.code === 11000 && error.keyPattern?.sourceId) {
             return Invoice.findOne({ type, sourceId });
@@ -128,7 +134,10 @@ const emailInvoice = async (invoice, { subject, html, sender = 'support' } = {})
 
     try {
         if (!html) {
-            html = await ejs.renderFile(path.join(__dirname, '../mails/invoice.ejs'), { invoice });
+            html = await ejs.renderFile(path.join(__dirname, '../mails/invoice.ejs'), {
+                invoice,
+                verifyLink: isSigningConfigured() ? verifyUrl(invoice) : null,
+            });
         }
         const pdf = await renderInvoicePdf(invoice);
         await sendEmail({
@@ -207,7 +216,20 @@ const retryPendingInvoiceEmails = async ({ limit = 20 } = {}) => {
     return { scanned: invoices.length, sent, failed };
 };
 
+/**
+ * Move an order's invoice to a new lifecycle status (e.g. after a refund).
+ * Only `status` changes; the billed content and its hash stay as issued.
+ */
+const setOrderInvoiceStatus = async (orderId, status) => {
+    const result = await Invoice.updateOne(
+        { type: 'order', sourceId: String(orderId), status: { $ne: status } },
+        { status, statusUpdatedAt: new Date() }
+    );
+    return result.modifiedCount > 0;
+};
+
 module.exports = {
+    setOrderInvoiceStatus,
     createOrderInvoice,
     createMembershipInvoice,
     emailInvoice,
