@@ -13,15 +13,18 @@ const RESEND_EMAILS_URL = "https://api.resend.com/emails";
 
 const getEmailConfig = () => {
   const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.RESEND_FROM_EMAIL;
+  const senders = {
+    noreply: process.env.EMAIL_FROM_NOREPLY,
+    support: process.env.EMAIL_FROM_SUPPORT,
+  };
 
-  if (!apiKey || !from) {
+  if (!apiKey || !senders.noreply || !senders.support) {
     throw new Error(
-      "Resend email configuration is missing. Required: RESEND_API_KEY, RESEND_FROM_EMAIL",
+      "Resend email configuration is missing. Required: RESEND_API_KEY, EMAIL_FROM_NOREPLY, EMAIL_FROM_SUPPORT",
     );
   }
 
-  return { apiKey, from };
+  return { apiKey, senders, replyTo: process.env.EMAIL_REPLY_TO };
 };
 
 const assertEmailOptions = (options) => {
@@ -41,7 +44,8 @@ const getResponseBody = async (response) => {
 // Send a message and wait until Resend accepts it for delivery.
 const sendEmail = async (options) => {
   assertEmailOptions(options);
-  const { apiKey, from } = getEmailConfig();
+  const { apiKey, senders, replyTo } = getEmailConfig();
+  const from = senders[options.sender || "noreply"];
 
   const response = await fetch(RESEND_EMAILS_URL, {
     method: "POST",
@@ -52,6 +56,7 @@ const sendEmail = async (options) => {
     body: JSON.stringify({
       from,
       to: [options.email],
+      reply_to: options.replyTo || replyTo,
       subject: options.subject,
       html: options.html,
     }),

@@ -66,6 +66,7 @@ const sendActivationEmailOnce = async membership => {
 
     sendEmailInBackground({
         email: user.email,
+        sender: "support",  
         subject: 'Your Maison membership is now active',
         html: emailMessage,
     });
