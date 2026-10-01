@@ -60,7 +60,7 @@ const sendVerificationEmail = async user => {
     );
     sendEmailInBackground({
         email: user.email,
-        subject: 'Verify Your Email - Ecommerce',
+        subject: 'Verify Your Email - MAISON',
         html: emailMessage
     });
 };
@@ -322,7 +322,7 @@ exports.verifyEmail = async (req, res) => {
 
       sendEmailInBackground({
         email: user.email,
-        subject: "Verify Your Email - Ecommerce",
+        subject: "Verify Your Email - MAISON",
         html: emailMessage,
       });
 

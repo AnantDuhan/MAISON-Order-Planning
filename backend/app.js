@@ -62,7 +62,8 @@ app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 const allowedOrigins = [
   "http://localhost:3000",
   "http://localhost:8080",
-  "https://orderplanning.netlify.app",
+  "https://maisonorderplanning.netlify.app",
+  "https://maisonorderplanning.in"
 ];
 
 const isAllowedOrigin = origin =>

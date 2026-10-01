@@ -126,6 +126,7 @@ exports.newOrder = async (req, res, next) => {
 
         sendEmailInBackground({
             email: user.email,
+            sender: "support",
             subject: `Your Order📦 has been placed successfully`,
             html: emailMessage
         });
@@ -308,6 +309,7 @@ exports.updateOrder = async (req, res, next) => {
             );
             sendEmailInBackground({
                 email: orderOwner.email,
+                sender: "support",
                 subject: `Your Order📦 Status Update: ${order.orderStatus}`,
                 html: emailMessage
             });

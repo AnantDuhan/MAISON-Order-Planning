@@ -52,8 +52,10 @@ exports.contactUs = async (req, res) => {
 
         sendEmailInBackground({
             email: 'duhananant@gmail.com',
+            replyTo: email,
             subject: `New Contact Form Submission`,
-            html: emailMessage
+            html: emailMessage,
+            sender: "support"
         });
 
         res.status(200).json({
