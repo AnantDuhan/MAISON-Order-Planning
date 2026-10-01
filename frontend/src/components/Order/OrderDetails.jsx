@@ -122,7 +122,8 @@ const OrderDetails = () => {
         };
     }, [dispatch, id]);
 
-    const isPaid = order?.paymentInfo?.status === 'succeeded';
+    // Cashfree orders are stored as 'PAID'; 'succeeded' covers legacy orders.
+    const isPaid = ['PAID', 'succeeded'].includes(order?.paymentInfo?.status);
     const isDelivered = order?.orderStatus === 'Delivered';
     const address = order?.shippingInfo
         ? `${order.shippingInfo.address}, ${order.shippingInfo.city}, ${order.shippingInfo.state}, ${order.shippingInfo.pinCode}, ${order.shippingInfo.country}`
@@ -228,6 +229,16 @@ const OrderDetails = () => {
                                             ₹{order.totalPrice}
                                         </span>
                                     </div>
+                                    {isPaid && (
+                                        <a
+                                            href={`/api/v1/order/${order._id}/invoice`}
+                                            download
+                                            className='mt-5 inline-flex items-center gap-2 border-b border-brass pb-0.5 font-sans text-[0.68rem] uppercase tracking-luxe text-brass transition-opacity hover:opacity-70'
+                                        >
+                                            Download invoice
+                                            <span aria-hidden='true'>↓</span>
+                                        </a>
+                                    )}
                                 </div>
 
                                 <div className='border border-line bg-surface p-6'>

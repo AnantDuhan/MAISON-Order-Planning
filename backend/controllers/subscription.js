@@ -9,6 +9,8 @@ const {
     getCashfreePlan,
     verifyCashfreeWebhook,
 } = require('../utils/cashfree');
+const logger = require('../config/logger');
+const { createMembershipInvoice, emailInvoice } = require('../services/invoiceService');
 
 const planConfig = {
     monthly: {
@@ -274,6 +276,35 @@ exports.cancelMembership = async (req, res) => {
     }
 };
 
+const invoiceMembershipPayment = async data => {
+    const subscriptionId = data.subscription_id || data.subscription_details?.subscription_id;
+    if (!subscriptionId || !data.cf_payment_id) return;
+    if (String(data.payment_type || '').toUpperCase() === 'AUTH') return;
+    if (data.payment_status && data.payment_status !== 'SUCCESS') return;
+
+    const membership = await Subscription.findOne({ subscriptionId });
+    if (!membership) {
+        logger.warn({ subscriptionId }, 'membership payment webhook for unknown subscription');
+        return;
+    }
+
+    try {
+        const invoice = await createMembershipInvoice(membership, {
+            cfPaymentId: data.cf_payment_id,
+            amount: data.payment_amount,
+            paidAt: data.payment_initiated_date || data.payment_schedule_date,
+        });
+        if (invoice.emailStatus === 'pending') {
+            await emailInvoice(invoice, {
+                subject: `Your MAISON membership invoice ${invoice.invoiceNumber}`,
+            });
+        }
+    } catch (error) {
+        // Recorded on the invoice; POST /jobs/invoice-retry re-sends it.
+        logger.error({ subscriptionId, err: error.message }, 'membership invoice failed');
+    }
+};
+
 exports.membershipWebhook = async (req, res) => {
     // Signature + freshness + duplicate check: an old or replayed webhook
     // can't flip a membership back to an earlier status.
@@ -286,6 +317,14 @@ exports.membershipWebhook = async (req, res) => {
 
     try {
         const payload = JSON.parse(req.rawBody);
+
+        // Every successful recurring charge gets its own invoice. The ₹1
+        // authorization charge (payment_type AUTH) is refunded, so it is not
+        // invoiced.
+        if (payload.type === 'SUBSCRIPTION_PAYMENT_SUCCESS') {
+            await invoiceMembershipPayment(payload.data || {});
+        }
+
         const details = payload.data?.subscription_details || payload.data || payload;
         const subscriptionId = details.subscription_id || payload.subscription_id;
         const status = details.subscription_status || payload.subscription_status;

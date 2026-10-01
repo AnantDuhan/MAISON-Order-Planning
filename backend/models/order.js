@@ -88,6 +88,10 @@ const orderSchema = new mongoose.Schema({
         default: 0,
         required: true
     },
+    taxPrice: {
+        type: Number,
+        default: 0
+    },
     totalPrice: {
         type: Number,
         default: 0,
@@ -171,10 +175,6 @@ const orderSchema = new mongoose.Schema({
         type: Boolean,
         default: false,
         index: true
-    },
-    paidAt: {
-        type: Date,
-        required: true
     },
 });
 

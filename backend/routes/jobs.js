@@ -46,4 +46,17 @@ const enqueue = name => async (req, res, next) => {
 router.post('/jobs/newsletter', requireCronSecret, enqueue('newsletter'));
 router.post('/jobs/wishlist', requireCronSecret, enqueue('wishlist'));
 
+// Re-send invoice emails that failed or never went out. Runs inline (bounded
+// to a small batch) so it does not depend on the BullMQ worker being deployed.
+const { retryPendingInvoiceEmails } = require('../services/invoiceService');
+
+router.post('/jobs/invoice-retry', requireCronSecret, async (req, res, next) => {
+    try {
+        const result = await retryPendingInvoiceEmails({ limit: 20 });
+        res.status(200).json({ success: true, job: 'invoice-retry', ...result });
+    } catch (err) {
+        next(err);
+    }
+});
+
 module.exports = router;
