@@ -4,6 +4,7 @@ const Order = require('../models/order');
 const Product = require('../models/product');
 const generateId = require('../utils/generateId');
 const cache = require('../utils/cache');
+const { setOrderInvoiceStatus } = require('../services/invoiceService');
 
 exports.initiateRefund = async (req, res) => {
     try {
@@ -203,6 +204,13 @@ exports.updateRefundStatus = async (req, res) => {
             refund.completedAt = new Date();
         }
         await refund.save();
+
+        // The invoice stays genuine but now verifies as refunded, so it can't be
+        // presented as proof of an open purchase (or used for a second refund).
+        if (refundStatus === 'Refunded') {
+            await setOrderInvoiceStatus(order._id, 'refunded').catch(error =>
+                console.error(`Could not mark invoice refunded for order ${order._id}:`, error.message));
+        }
 
         // CLEAR shared CACHE so the DataGrid in React updates immediately
         await cache.del(

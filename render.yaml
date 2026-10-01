@@ -50,6 +50,10 @@ projects:
       - key: CRON_SECRET             # required by POST /api/v1/jobs/*
         sync: false
 
+      # --- Invoices ---
+      - key: INVOICE_SIGNING_SECRET  # 32+ random chars; signs invoice QR codes. Never rotate casually.
+        sync: false
+
       # --- Email (Resend HTTPS API — see backend/utils/sendEmail.js) ---
       - key: RESEND_API_KEY
         sync: false

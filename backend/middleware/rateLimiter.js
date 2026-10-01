@@ -80,4 +80,22 @@ const otpSendLimiter = rateLimit({
     store: makeStore('rl:otp:'),
 });
 
-module.exports = { apiLimiter, authLimiter, emailLimiter, accountLimiter, otpSendLimiter };
+// Public invoice verification: anyone can call it, so keep it tight per IP to
+// make brute-forcing verification codes pointless.
+const invoiceVerifyLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: 30,
+    standardHeaders: 'draft-7',
+    legacyHeaders: false,
+    handler: json429('Too many verification attempts. Please try again in a few minutes.'),
+    store: makeStore('rl:invoice-verify:'),
+});
+
+module.exports = {
+    apiLimiter,
+    authLimiter,
+    emailLimiter,
+    accountLimiter,
+    otpSendLimiter,
+    invoiceVerifyLimiter,
+};
