@@ -7,6 +7,10 @@ const {
    updateOrder,
    deleteOrder,
    reorder,
+   addTrackingEvent,
+   updateShipment,
+   packingSlip,
+   courierWebhook,
 } = require('../controllers/order');
 const router = express.Router();
 
@@ -29,6 +33,14 @@ router
     .route('/admin/order/:id')
     .put(isAuthUser, authRoles('admin'), updateOrder)
     .delete(isAuthUser, authRoles('admin'), deleteOrder);
+
+router.route('/admin/order/:id/tracking').post(isAuthUser, authRoles('admin'), addTrackingEvent);
+router.route('/admin/order/:id/shipment').patch(isAuthUser, authRoles('admin'), updateShipment);
+router.route('/admin/order/:id/packing-slip').get(isAuthUser, authRoles('admin'), packingSlip);
+
+// Courier tracking webhook. The path avoids words Shiprocket rejects in
+// webhook URLs ("shiprocket", "sr", "kr").
+router.route('/logistics/track-updates').post(courierWebhook);
 
 router
     .route('/admin/order/:id/refund')

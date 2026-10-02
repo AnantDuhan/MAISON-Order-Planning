@@ -69,6 +69,8 @@ const orderSchema = new mongoose.Schema({
             type: String,
             required: true
         },
+        // 'cashfree' or 'wallet' (paid entirely with store credit)
+        provider: String,
         status: {
             type: String,
             required: true
@@ -155,6 +157,55 @@ const orderSchema = new mongoose.Schema({
     stockRestoredAt: {
         type: Date,
         default: null
+    },
+    // Store credit (rupees) used towards totalPrice; the rest was paid online.
+    storeCreditApplied: {
+        type: Number,
+        default: 0
+    },
+    // Store credit that should have covered part of this order but could no
+    // longer be taken when the order was placed (rupees). Needs admin review.
+    paymentShortfall: {
+        type: Number,
+        default: 0
+    },
+    // Courier shipment and its tracking timeline (services/shipmentService.js).
+    shipment: {
+        courier: String,
+        awb: { type: String, index: true, sparse: true },
+        trackingUrl: String,
+        shippedAt: Date,
+        lastStatus: String,
+        lastEventAt: Date,
+        events: [
+            {
+                _id: false,
+                status: {
+                    type: String,
+                    enum: ['Shipped', 'In transit', 'Out for delivery', 'Delivery attempted',
+                        'Delayed', 'Delivered', 'Returning to sender'],
+                    required: true
+                },
+                location: String,
+                note: String,
+                at: { type: Date, required: true },
+                source: { type: String, enum: ['admin', 'courier'], default: 'admin' },
+                rawStatus: String
+            }
+        ]
+    },
+        // Set when this order's stock was taken (at payment for new orders, at
+    // shipping for orders placed before checkout holds existed).
+    stockCommittedAt: {
+        type: Date,
+        default: null
+    },
+    // The customer paid but stock had run out by then (hold expired and
+    // someone else bought the last unit). Needs an admin decision.
+    stockShortfall: {
+        type: Boolean,
+        default: false,
+        index: true
     },
     refundedAt: {
         type: Date

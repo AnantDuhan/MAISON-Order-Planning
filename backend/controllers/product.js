@@ -11,7 +11,10 @@ const { generateEmbedding } = require("../utils/generateEmbedding");
 const searchService = require("../services/searchService");
 
 // Fields an admin may change through the JSON update endpoint.
-const UPDATABLE_PRODUCT_FIELDS = ["name", "description", "price", "category", "Stock"];
+const inventory = require("../services/inventoryService");
+const { snapshot } = require("../middleware/audit");
+
+const UPDATABLE_PRODUCT_FIELDS = ["name", "description", "price", "category", "Stock", "lowStockThreshold"];
 
 const LIST_CACHE_TTL = 60;
 const DETAIL_CACHE_TTL = 3600;
@@ -155,6 +158,12 @@ exports.updateProduct = async (req, res, next) => {
 
     await cache.del(`product:${productId}`);
     syncSearchIndex(updatedProduct);
+    inventory.onStockEdited(productId, product.Stock, updatedProduct.Stock);
+    res.locals.audit = {
+      before: snapshot(product, ['name', 'price', 'Stock', 'category', 'lowStockThreshold']),
+      after: snapshot(updatedProduct, ['name', 'price', 'Stock', 'category', 'lowStockThreshold']),
+      summary: `Updated product ${updatedProduct.name}`,
+    };
 
     res.status(200).json({
       success: true,
@@ -622,4 +631,43 @@ exports.summerizeProductReviews = async (req, res, next) => {
       message: error.message || "Server Error during summarization",
     });
   }
+};
+
+// ---- Back-in-stock requests (customer) -------------------------------------
+
+// GET /api/v1/product/:id/notify-me
+exports.getBackInStockStatus = async (req, res) => {
+  const waiting = await inventory.isWaitingFor({ productId: req.params.id, userId: req.user._id });
+  res.status(200).json({ success: true, waiting });
+};
+
+// POST /api/v1/product/:id/notify-me
+exports.requestBackInStock = async (req, res) => {
+  const result = await inventory.requestBackInStock({ productId: req.params.id, user: req.user });
+  if (result.status === "not-found") {
+    return res.status(404).json({ success: false, message: "Product not found" });
+  }
+  if (result.status === "in-stock") {
+    return res.status(409).json({ success: false, message: "This product is in stock now." });
+  }
+  res.status(200).json({ success: true, waiting: true, message: "We'll email you when it's back." });
+};
+
+// DELETE /api/v1/product/:id/notify-me
+exports.cancelBackInStock = async (req, res) => {
+  await inventory.cancelBackInStock({ productId: req.params.id, userId: req.user._id });
+  res.status(200).json({ success: true, waiting: false });
+};
+
+// GET /api/v1/admin/inventory
+exports.getInventoryReport = async (req, res) => {
+  const report = await inventory.inventoryReport({ includeDemo: Boolean(req.user?.isDemo) });
+  const shortfallOrders = req.user?.isDemo
+    ? []
+    : await Order.find({ stockShortfall: true, orderStatus: "Processing" })
+        .select("_id totalPrice createdAt orderItems.name orderItems.quantity")
+        .sort({ createdAt: -1 })
+        .limit(50)
+        .lean();
+  res.status(200).json({ success: true, ...report, shortfallOrders });
 };

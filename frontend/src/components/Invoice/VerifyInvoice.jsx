@@ -19,7 +19,7 @@ const formatAmount = (amount, currency = 'INR') =>
 
 const STATUS_COPY = {
     issued: { label: 'Genuine invoice', tone: 'success', note: 'This invoice was issued by MAISON and has not been altered in our records.' },
-    refunded: { label: 'Genuine — refunded', tone: 'brass', note: 'This invoice was issued by MAISON. The order has since been refunded in full.' },
+    refunded: { label: 'Genuine — refunded', tone: 'brass', note: 'This invoice was issued by MAISON. The order has since been refunded.' },
     cancelled: { label: 'Genuine — cancelled', tone: 'brass', note: 'This invoice was issued by MAISON and has since been cancelled.' },
     'integrity-failed': { label: 'Could not be confirmed', tone: 'danger', note: 'Our records for this invoice failed an integrity check. Please contact support before relying on it.' },
 };
@@ -98,7 +98,10 @@ const VerifyInvoice = () => {
     }, [ref]);
 
     const { phase, data } = state;
-    const statusInfo = data && (STATUS_COPY[data.status] || STATUS_COPY.issued);
+    const isCreditNote = data?.invoice?.type === 'credit-note';
+    const statusInfo = data && (isCreditNote && data.status === 'issued'
+        ? { label: 'Genuine credit note', tone: 'success', note: `This credit note was issued by MAISON against invoice ${data.invoice.againstInvoice}.` }
+        : STATUS_COPY[data.status] || STATUS_COPY.issued);
 
     return (
         <Fragment>
@@ -146,15 +149,24 @@ const VerifyInvoice = () => {
                         </p>
 
                         <div className='mt-8'>
-                            <Row label='Invoice number'>{data.invoice.invoiceNumber}</Row>
-                            <Row label='Type'>{data.invoice.type === 'membership' ? 'Membership' : 'Order'}</Row>
+                            <Row label={isCreditNote ? 'Credit note number' : 'Invoice number'}>{data.invoice.invoiceNumber}</Row>
+                            <Row label='Type'>{isCreditNote ? 'Credit note' : data.invoice.type === 'membership' ? 'Membership' : 'Order'}</Row>
+                            {isCreditNote && <Row label='Against invoice'>{data.invoice.againstInvoice}</Row>}
                             <Row label='Issued on'>{formatDate(data.invoice.issuedAt)}</Row>
                             <Row label='Billed to'>{data.invoice.billedTo || '—'}</Row>
-                            <Row label='Amount paid'>
+                            <Row label={isCreditNote ? 'Amount credited' : 'Amount paid'}>
                                 <span className='font-display text-xl'>{formatAmount(data.invoice.total, data.invoice.currency)}</span>
                             </Row>
                             {data.status === 'refunded' && data.invoice.statusUpdatedAt && (
                                 <Row label='Refunded on'>{formatDate(data.invoice.statusUpdatedAt)}</Row>
+                            )}
+                            {data.invoice.creditNote && (
+                                <Row label='Credit note'>{data.invoice.creditNote.invoiceNumber}</Row>
+                            )}
+                            {isCreditNote && data.invoice.refundMethod && (
+                                <Row label='Refunded to'>
+                                    {data.invoice.refundMethod === 'store-credit' ? 'MAISON store credit' : 'Original payment method'}
+                                </Row>
                             )}
                             <Row label='Fingerprint' mono>{data.invoice.fingerprint}</Row>
                         </div>

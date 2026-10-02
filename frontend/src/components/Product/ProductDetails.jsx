@@ -19,6 +19,7 @@ import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import WarningAmberOutlinedIcon from "@mui/icons-material/WarningAmberOutlined";
 
 import { addItemsToCart } from "../../actions/cartAction";
+import BackInStockButton from "./BackInStockButton";
 import {
   addProductToWishlist,
   clearErrors,
@@ -290,14 +291,19 @@ const ProductDetails = () => {
                     </select>
                   </div>
 
+                  {!inStock && (
+                    <BackInStockButton productId={product._id} isAuthenticated={Boolean(user)} />
+                  )}
+
                   <div className="flex flex-col gap-3 sm:flex-row">
-                    <button
-                      disabled={!inStock}
-                      onClick={addToCartHandler}
-                      className="btn-solid flex-1"
-                    >
-                      Add to Cart
-                    </button>
+                    {inStock && (
+                      <button
+                        onClick={addToCartHandler}
+                        className="btn-solid flex-1"
+                      >
+                        Add to Cart
+                      </button>
+                    )}
                     <button
                       onClick={wishlistHandler}
                       className="btn-outline flex-1"

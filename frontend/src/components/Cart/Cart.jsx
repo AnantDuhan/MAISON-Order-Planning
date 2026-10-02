@@ -1,10 +1,10 @@
 import RemoveShoppingCartIcon from '@mui/icons-material/RemoveShoppingCart';
-import React, { Fragment } from 'react';
+import React, { Fragment, useEffect, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router';
 import { Link } from 'react-router-dom';
 
-import { addItemsToCart, removeItemsFromCart } from '../../actions/cartAction';
+import { addItemsToCart, pushCartToServer, removeItemsFromCart, restoreCartFromServer } from '../../actions/cartAction';
 import MetaData from '../layout/MetaData';
 import CartItemCard from './CartItemCard';
 
@@ -15,6 +15,20 @@ const Cart = () => {
     const { cartItems } = useSelector(state => state.cart);
 
     const deleteCartItems = id => dispatch(removeItemsFromCart(id));
+
+    // Arriving from a reminder email (?restore=1): bring the saved cart onto
+    // this device. Otherwise make sure the server has this device's cart.
+    const synced = useRef(false);
+    useEffect(() => {
+        if (!isAuthenticated || synced.current) return;
+        synced.current = true;
+        const restore = new URLSearchParams(window.location.search).get('restore') === '1';
+        if (restore && cartItems.length === 0) {
+            dispatch(restoreCartFromServer()).catch(() => {});
+        } else if (cartItems.length > 0) {
+            dispatch(pushCartToServer());
+        }
+    }, [isAuthenticated, cartItems.length, dispatch]);
 
     const checkOutHandler = () => {
         if (!isAuthenticated) navigate('/login');

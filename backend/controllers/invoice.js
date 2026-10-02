@@ -24,10 +24,10 @@ const sendPdf = async (res, invoice) => {
 // GET /api/v1/invoices/me?type=order|membership
 exports.myInvoices = async (req, res) => {
     const filter = { user: String(req.user._id) };
-    if (['order', 'membership'].includes(req.query.type)) filter.type = req.query.type;
+    if (['order', 'membership', 'credit-note'].includes(req.query.type)) filter.type = req.query.type;
 
     const invoices = await Invoice.find(filter)
-        .select('invoiceNumber type order membership total currency issuedAt isDemo')
+        .select('invoiceNumber type order membership total currency issuedAt isDemo creditNoteForNumber status')
         .sort({ issuedAt: -1 })
         .limit(100)
         .lean();
@@ -107,6 +107,13 @@ exports.verifyInvoice = async (req, res) => {
         console.error(`Invoice ${invoice.invoiceNumber} failed its integrity check`);
     }
 
+    // Link credit notes and the invoices they reverse, both ways.
+    let creditNote = null;
+    if (invoice.type !== 'credit-note' && invoice.status === 'refunded') {
+        creditNote = await Invoice.findOne({ type: 'credit-note', creditNoteFor: invoice._id })
+            .select('invoiceNumber issuedAt total').lean();
+    }
+
     res.status(200).json({
         success: true,
         valid: intact && !invoice.isDemo,
@@ -122,7 +129,23 @@ exports.verifyInvoice = async (req, res) => {
             lineCount: invoice.lines.length,
             fingerprint: fingerprint(invoice),
             statusUpdatedAt: invoice.statusUpdatedAt,
+            againstInvoice: invoice.creditNoteForNumber,
+            refundMethod: invoice.refundMethod,
+            creditNote: creditNote && {
+                invoiceNumber: creditNote.invoiceNumber,
+                issuedAt: creditNote.issuedAt,
+                total: creditNote.total,
+            },
         },
         issuer: { name: 'MAISON', website: 'maisonorderplanning.in' },
     });
+};
+
+// GET /api/v1/order/:id/credit-note
+exports.downloadOrderCreditNote = async (req, res) => {
+    const note = await Invoice.findOne({ type: 'credit-note', order: req.params.id }).sort({ issuedAt: -1 });
+    if (!note || !isOwnerOrAdmin(note, req.user)) {
+        return res.status(404).json({ success: false, message: 'No credit note for this order' });
+    }
+    await sendPdf(res, note);
 };

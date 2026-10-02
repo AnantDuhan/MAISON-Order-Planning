@@ -42,6 +42,10 @@ const demoGuard = (operation) => {
           status: 403,
           message: "Demo accounts cannot start or change memberships.",
         },
+        "wallet-adjust": {
+          status: 403,
+          message: "Demo accounts cannot change store credit.",
+        },
       };
 
       if (blockedOps[operation]) {

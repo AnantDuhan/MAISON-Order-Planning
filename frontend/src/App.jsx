@@ -64,6 +64,7 @@ const LoginAndRegister = lazy(
   () => import("./components/User/LoginAndRegister"),
 );
 const Profile = lazy(() => import("./components/User/Profile"));
+const StoreCredit = lazy(() => import("./components/User/StoreCredit"));
 const ResetPassword = lazy(() => import("./components/User/ResetPassword"));
 const UpdatePassword = lazy(() => import("./components/User/UpdatePassword"));
 const UpdateProfile = lazy(() => import("./components/User/UpdateProfile"));
@@ -73,6 +74,9 @@ const MagicLinkLogin = lazy(() => import("./components/User/MagicLinkLogin"));
 const PrivacyPolicy = lazy(() => import("./components/layout/Legal/PrivacyPolicy"));
 const TermsAndConditions = lazy(() => import("./components/layout/Legal/TermsAndConditions"));
 const MembershipAnalytics = lazy(() => import("./components/Admin/MembershipAnalytics"));
+const AuditLog = lazy(() => import("./components/Admin/AuditLog"));
+const CartRecovery = lazy(() => import("./components/Admin/CartRecovery"));
+const Inventory = lazy(() => import("./components/Admin/Inventory"));
 const VerifyInvoice = lazy(() => import("./components/Invoice/VerifyInvoice"));
 
 function App() {
@@ -156,6 +160,9 @@ function App() {
                 <Route path="/membership" element={<Membership />} exact />
               )}
               {isAuthenticated && (
+                <Route path="/account/store-credit" element={<StoreCredit />} exact />
+              )}
+              {isAuthenticated && (
                 <Route path="/account/addresses" element={<AddressBook />} exact />
               )}
               {isAuthenticated && (
@@ -206,6 +213,33 @@ function App() {
                 element={
                   <ProtectedAdminRoute>
                     <Dashboard />
+                  </ProtectedAdminRoute>
+                }
+                exact
+              />
+              <Route
+                path="/admin/inventory"
+                element={
+                  <ProtectedAdminRoute>
+                    <Inventory />
+                  </ProtectedAdminRoute>
+                }
+                exact
+              />
+              <Route
+                path="/admin/cart-recovery"
+                element={
+                  <ProtectedAdminRoute>
+                    <CartRecovery />
+                  </ProtectedAdminRoute>
+                }
+                exact
+              />
+              <Route
+                path="/admin/audit-log"
+                element={
+                  <ProtectedAdminRoute>
+                    <AuditLog />
                   </ProtectedAdminRoute>
                 }
                 exact

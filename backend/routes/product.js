@@ -11,6 +11,10 @@ const {
    getAllWishlistProducts,
    summerizeProductReviews,
    updateProduct,
+   getBackInStockStatus,
+   requestBackInStock,
+   cancelBackInStock,
+   getInventoryReport,
 //    searchProducts,
 //    getAutocompleteSuggestions
 } = require('../controllers/product');
@@ -38,6 +42,14 @@ router
     .get(isAuthUser, authRoles('admin'), getAdminProducts);
 
 router.route('/product/:id').get(getProductDetails);
+
+router
+    .route('/product/:id/notify-me')
+    .get(isAuthUser, getBackInStockStatus)
+    .post(isAuthUser, requestBackInStock)
+    .delete(isAuthUser, cancelBackInStock);
+
+router.route('/admin/inventory').get(isAuthUser, authRoles('admin'), getInventoryReport);
 
 router.route('/review').post(isAuthUser, demoGuard('submit-review'), createProductReview);
 

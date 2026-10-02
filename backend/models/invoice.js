@@ -9,7 +9,7 @@ mongoose.set('strictQuery', false);
 const invoiceSchema = new mongoose.Schema({
     _id: String,
     invoiceNumber: { type: String, required: true, unique: true }, // MSN/26-27/000123
-    type: { type: String, enum: ['order', 'membership'], required: true },
+    type: { type: String, enum: ['order', 'membership', 'credit-note'], required: true },
     // order._id for orders, Cashfree cf_payment_id for membership charges
     sourceId: { type: String, required: true },
     order: { type: String, ref: 'Order' },
@@ -52,7 +52,19 @@ const invoiceSchema = new mongoose.Schema({
     lastEmailError: String,
     isDemo: { type: Boolean, default: false },
 
+    // ---- Credit notes ----------------------------------------------------------
+    // A credit note reverses (part of) an issued invoice. The original invoice
+    // is never edited; it is linked from here and shows as refunded.
+    creditNoteFor: { type: String, ref: 'Invoice', index: true, sparse: true },
+    creditNoteForNumber: String,
+    refund: { type: String, ref: 'Refund' },
+    refundMethod: { type: String, enum: ['original', 'store-credit'] },
+    reason: String,
+    // Store credit used to pay this invoice (part of total).
+    storeCreditApplied: { type: Number, default: 0 },
+
     // ---- Authenticity --------------------------------------------------------
+    hashVersion: { type: Number, default: 1 },
     // SHA-256 of the canonical billed content (utils/invoiceSigning.js).
     contentHash: { type: String, index: true },
     // Lifecycle. The billed content never changes; only this does. A refunded
@@ -73,7 +85,8 @@ const invoiceSchema = new mongoose.Schema({
 const LOCKED_FIELDS = [
     'invoiceNumber', 'type', 'sourceId', 'order', 'membership', 'user', 'billedTo',
     'lines', 'subtotal', 'shipping', 'discount', 'tax', 'total', 'currency',
-    'couponCode', 'paymentRef', 'issuedAt', 'isDemo', 'contentHash',
+    'couponCode', 'paymentRef', 'issuedAt', 'isDemo', 'contentHash', 'hashVersion',
+    'creditNoteFor', 'creditNoteForNumber', 'refund', 'refundMethod', 'reason', 'storeCreditApplied',
 ];
 
 const immutableError = () =>

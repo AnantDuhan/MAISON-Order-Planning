@@ -86,7 +86,8 @@ const drawPdf = (invoice, security) => new Promise((resolve, reject) => {
         info: {
             Title: `Invoice ${invoice.invoiceNumber}`,
             Author: 'MAISON',
-            Subject: invoice.type === 'membership' ? 'Membership invoice' : 'Order invoice',
+            Subject: invoice.type === 'credit-note' ? 'Credit note'
+                : invoice.type === 'membership' ? 'Membership invoice' : 'Order invoice',
         },
     });
 
@@ -106,7 +107,8 @@ const drawPdf = (invoice, security) => new Promise((resolve, reject) => {
         .text('maisonorderplanning.in', left, doc.y + 2, { characterSpacing: 1 });
 
     doc.font('Helvetica-Bold').fontSize(8).fillColor(BRASS)
-        .text(invoice.type === 'membership' ? 'MEMBERSHIP INVOICE' : 'INVOICE', left, 56, {
+        .text(invoice.type === 'credit-note' ? 'CREDIT NOTE'
+            : invoice.type === 'membership' ? 'MEMBERSHIP INVOICE' : 'INVOICE', left, 56, {
             width,
             align: 'right',
             characterSpacing: 3,
@@ -148,8 +150,11 @@ const drawPdf = (invoice, security) => new Promise((resolve, reject) => {
     const metaX = 340;
     const metaW = right - metaX;
     const meta = [
-        ['Invoice date', formatDate(invoice.issuedAt)],
+        [invoice.type === 'credit-note' ? 'Credit note date' : 'Invoice date', formatDate(invoice.issuedAt)],
+        invoice.creditNoteForNumber && ['Against invoice', invoice.creditNoteForNumber],
         invoice.order && ['Order ID', invoice.order],
+        invoice.type === 'credit-note' && ['Refunded to',
+            invoice.refundMethod === 'store-credit' ? 'MAISON store credit' : 'Original payment method'],
         ['Payment reference', invoice.paymentRef],
         invoice.couponCode && ['Coupon', invoice.couponCode],
     ].filter(Boolean);
@@ -215,7 +220,7 @@ const drawPdf = (invoice, security) => new Promise((resolve, reject) => {
     };
 
     totalRow('Subtotal', money(invoice.subtotal));
-    if (invoice.type === 'order') {
+    if (invoice.type !== 'membership' && (invoice.type === 'order' || invoice.shipping)) {
         totalRow('Shipping', invoice.shipping ? money(invoice.shipping) : 'Complimentary');
     }
     if (invoice.discount) totalRow('Discount', `- ${money(invoice.discount)}`);
@@ -223,7 +228,11 @@ const drawPdf = (invoice, security) => new Promise((resolve, reject) => {
 
     doc.moveTo(totalsX, y).lineTo(right, y).lineWidth(0.75).strokeColor(BRASS).stroke();
     y += 8;
-    totalRow('Total paid', money(invoice.total), true);
+    if (invoice.storeCreditApplied) {
+        totalRow('Paid with store credit', `- ${money(invoice.storeCreditApplied)}`);
+        totalRow('Paid online', money(invoice.total - invoice.storeCreditApplied));
+    }
+    totalRow(invoice.type === 'credit-note' ? 'Total credited' : 'Total paid', money(invoice.total), true);
 
     // ---- Verification -------------------------------------------------------
     const footY = doc.page.height - 90;
@@ -239,7 +248,7 @@ const drawPdf = (invoice, security) => new Promise((resolve, reject) => {
         const textX = left + qrSize + 26;
         const textW = right - textX - 10;
         doc.font('Helvetica-Bold').fontSize(7).fillColor(BRASS)
-            .text('VERIFY THIS INVOICE', textX, boxY + 2, { characterSpacing: 2, width: textW });
+            .text(invoice.type === 'credit-note' ? 'VERIFY THIS CREDIT NOTE' : 'VERIFY THIS INVOICE', textX, boxY + 2, { characterSpacing: 2, width: textW });
         doc.font('Helvetica').fontSize(8.5).fillColor(SOFT)
             .text('Scan the code or open the link below. A genuine invoice shows the same number, '
                 + 'date and amount as this document on maisonorderplanning.in.', textX, doc.y + 4, { width: textW });
