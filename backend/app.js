@@ -374,6 +374,7 @@ adminProducts.delete("/admin/product/:id", adminOnly, async (req, res) => {
 });
 
 app.use(adminProducts);
+app.use("/api/v1", adminProducts);
 
 // --- Serve the built React app (same-origin deployment) ---------------------
 // In production the backend serves the compiled frontend, so the whole app is
