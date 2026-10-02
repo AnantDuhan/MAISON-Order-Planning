@@ -1,0 +1,27 @@
+<%- include('partials/head', { title: 'Back in stock', preheader: product.name + ' is back in stock.' }) %>
+
+<p style="margin:0; font-family:Helvetica,Arial,sans-serif; font-size:10px; font-weight:bold; letter-spacing:3px; text-transform:uppercase; color:#A07C4B;">Back in stock</p>
+<h1 style="margin:14px 0 0 0; font-family:Georgia,'Times New Roman',serif; font-size:32px; font-weight:500; line-height:1.2; color:#1A1816;">
+  <%= product.name %> is available again
+</h1>
+
+<% if (product.images && product.images[0] && product.images[0].url) { %>
+<p style="margin:26px 0 0 0;">
+  <img src="<%= product.images[0].url %>" alt="<%= product.name %>" width="260" style="display:block; width:260px; max-width:100%; border:1px solid #E0D9CE;" />
+</p>
+<% } %>
+
+<p style="margin:22px 0 0 0; font-family:Helvetica,Arial,sans-serif; font-size:15px; line-height:1.75; color:#4A453F;">
+  You asked us to let you know. Stock is limited, so it may not last long.
+</p>
+<p style="margin:6px 0 0 0; font-family:Georgia,'Times New Roman',serif; font-size:22px; color:#1A1816;">&#8377;<%= product.price %></p>
+
+<p style="margin:26px 0 0 0;">
+  <a href="<%= productLink %>" style="display:inline-block; background-color:#1A1816; color:#F7F4EF; padding:14px 26px; font-family:Helvetica,Arial,sans-serif; font-size:11px; letter-spacing:2px; text-transform:uppercase; text-decoration:none;">Shop now</a>
+</p>
+
+<p style="margin:26px 0 0 0; font-family:Helvetica,Arial,sans-serif; font-size:12px; line-height:1.7; color:#8A8278;">
+  This is a one-time email. You won't hear from us about this product again unless you ask.
+</p>
+
+<%- include('partials/foot') %>

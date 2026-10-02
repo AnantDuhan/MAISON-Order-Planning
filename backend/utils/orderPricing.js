@@ -38,9 +38,11 @@ async function findActiveCoupon(couponCode) {
 /**
  * @param {Array<{product: string, quantity: number}>} requestedItems
  * @param {string} [couponCode]
+ * @param {{checkStock?: boolean}} [options] checkStock=false when the stock for
+ *   these items is already held for this customer (placing a paid order).
  * @returns {Promise<{orderItems, itemsPrice, shippingPrice, taxPrice, discount, totalPrice, coupon}>}
  */
-async function priceOrder(requestedItems, couponCode) {
+async function priceOrder(requestedItems, couponCode, { checkStock = true } = {}) {
     if (!Array.isArray(requestedItems) || requestedItems.length === 0) {
         throw new PricingError('Order must contain at least one item');
     }
@@ -66,7 +68,7 @@ async function priceOrder(requestedItems, couponCode) {
         if (!product) {
             throw new PricingError(`Product ${id} is no longer available`, 404);
         }
-        if (product.Stock < quantity) {
+        if (checkStock && product.Stock < quantity) {
             throw new PricingError(`Only ${product.Stock} left in stock for "${product.name}"`, 409);
         }
         itemsPrice += product.price * quantity;

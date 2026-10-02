@@ -50,6 +50,22 @@ projects:
       - key: CRON_SECRET             # required by POST /api/v1/jobs/*
         sync: false
 
+      # --- Inventory ---
+      - key: ADMIN_ALERT_EMAILS      # optional, comma-separated; defaults to all admin users
+        sync: false
+      - key: LOW_STOCK_THRESHOLD     # optional, default 5 (per-product override in admin)
+        sync: false
+      - key: STOCK_HOLD_MINUTES      # optional, default 30
+        sync: false
+
+      # --- Cart recovery ---
+      - key: CART_LINK_SECRET        # optional; signs cart email links (falls back to JWT_SECRET_KEY)
+        sync: false
+
+      # --- Shipping ---
+      - key: SHIPPING_WEBHOOK_TOKEN  # x-api-key Shiprocket sends to /api/v1/logistics/track-updates
+        sync: false
+
       # --- Invoices ---
       - key: INVOICE_SIGNING_SECRET  # 32+ random chars; signs invoice QR codes. Never rotate casually.
         sync: false

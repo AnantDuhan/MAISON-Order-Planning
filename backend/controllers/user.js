@@ -676,6 +676,7 @@ exports.updateUserRole = async (req, res, next) => {
         if (email) newUserData.email = normalizeEmail(email);
         if (role) newUserData.role = role;
 
+        const previous = await User.findById(req.params.id).select('name email role').lean();
         const user = await User.findByIdAndUpdate(req.params.id, newUserData, {
             new: true,
             runValidators: true
@@ -684,6 +685,13 @@ exports.updateUserRole = async (req, res, next) => {
         if (!user) {
             return res.status(404).json({ success: false, message: 'User not found' });
         }
+        res.locals.audit = {
+            before: previous && { name: previous.name, email: previous.email, role: previous.role },
+            after: { name: user.name, email: user.email, role: user.role },
+            summary: previous && previous.role !== user.role
+                ? `${user.email}: role ${previous.role} → ${user.role}`
+                : `Updated user ${user.email}`,
+        };
 
         res.status(200).json({
             success: true,
@@ -714,6 +722,10 @@ exports.deleteUser = async (req, res) => {
         }
 
         await User.deleteOne({ _id: user._id });
+        res.locals.audit = {
+            before: { name: user.name, email: user.email, role: user.role },
+            summary: `Deleted user ${user.email}`,
+        };
 
         // Best effort: only delete avatars that actually live in our bucket.
         const key = s3KeyFromUrl(user.avatar);

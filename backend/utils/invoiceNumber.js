@@ -9,7 +9,9 @@ const financialYear = (date = new Date()) => {
 const PREFIXES = {
     order: 'MSN',
     membership: 'MSM',
+    'credit-note': 'MCN',
     demo: 'DEMO',
+    'demo-credit-note': 'DEMOCN',
 };
 
 /**

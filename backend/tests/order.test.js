@@ -11,6 +11,9 @@ let cashfreeOrder = null;
 let emailsSent = [];
 cashfree.getCashfreeOrder = async () => cashfreeOrder;
 sendEmail.sendEmailInBackground = message => { emailsSent.push(message); };
+// newOrder sends the confirmation (with invoice PDF) through the invoice service.
+const invoiceService = require('../services/invoiceService');
+invoiceService.sendOrderConfirmationWithInvoice = message => { emailsSent.push(message); };
 push.sendPushNotification = async () => {};
 
 const Order = require('../models/order');
@@ -19,6 +22,7 @@ const Coupon = require('../models/coupon');
 const User = require('../models/user');
 const cache = require('../utils/cache');
 const { newOrder, getSingleOrder, reorder } = require('../controllers/order');
+const inventory = require('../services/inventoryService');
 
 const s = stubs();
 afterEach(() => {
@@ -36,6 +40,7 @@ function setupCatalogue() {
     s.set(Coupon, 'findOne', async () => null);
     s.set(User, 'findById', async () => ({ _id: 'u1', email: 'u1@example.com', name: 'U', isDemo: false }));
     s.set(cache, 'del', async () => {});
+    s.set(inventory, 'getHold', async () => null);
 }
 
 const place = async body => {
@@ -89,6 +94,11 @@ test('creates the order at server prices when the payment matches', async () => 
     let created;
     s.set(Order, 'findOne', () => ({ select: async () => null }));
     s.set(Order, 'create', async doc => { created = doc; return doc; });
+    let committedFor;
+    s.set(inventory, 'commitForOrder', async args => {
+        committedFor = args;
+        return { committed: true, shortfall: false, source: 'hold' };
+    });
 
     const res = await place({
         shippingInfo,
@@ -101,6 +111,30 @@ test('creates the order at server prices when the payment matches', async () => 
     assert.equal(created.orderItems[0].price, 400);
     assert.equal(created.couponUsed, false);
     assert.equal(emailsSent.length, 1);
+    assert.equal(committedFor.cashfreeOrderId, 'order_u1_abc');
+    assert.ok(created.stockCommittedAt instanceof Date);
+    assert.equal(created.stockShortfall, false);
+});
+
+test('a paid order is still created, flagged, when stock ran out meanwhile', async () => {
+    setupCatalogue();
+    // The customer holds the last unit, so the catalogue reads 0 — that must
+    // not block placing the paid order.
+    s.set(Product, 'find', async () => [{ _id: 'lamp', name: 'Lamp', price: 400, Stock: 0, images: [] }]);
+    cashfreeOrder = { order_status: 'PAID', order_amount: 550, cf_order_id: 'cf2' };
+    let created;
+    s.set(Order, 'findOne', () => ({ select: async () => null }));
+    s.set(Order, 'create', async doc => { created = doc; return doc; });
+    s.set(inventory, 'commitForOrder', async () => ({ committed: false, shortfall: true, source: 'late' }));
+
+    const res = await place({
+        shippingInfo,
+        orderItems: [{ product: 'lamp', quantity: 1 }],
+        paymentInfo: { provider: 'cashfree', id: 'order_u1_def' },
+    });
+    assert.equal(res.statusCode, 200);
+    assert.equal(created.stockShortfall, true);
+    assert.equal(created.stockCommittedAt, null);
 });
 
 test('users cannot read other users\' orders', async () => {

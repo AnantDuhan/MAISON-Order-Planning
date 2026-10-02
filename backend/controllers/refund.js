@@ -4,7 +4,10 @@ const Order = require('../models/order');
 const Product = require('../models/product');
 const generateId = require('../utils/generateId');
 const cache = require('../utils/cache');
-const { setOrderInvoiceStatus } = require('../services/invoiceService');
+// Used through the module object so tests can stub them.
+const invoiceService = require('../services/invoiceService');
+const inventory = require('../services/inventoryService');
+const wallet = require('../services/walletService');
 
 exports.initiateRefund = async (req, res) => {
     try {
@@ -76,6 +79,7 @@ exports.initiateRefund = async (req, res) => {
         });
 
         await newRefund.save();
+        res.locals.audit = { summary: `Refund of ₹${refundAmount} initiated for order ${order._id}` };
 
         /*
          * Attach the single refund to the order.
@@ -144,7 +148,10 @@ exports.initiateRefund = async (req, res) => {
 
 exports.updateRefundStatus = async (req, res) => {
     try {
-        const { refundStatus } = req.body;
+        const { refundStatus, refundMethod } = req.body;
+        if (refundMethod !== undefined && !['original', 'store-credit'].includes(refundMethod)) {
+            return res.status(400).json({ success: false, message: 'Invalid refund method' });
+        }
         const refundId = req.params.refundId;
         const orderId = req.params.orderId;
 
@@ -181,14 +188,41 @@ exports.updateRefundStatus = async (req, res) => {
             });
         }
 
+        res.locals.audit = {
+            before: { refundStatus: refund.status },
+            after: { refundStatus },
+            summary: `Refund for order ${order._id} (₹${refund.amount}): ${refund.status} → ${refundStatus}`,
+        };
+
         // MOCK GATEWAY: We removed Stripe. We just update the database directly.
+        if (refundStatus === 'Refunded' && !order.isRefunded) {
+            // Store credit used on the order always goes back as store credit;
+            // the rest goes where the admin chose.
+            const method = refundMethod || refund.method || 'original';
+            const amount = Number(refund.amount) || 0;
+            const toWallet = method === 'store-credit'
+                ? amount
+                : Math.min(Number(order.storeCreditApplied) || 0, amount);
+            if (toWallet > 0) {
+                await wallet.credit(order.user?._id || order.user, wallet.toPaise(toWallet), {
+                    type: 'refund',
+                    reference: { type: 'refund', id: String(refund._id) },
+                    note: `Refund for order ${order._id}`,
+                    idempotencyKey: `refund:${refund._id}`,
+                    createdBy: req.user && { id: String(req.user._id), name: req.user.name },
+                });
+            }
+            refund.method = method;
+            refund.storeCreditAmount = toWallet;
+        }
         if (refundStatus === 'Refunded') {
             order.isRefunded = true;
             order.refundedAt = order.refundedAt || new Date();
 
             // The refund covers the whole order, so every item goes back into
             // stock — but only if stock was taken out (on Shipped), and only once.
-            const stockWasTaken = ['Shipped', 'Delivered'].includes(order.orderStatus);
+            const stockWasTaken = Boolean(order.stockCommittedAt)
+                || ['Shipped', 'Delivered'].includes(order.orderStatus);
             if (stockWasTaken && !order.stockRestoredAt) {
                 await restoreStock(order.orderItems);
                 order.stockRestoredAt = new Date();
@@ -208,8 +242,10 @@ exports.updateRefundStatus = async (req, res) => {
         // The invoice stays genuine but now verifies as refunded, so it can't be
         // presented as proof of an open purchase (or used for a second refund).
         if (refundStatus === 'Refunded') {
-            await setOrderInvoiceStatus(order._id, 'refunded').catch(error =>
+            await invoiceService.setOrderInvoiceStatus(order._id, 'refunded').catch(error =>
                 console.error(`Could not mark invoice refunded for order ${order._id}:`, error.message));
+            // Credit note reversing the invoice, emailed to the customer.
+            invoiceService.issueCreditNoteInBackground(order, refund, { refundMethod: refund.method || 'original' });
         }
 
         // CLEAR shared CACHE so the DataGrid in React updates immediately
@@ -236,18 +272,13 @@ exports.updateRefundStatus = async (req, res) => {
     }
 };
 
+// Restock goes through the inventory service so back-in-stock waiters are
+// notified and low-stock flags reset.
 async function restoreStock(orderItems = []) {
-    const ops = orderItems
-        .filter(item => item.product && item.quantity > 0)
-        .map(item => ({
-            updateOne: {
-                filter: { _id: String(item.product) },
-                update: { $inc: { Stock: item.quantity } }
-            }
-        }));
-    if (ops.length) {
-        await Product.bulkWrite(ops, { ordered: false });
-    }
+    await inventory.restoreStock(orderItems.map(item => ({
+        product: String(item.product),
+        quantity: item.quantity,
+    })));
 }
 
 exports.restoreStock = restoreStock;

@@ -7,7 +7,7 @@ const generateId = require('../utils/generateId');
 const nextInvoiceNumber = require('../utils/invoiceNumber');
 const { renderInvoicePdf, invoiceFilename } = require('../utils/invoicePdf');
 const { sendEmail } = require('../utils/sendEmail');
-const { computeContentHash, verifyUrl, isSigningConfigured } = require('../utils/invoiceSigning');
+const { computeContentHash, verifyUrl, isSigningConfigured, HASH_VERSION } = require('../utils/invoiceSigning');
 const logger = require('../config/logger');
 
 const MAX_EMAIL_ATTEMPTS = 5;
@@ -26,6 +26,7 @@ const createOnce = async (type, sourceId, build) => {
         const data = await build();
         // Hash what was billed before it is written, so the stored row and its
         // hash are created together.
+        data.hashVersion = HASH_VERSION;
         data.contentHash = computeContentHash(data);
         data.status = 'issued';
         return await Invoice.create(data);
@@ -79,6 +80,7 @@ const createOrderInvoice = async (order, user, opts = {}) => {
             total: round2(order.totalPrice),
             couponCode: order.couponCode,
             paymentRef: order.paymentInfo?.id,
+            storeCreditApplied: round2(order.storeCreditApplied),
             issuedAt: order.paidAt || new Date(),
             emailStatus: opts.emailStatus || 'pending',
             isDemo,
@@ -217,6 +219,68 @@ const retryPendingInvoiceEmails = async ({ limit = 20 } = {}) => {
 };
 
 /**
+ * Issue a credit note for a completed refund, reversing the order's invoice.
+ * One per refund (keyed on the refund id). If the order has no invoice yet
+ * (placed before invoicing), it is created first, without emailing it.
+ *
+ * @param {object} order
+ * @param {object} refund   Refund document ({ _id, amount })
+ * @param {object} [opts]   { refundMethod: 'original' | 'store-credit', reason }
+ */
+const createCreditNote = async (order, refund, { refundMethod = 'original', reason } = {}) => {
+    const original = await createOrderInvoice(order, null, { emailStatus: 'skipped' });
+
+    return createOnce('credit-note', String(refund._id), async () => {
+        const amount = round2(refund.amount ?? original.total);
+        const full = Math.abs(amount - original.total) < 0.01;
+        const isDemo = Boolean(order.isDemo || original.isDemo);
+
+        return {
+            _id: generateId(),
+            invoiceNumber: await nextInvoiceNumber(isDemo ? 'demo-credit-note' : 'credit-note'),
+            type: 'credit-note',
+            sourceId: String(refund._id),
+            order: String(order._id),
+            user: original.user,
+            billedTo: original.billedTo,
+            // A full refund reverses every line; a partial one is a single line.
+            lines: full
+                ? original.lines.map(l => ({ description: l.description, quantity: l.quantity, unitPrice: l.unitPrice, amount: l.amount }))
+                : [{ description: `Partial refund against invoice ${original.invoiceNumber}`, quantity: 1, unitPrice: amount, amount }],
+            subtotal: full ? original.subtotal : amount,
+            shipping: full ? original.shipping : 0,
+            discount: full ? original.discount : 0,
+            tax: full ? original.tax : 0,
+            total: amount,
+            currency: original.currency,
+            couponCode: full ? original.couponCode : undefined,
+            paymentRef: original.paymentRef,
+            issuedAt: new Date(),
+            creditNoteFor: original._id,
+            creditNoteForNumber: original.invoiceNumber,
+            refund: String(refund._id),
+            refundMethod,
+            reason: reason || 'Order returned and refunded',
+            isDemo,
+        };
+    });
+};
+
+/** Credit note + email, after the response. Failures are retried by the job. */
+const issueCreditNoteInBackground = (order, refund, opts) => {
+    setImmediate(async () => {
+        try {
+            const note = await createCreditNote(order, refund, opts);
+            if (note.emailStatus === 'pending' && !note.isDemo) {
+                await emailInvoice(note, { subject: `Your MAISON credit note ${note.invoiceNumber}` });
+            }
+        } catch (error) {
+            logger.error({ orderId: order._id, refund: refund._id, err: error.message }, 'credit note failed');
+        }
+    });
+};
+
+/**
  * Move an order's invoice to a new lifecycle status (e.g. after a refund).
  * Only `status` changes; the billed content and its hash stay as issued.
  */
@@ -229,6 +293,8 @@ const setOrderInvoiceStatus = async (orderId, status) => {
 };
 
 module.exports = {
+    createCreditNote,
+    issueCreditNoteInBackground,
     setOrderInvoiceStatus,
     createOrderInvoice,
     createMembershipInvoice,

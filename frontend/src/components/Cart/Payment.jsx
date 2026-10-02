@@ -24,15 +24,27 @@ const Payment = () => {
     const { error } = useSelector(state => state.newOrder);
 
     const [isProcessing, setIsProcessing] = useState(false);
+    const [storeCredit, setStoreCredit] = useState(0);
+    const [useStoreCredit, setUseStoreCredit] = useState(false);
+
+    useEffect(() => {
+        axios.get('/api/v1/wallet/me')
+            .then(({ data }) => {
+                setStoreCredit(data.balance || 0);
+                setUseStoreCredit((data.balance || 0) > 0);
+            })
+            .catch(() => {});
+    }, []);
+
+    const total = Number(orderInfo?.totalPrice || 0);
+    const creditToApply = useStoreCredit ? Math.min(storeCredit, total) : 0;
+    const dueNow = Math.max(0, Math.round((total - creditToApply) * 100) / 100);
 
     const submitHandler = async e => {
         e.preventDefault();
         setIsProcessing(true);
 
         try {
-            if (!cashfree) {
-                throw new Error('Cashfree checkout is unavailable. Please refresh and try again.');
-            }
 
             // The server prices the order from the catalogue; only product ids,
             // quantities and the coupon code are sent.
@@ -46,7 +58,28 @@ const Payment = () => {
                 orderItems: pricedItems,
                 couponCode,
                 phoneNumber: shippingInfo.phoneNumber,
+                useStoreCredit,
             });
+
+            // Store credit covered everything: place the order directly.
+            if (data.walletOnly) {
+                const createdOrder = await dispatch(createOrder({
+                    shippingInfo,
+                    orderItems: pricedItems,
+                    couponCode,
+                    paymentInfo: { id: data.orderId, provider: 'wallet', status: 'PAID' },
+                }));
+                if (!createdOrder?.success) {
+                    throw new Error('The order could not be created. Your store credit has not been used.');
+                }
+                toast.success('Order placed with store credit.');
+                navigate('/success');
+                return;
+            }
+
+            if (!cashfree) {
+                throw new Error('Cashfree checkout is unavailable. Please refresh and try again.');
+            }
             const result = await cashfree.checkout({
                 paymentSessionId: data.paymentSessionId,
                 redirectTarget: '_modal',
@@ -114,9 +147,29 @@ const Payment = () => {
                             Total Due
                         </p>
                         <p className='mt-1 font-display text-4xl font-medium text-ink'>
-                            ₹{orderInfo && orderInfo.totalPrice}
+                            ₹{dueNow}
                         </p>
+                        {creditToApply > 0 && (
+                            <p className='mt-2 font-sans text-xs text-ink-faint'>
+                                ₹{total} total − ₹{creditToApply} store credit
+                            </p>
+                        )}
                     </div>
+
+                    {storeCredit > 0 && (
+                        <label className='mt-8 flex cursor-pointer items-center justify-between gap-4 border border-line px-5 py-4 text-left'>
+                            <span>
+                                <span className='block font-sans text-sm text-ink'>Use store credit</span>
+                                <span className='block font-sans text-xs text-ink-faint'>₹{storeCredit} available</span>
+                            </span>
+                            <input
+                                type='checkbox'
+                                checked={useStoreCredit}
+                                onChange={e => setUseStoreCredit(e.target.checked)}
+                                className='h-4 w-4 accent-[#A07C4B]'
+                            />
+                        </label>
+                    )}
 
                     <div className='mt-10'>
                         {isProcessing ? (
@@ -128,7 +181,9 @@ const Payment = () => {
                             </div>
                         ) : (
                             <button onClick={submitHandler} className='btn-solid w-full'>
-                                Pay securely with Cashfree · ₹{orderInfo && orderInfo.totalPrice}
+                                {dueNow === 0
+                                    ? `Place order with store credit · ₹${creditToApply}`
+                                    : `Pay securely with Cashfree · ₹${dueNow}`}
                             </button>
                         )}
                     </div>

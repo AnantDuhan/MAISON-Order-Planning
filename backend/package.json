@@ -14,7 +14,10 @@
         "seed:demo-account": "node scripts/seed-demo-account.js",
         "test": "node --test --test-force-exit \"tests/**/*.test.js\"",
         "backfill:invoices": "node scripts/backfillInvoices.js",
-        "sign:invoices": "node scripts/signInvoices.js"
+        "sign:invoices": "node scripts/signInvoices.js",
+        "test:invoice-email": "node scripts/testInvoiceEmail.js",
+        "test:membership-payment": "node scripts/simulateMembershipPayment.js",
+        "wallets:reconcile": "node scripts/reconcileWallets.js"
     },
     "author": "Anant Duhan",
     "license": "ISC",

@@ -21,6 +21,16 @@
 
       <p style="margin:16px 0 0 0; font-family:Helvetica,Arial,sans-serif; font-size:10px; letter-spacing:2px; text-transform:uppercase; color:#8A8278;">Estimated Delivery</p>
       <p style="margin:5px 0 0 0; font-family:Georgia,'Times New Roman',serif; font-size:19px; color:#A07C4B;"><%= estimatedDeliveryDate %></p>
+
+      <% if (order.shipment && order.shipment.awb) { %>
+      <p style="margin:16px 0 0 0; font-family:Helvetica,Arial,sans-serif; font-size:10px; letter-spacing:2px; text-transform:uppercase; color:#8A8278;">Shipped with</p>
+      <p style="margin:5px 0 0 0; font-family:Helvetica,Arial,sans-serif; font-size:14px; color:#1A1816;">
+        <%= order.shipment.courier || 'Courier' %> &middot; AWB <%= order.shipment.awb %>
+      </p>
+      <% if (order.shipment.trackingUrl) { %>
+      <p style="margin:8px 0 0 0;"><a href="<%= order.shipment.trackingUrl %>" style="font-family:Helvetica,Arial,sans-serif; font-size:12px; letter-spacing:1px; color:#A07C4B; text-decoration:none;">Track with the courier &rarr;</a></p>
+      <% } %>
+      <% } %>
     </td>
   </tr>
 </table>

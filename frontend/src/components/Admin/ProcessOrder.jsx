@@ -24,6 +24,8 @@ import {
     updateRefundStatus,
 } from '../../actions/orderAction';
 import MetaData from '../layout/MetaData';
+import ShipmentPanel, { ShipFields } from './ShipmentPanel';
+import { EntityHistory } from './AuditLog';
 
 const refundOptions = ['Initiated', 'Pending', 'Approved', 'Rejected', 'Refunded'];
 
@@ -68,7 +70,9 @@ const ProcessOrder = () => {
     const [initiateOpen, setInitiateOpen] = useState(false);
     const [approveOpen, setApproveOpen] = useState(false);
     const [selectedRefundStatus, setSelectedRefundStatus] = useState('');
+    const [refundMethod, setRefundMethod] = useState('original');
     const [status, setStatus] = useState('');
+    const [shipDetails, setShipDetails] = useState({ courier: '', awb: '', trackingUrl: '' });
     const [progress, setProgress] = useState(0);
 
     const onLoaderFinished = () => setProgress(0);
@@ -103,7 +107,7 @@ const ProcessOrder = () => {
 
         if (order && refundId) {
             try {
-                await dispatch(updateRefundStatus(order._id, refundId, selectedRefundStatus));
+                await dispatch(updateRefundStatus(order._id, refundId, selectedRefundStatus, refundMethod));
                 toast.success('Refund status updated successfully');
                 setApproveOpen(false);
             } catch (error) {
@@ -121,7 +125,7 @@ const ProcessOrder = () => {
 
     const updateOrderSubmitHandler = e => {
         e.preventDefault();
-        dispatch(updateOrder(id, status));
+        dispatch(updateOrder(id, status, status === 'Shipped' ? shipDetails : {}));
     };
 
     useEffect(() => {
@@ -142,7 +146,8 @@ const ProcessOrder = () => {
         setTimeout(() => setProgress(0), 1000);
     }, [dispatch, error, id, updateError, isUpdated]);
 
-    const isPaid = order?.paymentInfo?.status === 'succeeded';
+    // Cashfree orders are stored as 'PAID'; 'succeeded' covers legacy orders.
+    const isPaid = ['PAID', 'succeeded'].includes(order?.paymentInfo?.status);
     const isDelivered = order?.orderStatus === 'Delivered';
     const address = order?.shippingInfo
         ? `${order.shippingInfo.address}, ${order.shippingInfo.city}, ${order.shippingInfo.state}, ${order.shippingInfo.pinCode}, ${order.shippingInfo.country}`
@@ -226,7 +231,20 @@ const ProcessOrder = () => {
                                                 Process
                                             </button>
                                         </div>
+                                        {status === 'Shipped' && (
+                                            <ShipFields value={shipDetails} onChange={setShipDetails} />
+                                        )}
                                     </form>
+                                )}
+
+                                {order._id && (
+                                    <ShipmentPanel order={order} onChanged={() => dispatch(getOrderDetails(id))} />
+                                )}
+
+                                {order._id && (
+                                    <div className='mt-10'>
+                                        <EntityHistory entityType='order' entityId={order._id} key={`${order._id}-${order.orderStatus}-${order.shipment?.events?.length || 0}`} />
+                                    </div>
                                 )}
                             </div>
 
@@ -335,6 +353,24 @@ const ProcessOrder = () => {
                                     ))}
                                 </Select>
                             </FormControl>
+                            {selectedRefundStatus === 'Refunded' && (
+                                <Fragment>
+                                    <p style={{ marginTop: '1.5rem', fontSize: '0.72rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: '#A07C4B' }}>
+                                        Refund to
+                                    </p>
+                                    <FormControl fullWidth sx={{ mt: 1.5 }}>
+                                        <Select value={refundMethod} onChange={event => setRefundMethod(event.target.value)}>
+                                            <MenuItem value='original'>Original payment method</MenuItem>
+                                            <MenuItem value='store-credit'>MAISON store credit (instant)</MenuItem>
+                                        </Select>
+                                    </FormControl>
+                                    {order.storeCreditApplied > 0 && (
+                                        <p style={{ marginTop: '0.75rem', fontSize: '0.8rem', opacity: 0.75 }}>
+                                            ₹{order.storeCreditApplied} of this order was paid with store credit and always goes back as store credit.
+                                        </p>
+                                    )}
+                                </Fragment>
+                            )}
                         </DialogContent>
                         <DialogActions>
                             <Button onClick={() => setApproveOpen(false)} sx={{ color: '#8A8278' }}>Cancel</Button>

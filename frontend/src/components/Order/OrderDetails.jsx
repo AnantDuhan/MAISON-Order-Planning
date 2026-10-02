@@ -8,6 +8,7 @@ import { Carousel } from 'react-responsive-carousel';
 import 'react-responsive-carousel/lib/styles/carousel.min.css';
 
 import { clearErrors, getOrderDetails, returnRequest, reorder } from '../../actions/orderAction';
+import TrackingTimeline from './TrackingTimeline';
 import {
     Button,
     Dialog,
@@ -109,8 +110,8 @@ const OrderDetails = () => {
         const room = `order:${id}`;
         socket.emit('joinRoom', room);
 
-        const onStatus = ({ orderStatus }) => {
-            toast.info(`Order status updated: ${orderStatus}`);
+        const onStatus = ({ orderStatus, shipment }) => {
+            toast.info(`Order update: ${shipment?.lastStatus || orderStatus}`);
             dispatch(getOrderDetails(id));
         };
         socket.on('orderStatusUpdate', onStatus);
@@ -239,6 +240,16 @@ const OrderDetails = () => {
                                             <span aria-hidden='true'>↓</span>
                                         </a>
                                     )}
+                                    {order.isRefunded && (
+                                        <a
+                                            href={`/api/v1/order/${order._id}/credit-note`}
+                                            download
+                                            className='ml-6 mt-5 inline-flex items-center gap-2 border-b border-brass pb-0.5 font-sans text-[0.68rem] uppercase tracking-luxe text-brass transition-opacity hover:opacity-70'
+                                        >
+                                            Credit note
+                                            <span aria-hidden='true'>↓</span>
+                                        </a>
+                                    )}
                                 </div>
 
                                 <div className='border border-line bg-surface p-6'>
@@ -250,6 +261,8 @@ const OrderDetails = () => {
                                         </span>
                                     </div>
                                 </div>
+
+                                <TrackingTimeline shipment={order.shipment} />
 
                                 <button
                                     onClick={handleOpenDialog}

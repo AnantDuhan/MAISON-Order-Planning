@@ -150,6 +150,11 @@ const userSchema = new mongoose.Schema({
         type: Date,
         select: false
     },
+    // Opted out of abandoned-cart reminder emails (one-click link in the email).
+    cartRemindersOptOut: {
+        type: Boolean,
+        default: false
+    },
     isEmailVerified: {
         type: Boolean,
         default: false

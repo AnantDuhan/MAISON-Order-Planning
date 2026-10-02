@@ -174,6 +174,11 @@ exports.updateReturnStatus = async (req, res) => {
             });
         }
 
+        res.locals.audit = {
+            before: { status: returnRequest.status },
+            after: { status },
+            summary: `Return ${returnRequest._id}: ${returnRequest.status} → ${status}`,
+        };
         returnRequest.status = status;
         returnRequest.resolvedAt = ['Rejected', 'Completed'].includes(status) ? new Date() : undefined;
         await returnRequest.save();

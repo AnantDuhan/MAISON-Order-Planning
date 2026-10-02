@@ -6,6 +6,7 @@ const {
     downloadInvoice,
     downloadOrderInvoice,
     verifyInvoice,
+    downloadOrderCreditNote,
 } = require('../controllers/invoice');
 
 const router = express.Router();
@@ -16,5 +17,6 @@ router.get('/invoice/verify/:ref', invoiceVerifyLimiter, verifyInvoice);
 router.get('/invoices/me', isAuthUser, myInvoices);
 router.get('/invoice/:id/download', isAuthUser, downloadInvoice);
 router.get('/order/:id/invoice', isAuthUser, downloadOrderInvoice);
+router.get('/order/:id/credit-note', isAuthUser, downloadOrderCreditNote);
 
 module.exports = router;

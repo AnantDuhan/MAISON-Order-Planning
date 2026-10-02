@@ -42,11 +42,16 @@ const isSigningConfigured = () => {
 const money = n => Number(n || 0).toFixed(2);
 
 // Fixed field order, fixed number format, ISO date. Never reorder or rename
-// these — doing so changes every hash. Add new fields only at the end, and
-// only for invoices issued after the change (versioned via HASH_VERSION).
-const HASH_VERSION = 1;
-const canonicalize = invoice => JSON.stringify([
-    HASH_VERSION,
+// these — doing so changes every hash. New fields are appended under a new
+// version; each invoice stores the version it was hashed with (hashVersion),
+// so older invoices keep verifying exactly as issued.
+//   v1: billed content
+//   v2: + credit-note link, refund method, store credit applied
+const HASH_VERSION = 2;
+const canonicalize = invoice => {
+    const version = invoice.hashVersion || 1;
+    const fields = [
+    version,
     invoice.invoiceNumber,
     invoice.type,
     String(invoice.sourceId),
@@ -67,7 +72,17 @@ const canonicalize = invoice => JSON.stringify([
     invoice.currency || 'INR',
     invoice.paymentRef || '',
     new Date(invoice.issuedAt).toISOString(),
-]);
+    ];
+    if (version >= 2) {
+        fields.push(
+            invoice.creditNoteFor || '',
+            invoice.creditNoteForNumber || '',
+            invoice.refundMethod || '',
+            money(invoice.storeCreditApplied),
+        );
+    }
+    return JSON.stringify(fields);
+};
 
 const computeContentHash = invoice =>
     crypto.createHash('sha256').update(canonicalize(invoice)).digest('hex');
