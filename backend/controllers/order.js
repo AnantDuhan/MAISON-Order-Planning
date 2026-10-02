@@ -585,20 +585,3 @@ exports.packingSlip = async (req, res) => {
     });
     res.send(pdf);
 };
-
-// POST /api/v1/logistics/track-updates   (courier webhook, Shiprocket format)
-// Authenticated with the x-api-key header (SHIPPING_WEBHOOK_TOKEN). Always
-// answers 200 to a valid caller — couriers disable webhooks that return errors.
-exports.courierWebhook = async (req, res) => {
-    if (!shipments.tokenMatches(req.get('x-api-key'), process.env.SHIPPING_WEBHOOK_TOKEN)) {
-        return res.status(401).json({ success: false, message: 'Invalid token' });
-    }
-    try {
-        const result = await shipments.handleCourierWebhook(req.body, { io: req.app?.get('socketio') });
-        if (!result.matched) logger.warn({ awb: req.body?.awb, reason: result.reason }, 'courier webhook not matched');
-        res.status(200).json({ success: true, ...result });
-    } catch (error) {
-        logger.error({ err: error.message, awb: req.body?.awb }, 'courier webhook failed');
-        res.status(200).json({ success: false });
-    }
-};

@@ -1,9 +1,8 @@
 /**
  * Shipments and tracking.
  *
- * Works with any courier: an admin can record the courier, AWB and tracking
- * events by hand, and Shiprocket (or any aggregator posting the same shape)
- * can push events to POST /api/v1/logistics/track-updates.
+ * Works with any courier: an admin records the courier, AWB and tracking
+ * events by hand from the order page.
  *
  * Customers see the timeline on their order page and get an email + push for
  * the moments that matter: shipped, out for delivery, a failed attempt, a
@@ -11,7 +10,6 @@
  */
 const ejs = require('ejs');
 const path = require('path');
-const crypto = require('crypto');
 
 const Order = require('../models/order');
 const User = require('../models/user');
@@ -63,21 +61,7 @@ const defaultTrackingUrl = (courier = '', awb = '') => {
     if (c.includes('xpressbees')) return `https://www.xpressbees.com/shipment/tracking?awbNo=${id}`;
     if (c.includes('ekart')) return `https://ekartlogistics.com/shipmenttrack/${id}`;
     if (c.includes('india post') || c.includes('speed post')) return 'https://www.indiapost.gov.in/_layouts/15/dop.portal.tracking/trackconsignment.aspx';
-    if (c.includes('shiprocket') || !c) return awb ? `https://shiprocket.co/tracking/${id}` : undefined;
     return undefined;
-};
-
-/** Map a courier's free-text status to our timeline status. */
-const normalizeCourierStatus = raw => {
-    const s = String(raw || '').toUpperCase();
-    if (!s) return null;
-    if (s.includes('RTO')) return 'Returning to sender';
-    if (s.includes('OUT FOR DELIVERY')) return 'Out for delivery';
-    if (s.includes('UNDELIVERED') || s.includes('NDR') || s.includes('FAILED') || s.includes('ATTEMPT')) return 'Delivery attempted';
-    if (s.includes('DELIVERED')) return 'Delivered';
-    if (s.includes('DELAY') || s.includes('MISROUTE')) return 'Delayed';
-    if (s.includes('CANCEL')) return null; // cancellations are handled by an admin
-    return 'In transit';
 };
 
 const eventKey = e => `${e.status}|${new Date(e.at).toISOString()}|${(e.location || '').toLowerCase()}`;
@@ -170,7 +154,6 @@ const addTrackingEvent = async (order, input, { source = 'admin', io, notify = t
         location: clean(input.location, 120),
         note: clean(input.note, 300),
         source,
-        rawStatus: clean(input.rawStatus, 80),
     };
 
     order.shipment = order.shipment || { events: [] };
@@ -212,69 +195,10 @@ const addTrackingEvent = async (order, input, { source = 'admin', io, notify = t
     return { added: true, delivered, order };
 };
 
-// ---- Courier webhook (Shiprocket format) -----------------------------------------
-
-const tokenMatches = (given, expected) => {
-    if (!expected || typeof given !== 'string') return false;
-    const a = Buffer.from(given);
-    const b = Buffer.from(expected);
-    return a.length === b.length && crypto.timingSafeEqual(a, b);
-};
-
-// Shiprocket timestamps look like "23 05 2023 11:43:52" (DD MM YYYY, IST).
-const parseCourierDate = value => {
-    if (!value) return null;
-    const m = /^(\d{1,2})[\s/-](\d{1,2})[\s/-](\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?$/.exec(String(value).trim());
-    if (m) {
-        const [, d, mo, y, h, mi, sec = '0'] = m;
-        return new Date(`${y}-${mo.padStart(2, '0')}-${d.padStart(2, '0')}T${h.padStart(2, '0')}:${mi}:${sec.padStart(2, '0')}+05:30`);
-    }
-    const parsed = new Date(String(value).replace(' ', 'T'));
-    return Number.isNaN(parsed.getTime()) ? null : parsed;
-};
-
-/**
- * Apply a courier webhook. Uses the latest status (and its scan) rather than
- * replaying every scan, so customers aren't emailed about old events.
- * @returns {Promise<{matched: boolean, added?: boolean, status?: string}>}
- */
-const handleCourierWebhook = async (body, { io } = {}) => {
-    const awb = clean(String(body?.awb ?? ''), 60);
-    if (!awb) return { matched: false, reason: 'no awb' };
-
-    const order = await Order.findOne({ 'shipment.awb': awb });
-    if (!order) return { matched: false, reason: 'unknown awb' };
-
-    const rawStatus = body.current_status || body.shipment_status;
-    const status = normalizeCourierStatus(rawStatus);
-    if (!status) return { matched: true, added: false, reason: `ignored status ${rawStatus}` };
-
-    const scans = Array.isArray(body.scans) ? body.scans : [];
-    const lastScan = scans[scans.length - 1] || {};
-    const at = parseCourierDate(body.current_timestamp) || parseCourierDate(lastScan.date) || new Date();
-
-    if (body.courier_name && !order.shipment?.courier) {
-        order.shipment.courier = clean(body.courier_name, 80);
-    }
-
-    const result = await addTrackingEvent(order, {
-        status,
-        at,
-        location: lastScan.location,
-        note: lastScan.activity,
-        rawStatus,
-    }, { source: 'courier', io });
-    return { matched: true, added: result.added, status };
-};
-
 module.exports = {
     STATUSES,
     applyShipped,
     updateShipmentDetails,
     addTrackingEvent,
-    handleCourierWebhook,
-    normalizeCourierStatus,
-    parseCourierDate,
     defaultTrackingUrl,
-    tokenMatches,
 };
