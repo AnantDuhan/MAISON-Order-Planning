@@ -55,6 +55,13 @@ test('refuses an order without a Cashfree payment', async () => {
     assert.equal(res.statusCode, 400);
 });
 
+test('rejects an authenticated request when its user record no longer exists', async () => {
+    setupCatalogue();
+    s.set(User, 'findById', async () => null);
+    const res = await place({});
+    assert.equal(res.statusCode, 401);
+});
+
 test('refuses a payment that belongs to another user', async () => {
     setupCatalogue();
     const res = await place({

@@ -44,6 +44,10 @@ exports.newOrder = async (req, res, next) => {
     try {
         const user = await User.findById(req.user._id);
 
+        if (!user) {
+            return res.status(401).json({ success: false, message: 'Please log in to place an order' });
+        }
+
         if (user.isDemo) {
             return res.status(403).json({
                 success: false,
@@ -218,6 +222,7 @@ exports.newOrder = async (req, res, next) => {
             order
         });
     } catch (error) {
+        logger.error({ err: error, userId: req.user?._id }, 'Order creation failed');
         res.status(error.statusCode || 500).json({
             success: false,
             message: error.statusCode ? error.message : 'Could not place the order'
