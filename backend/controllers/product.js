@@ -152,7 +152,7 @@ exports.updateProduct = async (req, res, next) => {
     }
 
     const updatedProduct = await Product.findByIdAndUpdate(productId, update, {
-      new: true,
+      returnDocument: "after",
       runValidators: true,
     });
 
@@ -566,7 +566,7 @@ exports.deleteReview = async (req, res, next) => {
       numOfReviews,
     },
     {
-      new: true,
+      returnDocument: "after",
       runValidators: true,
     },
   );

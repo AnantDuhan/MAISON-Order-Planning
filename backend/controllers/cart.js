@@ -44,7 +44,7 @@ exports.syncCart = async (req, res) => {
                 },
                 $setOnInsert: { _id: generateId(), user: req.user._id }
             },
-            { upsert: true, new: true }
+            { upsert: true, returnDocument: 'after' }
         );
 
         res.status(200).json({
