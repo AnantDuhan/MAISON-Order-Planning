@@ -314,7 +314,7 @@ adminProducts.put("/admin/product/:id", adminOnly, upload.array("product", 10), 
     }
 
     const updatedProduct = await Product.findByIdAndUpdate(productId, update, {
-      new: true,
+      returnDocument: "after",
       runValidators: true,
     });
 

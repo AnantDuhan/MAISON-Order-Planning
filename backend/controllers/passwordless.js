@@ -98,7 +98,7 @@ const consumeCode = async (channel, target, code) => {
         const updated = await LoginCode.findOneAndUpdate(
             { _id: record._id },
             { $inc: { attempts: 1 } },
-            { new: true }
+            { returnDocument: 'after' }
         );
         const left = Math.max(0, MAX_ATTEMPTS - (updated?.attempts ?? MAX_ATTEMPTS));
         return {

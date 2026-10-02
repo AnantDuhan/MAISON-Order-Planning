@@ -678,7 +678,7 @@ exports.updateUserRole = async (req, res, next) => {
 
         const previous = await User.findById(req.params.id).select('name email role').lean();
         const user = await User.findByIdAndUpdate(req.params.id, newUserData, {
-            new: true,
+            returnDocument: 'after',
             runValidators: true
         });
 
