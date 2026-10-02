@@ -62,10 +62,6 @@ projects:
       - key: CART_LINK_SECRET        # optional; signs cart email links (falls back to JWT_SECRET_KEY)
         sync: false
 
-      # --- Shipping ---
-      - key: SHIPPING_WEBHOOK_TOKEN  # x-api-key Shiprocket sends to /api/v1/logistics/track-updates
-        sync: false
-
       # --- Invoices ---
       - key: INVOICE_SIGNING_SECRET  # 32+ random chars; signs invoice QR codes. Never rotate casually.
         sync: false

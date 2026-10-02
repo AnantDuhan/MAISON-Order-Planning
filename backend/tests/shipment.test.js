@@ -6,7 +6,7 @@ const Order = require('../models/order');
 const User = require('../models/user');
 const cache = require('../utils/cache');
 const shipments = require('../services/shipmentService');
-const { courierWebhook, addTrackingEvent } = require('../controllers/order');
+const { addTrackingEvent } = require('../controllers/order');
 
 const s = stubs();
 afterEach(() => s.restore());
@@ -29,24 +29,6 @@ const quiet = () => {
     // No customer lookups/emails in these tests.
     s.set(User, 'findById', () => ({ select: async () => null }));
 };
-
-test('courier statuses map onto the timeline', () => {
-    const map = shipments.normalizeCourierStatus;
-    assert.equal(map('IN TRANSIT'), 'In transit');
-    assert.equal(map('PICKED UP'), 'In transit');
-    assert.equal(map('OUT FOR DELIVERY'), 'Out for delivery');
-    assert.equal(map('DELIVERED'), 'Delivered');
-    assert.equal(map('UNDELIVERED'), 'Delivery attempted');
-    assert.equal(map('RTO INITIATED'), 'Returning to sender');
-    assert.equal(map('RTO DELIVERED'), 'Returning to sender');
-    assert.equal(map('SHIPMENT DELAYED'), 'Delayed');
-    assert.equal(map('CANCELED'), null);
-});
-
-test('Shiprocket timestamps are read as IST', () => {
-    const d = shipments.parseCourierDate('23 05 2023 11:43:52');
-    assert.equal(d.toISOString(), '2023-05-23T06:13:52.000Z');
-});
 
 test('marking shipped records courier, AWB, a tracking link and the first event', () => {
     const order = { shipment: undefined };
@@ -93,49 +75,4 @@ test('admin endpoint rejects unknown statuses', async () => {
     const res = mockRes();
     await addTrackingEvent({ params: { id: 'o1' }, body: { status: 'Teleported' }, app: { get: () => null } }, res);
     assert.equal(res.statusCode, 400);
-});
-
-const webhook = async (body, key) => {
-    const res = mockRes();
-    await courierWebhook({ body, get: () => key, app: { get: () => null } }, res);
-    return res;
-};
-
-test('courier webhook needs the shared token', async () => {
-    process.env.SHIPPING_WEBHOOK_TOKEN = 'secret-token';
-    const res = await webhook({ awb: 'AWB1', current_status: 'IN TRANSIT' }, 'wrong');
-    assert.equal(res.statusCode, 401);
-});
-
-test('courier webhook adds the latest scan to the matching order', async () => {
-    process.env.SHIPPING_WEBHOOK_TOKEN = 'secret-token';
-    quiet();
-    const order = shippedOrder();
-    s.set(Order, 'findOne', async filter => (filter['shipment.awb'] === 'AWB1' ? order : null));
-
-    const res = await webhook({
-        awb: 'AWB1',
-        courier_name: 'Delhivery Surface',
-        current_status: 'OUT FOR DELIVERY',
-        current_timestamp: '02 10 2026 09:15:00',
-        scans: [
-            { date: '2026-10-01 18:00:00', activity: 'Bagged', location: 'Coimbatore Hub' },
-            { date: '2026-10-02 09:15:00', activity: 'Out for delivery', location: 'RS Puram DC' },
-        ],
-    }, 'secret-token');
-
-    assert.equal(res.statusCode, 200);
-    assert.equal(res.body.added, true);
-    const last = order.shipment.events[order.shipment.events.length - 1];
-    assert.equal(last.status, 'Out for delivery');
-    assert.equal(last.location, 'RS Puram DC');
-    assert.equal(last.source, 'courier');
-});
-
-test('courier webhook answers 200 for an unknown AWB', async () => {
-    process.env.SHIPPING_WEBHOOK_TOKEN = 'secret-token';
-    s.set(Order, 'findOne', async () => null);
-    const res = await webhook({ awb: 'NOPE', current_status: 'IN TRANSIT' }, 'secret-token');
-    assert.equal(res.statusCode, 200);
-    assert.equal(res.body.matched, false);
 });
