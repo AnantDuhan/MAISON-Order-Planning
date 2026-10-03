@@ -50,10 +50,35 @@ projects:
       - key: CRON_SECRET             # required by POST /api/v1/jobs/*
         sync: false
 
+      # --- Inventory ---
+      - key: ADMIN_ALERT_EMAILS      # optional, comma-separated; defaults to all admin users
+        sync: false
+      - key: LOW_STOCK_THRESHOLD     # optional, default 5 (per-product override in admin)
+        sync: false
+      - key: STOCK_HOLD_MINUTES      # optional, default 30
+        sync: false
+
+      # --- Cart recovery ---
+      - key: CART_LINK_SECRET        # optional; signs cart email links (falls back to JWT_SECRET_KEY)
+        sync: false
+
+      # --- Two-factor ---
+      - key: MFA_TRUST_DAYS          # optional, default 30 (1-90): how long "don't ask again on this device" lasts
+        sync: false
+
+      # --- Invoices ---
+      - key: INVOICE_SIGNING_SECRET  # 32+ random chars; signs invoice QR codes. Never rotate casually.
+        sync: false
+
       # --- Email (Resend HTTPS API — see backend/utils/sendEmail.js) ---
       - key: RESEND_API_KEY
         sync: false
-      - key: RESEND_FROM_EMAIL
+
+      - key: EMAIL_FROM_NOREPLY
+        sync: false
+      - key: EMAIL_FROM_SUPPORT
+        sync: false
+      - key: EMAIL_REPLY_TO
         sync: false
       - key: BACKEND_URL             # used for order links in emails
         sync: false

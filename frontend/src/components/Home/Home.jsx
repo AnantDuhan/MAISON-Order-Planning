@@ -6,11 +6,14 @@ import { toast } from 'react-toastify';
 import { clearErrors, getProduct } from '../../actions/productAction';
 import { clearNewsletter, newsletter } from '../../actions/subscribeAction';
 import LoadingBar from 'react-top-loading-bar';
+import Loader from '../layout/Loader/Loader';
 import MetaData from '../layout/MetaData';
 import ProductCard from './ProductCard';
 import ProductGridItem from './ProductGridItem';
+import { useFeature } from '../../context/FeatureFlagsContext';
 
 const Home = () => {
+    const newsletterOn = useFeature('newsletter');
     const dispatch = useDispatch();
 
     const [email, setEmail] = useState('');
@@ -48,7 +51,10 @@ const Home = () => {
     return (
         <Fragment>
             {loading ? (
-                <LoadingBar color='#A07C4B' progress={progress} onLoaderFinished={onLoaderFinished} />
+                <Fragment>
+                    <LoadingBar color='#A07C4B' progress={progress} onLoaderFinished={onLoaderFinished} />
+                    <Loader label='Opening the doors' />
+                </Fragment>
             ) : (
                 <Fragment>
                     <MetaData title='Maison · Order Planning' />
@@ -145,6 +151,7 @@ const Home = () => {
                     </section>
 
                     {/* ── Newsletter ─────────────────────────────── */}
+                    {newsletterOn && (
                     <section className='editorial-shell mt-28'>
                         <div className='relative overflow-hidden border border-line bg-ink px-6 py-20 text-center'>
                             <p className='eyebrow !text-brass-soft'>Stay in the Know</p>
@@ -173,6 +180,7 @@ const Home = () => {
                             </form>
                         </div>
                     </section>
+                    )}
                 </Fragment>
             )}
         </Fragment>

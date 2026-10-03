@@ -12,6 +12,8 @@ import {
   clear2FAError,
 } from "../../actions/userAction";
 
+import Loader from "../layout/Loader/Loader";
+import TrustedDevices from "./TrustedDevices";
 const Profile = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -27,6 +29,14 @@ const Profile = () => {
 
   const [progress, setProgress] = useState(0);
   const [membership, setMembership] = useState(null);
+  const [storeCredit, setStoreCredit] = useState(null);
+
+  useEffect(() => {
+    axios
+      .get("/api/v1/wallet/me")
+      .then(({ data }) => setStoreCredit(data.balance))
+      .catch(() => setStoreCredit(0));
+  }, []);
   const [otp, setOtp] = useState("");
   const [showSetup, setShowSetup] = useState(false);
   const [showDisable, setShowDisable] = useState(false);
@@ -155,11 +165,7 @@ const Profile = () => {
       />
 
       {loading ? (
-        <div className="editorial-shell py-32 text-center">
-          <p className="font-sans text-[0.72rem] uppercase tracking-luxe text-ink-faint">
-            Loading your profile…
-          </p>
-        </div>
+        <Loader label="Opening your account" />
       ) : (
         <Fragment>
           <MetaData title={`${user?.name} · Maison`} />
@@ -357,6 +363,20 @@ const Profile = () => {
                       {isMember
                         ? "Manage Membership"
                         : "View Membership"}
+                    </Link>
+                  </div>
+
+                  {/* Store credit */}
+                  <div className="border border-line bg-surface p-6">
+                    <p className="eyebrow">Store credit</p>
+                    <p className="mt-2 font-display text-2xl text-ink">
+                      {storeCredit === null ? "—" : `₹${storeCredit.toLocaleString("en-IN")}`}
+                    </p>
+                    <p className="mt-2 font-sans text-sm text-ink-soft">
+                      Use it at checkout. Refunds can be taken as credit.
+                    </p>
+                    <Link to="/account/store-credit" className="btn-outline mt-5 inline-flex">
+                      View history
                     </Link>
                   </div>
 
@@ -573,6 +593,8 @@ const Profile = () => {
                         2FA is mandatory for administrators and cannot be disabled.
                       </p>
                     )}
+
+                    {is2FAEnabled && !user?.isDemo && <TrustedDevices />}
 
                     {is2FAEnabled && !isAdmin && !showDisable && (
                       <div className="mt-6">

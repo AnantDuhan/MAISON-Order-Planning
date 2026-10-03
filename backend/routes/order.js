@@ -7,7 +7,11 @@ const {
    updateOrder,
    deleteOrder,
    reorder,
+   addTrackingEvent,
+   updateShipment,
+   packingSlip,
 } = require('../controllers/order');
+const { requireFeature } = require('../services/featureFlags');
 const router = express.Router();
 
 const { isAuthUser, authRoles } = require('../middleware/auth');
@@ -21,7 +25,7 @@ router.route('/order/:id').get(isAuthUser, getSingleOrder);
 
 router.route('/orders/me').get(isAuthUser, myOrders);
 
-router.route('/order/:id/return').post(isAuthUser, demoGuard('place-order'), requestReturn);
+router.route('/order/:id/return').post(isAuthUser, requireFeature('returns'), demoGuard('place-order'), requestReturn);
 
 router.route('/admin/orders').get(isAuthUser, authRoles('admin'), getAllOrders);
 
@@ -29,6 +33,10 @@ router
     .route('/admin/order/:id')
     .put(isAuthUser, authRoles('admin'), updateOrder)
     .delete(isAuthUser, authRoles('admin'), deleteOrder);
+
+router.route('/admin/order/:id/tracking').post(isAuthUser, authRoles('admin'), addTrackingEvent);
+router.route('/admin/order/:id/shipment').patch(isAuthUser, authRoles('admin'), updateShipment);
+router.route('/admin/order/:id/packing-slip').get(isAuthUser, authRoles('admin'), packingSlip);
 
 router
     .route('/admin/order/:id/refund')

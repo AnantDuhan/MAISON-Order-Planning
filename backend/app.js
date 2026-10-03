@@ -62,7 +62,8 @@ app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 const allowedOrigins = [
   "http://localhost:3000",
   "http://localhost:8080",
-  "https://orderplanning.netlify.app",
+  "https://maisonorderplanning.netlify.app",
+  "https://maisonorderplanning.in"
 ];
 
 const isAllowedOrigin = origin =>
@@ -176,7 +177,7 @@ const deleteImages = async (images = []) => {
 
 const pickProductFields = body => {
   const fields = {};
-  for (const key of ["name", "description", "price", "category", "Stock"]) {
+  for (const key of ["name", "description", "price", "category", "Stock", "lowStockThreshold"]) {
     if (body[key] !== undefined && body[key] !== "") fields[key] = body[key];
   }
   return fields;
@@ -199,6 +200,12 @@ const cartRoute = require("./routes/cart");
 const redirectRoute = require("./routes/redirect");
 const searchRoute = require("./routes/search");
 const seoRoute = require("./routes/seo");
+const invoiceRoute = require("./routes/invoice");
+const auditRoute = require("./routes/audit");
+const walletRoute = require("./routes/wallet");
+const featuresRoute = require("./routes/features");
+const inventory = require("./services/inventoryService");
+const { auditAdminWrites, snapshot } = require("./middleware/audit");
 
 app.get("/api/v1/health", (req, res) => {
   res.status(200).json({
@@ -214,6 +221,8 @@ app.get('/api-docs.json', (req, res) => {
 });
 
 app.use("/api/v1", apiLimiter);
+// Audit trail for every admin write (must run before the routes).
+app.use(["/api/v1/admin", "/admin"], auditAdminWrites);
 app.use("/api/v1", productRoute);
 app.use("/api/v1", searchRoute);
 app.use("/api/v1", userRoute);
@@ -225,6 +234,10 @@ app.use("/api/v1", analyticsRoute);
 app.use("/api/v1", jobsRoute);
 app.use("/api/v1", bannerRoute);
 app.use("/api/v1", cartRoute);
+app.use("/api/v1", invoiceRoute);
+app.use("/api/v1", auditRoute);
+app.use("/api/v1", walletRoute);
+app.use("/api/v1", featuresRoute);
 app.use(redirectRoute);
 app.use(seoRoute); // /sitemap.xml
 
@@ -253,6 +266,12 @@ adminProducts.post("/admin/add-product", adminOnly, upload.array("product", 10),
 
     await cache.del(`product:${productId}`);
     syncSearchIndex(indexProduct(product));
+
+    res.locals.audit = {
+      entity: { type: "product", id: productId },
+      after: snapshot(product, ["name", "price", "Stock", "category"]),
+      summary: `Created product ${product.name}`,
+    };
 
     res.status(201).json({
       success: true,
@@ -297,7 +316,7 @@ adminProducts.put("/admin/product/:id", adminOnly, upload.array("product", 10), 
     }
 
     const updatedProduct = await Product.findByIdAndUpdate(productId, update, {
-      new: true,
+      returnDocument: "after",
       runValidators: true,
     });
 
@@ -305,6 +324,12 @@ adminProducts.put("/admin/product/:id", adminOnly, upload.array("product", 10), 
 
     await cache.del(`product:${productId}`);
     syncSearchIndex(indexProduct(updatedProduct));
+    inventory.onStockEdited(productId, product.Stock, updatedProduct.Stock);
+    res.locals.audit = {
+      before: snapshot(product, ['name', 'price', 'Stock', 'category', 'lowStockThreshold']),
+      after: snapshot(updatedProduct, ['name', 'price', 'Stock', 'category', 'lowStockThreshold']),
+      summary: `Updated product ${updatedProduct.name}${oldImages ? " (new images)" : ""}`,
+    };
 
     res.status(200).json({
       success: true,
@@ -331,6 +356,10 @@ adminProducts.delete("/admin/product/:id", adminOnly, async (req, res) => {
     }
 
     await Product.deleteOne({ _id: productId });
+    res.locals.audit = {
+      before: snapshot(product, ["name", "price", "Stock", "category"]),
+      summary: `Deleted product ${product.name}`,
+    };
     await deleteImages(product.images);
     await cache.del(`product:${productId}`);
     syncSearchIndex(deleteProductDoc(productId));
@@ -347,6 +376,7 @@ adminProducts.delete("/admin/product/:id", adminOnly, async (req, res) => {
 });
 
 app.use(adminProducts);
+app.use("/api/v1", adminProducts);
 
 // --- Serve the built React app (same-origin deployment) ---------------------
 // In production the backend serves the compiled frontend, so the whole app is

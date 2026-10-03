@@ -1,0 +1,134 @@
+/*
+ * MAISON loader — a doorway being sewn.
+ *
+ * "Maison" is a couture house: a brass running stitch sews the arch of the
+ * house's door around the monogram, completes, then unpicks and sews again.
+ * Colours come from the theme tokens, so light and dark mode just work.
+ */
+
+.maison-loader {
+    display: grid;
+    place-items: center;
+    width: 100%;
+    /* Appear only if loading takes a moment, so fast pages don't flicker. */
+    opacity: 0;
+    animation: maison-loader-appear 400ms ease-out 200ms forwards;
+}
+
+.maison-loader--page {
+    min-height: 70vh;
+}
+
+.maison-loader--inline {
+    padding: 1.5rem 0;
+}
+
+.maison-loader__figure {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.25rem;
+}
+
+.maison-loader__door {
+    width: 4.5rem;
+    height: auto;
+    overflow: visible;
+}
+
+.maison-loader--inline .maison-loader__door {
+    width: 3rem;
+}
+
+.maison-loader .maison-loader__door--lg {
+    width: 6rem;
+}
+
+/* The stitches: short brass dashes along the arch… */
+.maison-loader__stitches {
+    fill: none;
+    stroke: rgb(var(--c-brass));
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    stroke-dasharray: 3.4 3.6;
+}
+
+/* …revealed by a mask that sews forward, holds, then unpicks. */
+.maison-loader__thread {
+    fill: none;
+    stroke: #fff;
+    stroke-width: 6;
+    stroke-dasharray: 100 101;
+    stroke-dashoffset: 100;
+    animation: maison-loader-sew 2.8s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+
+/* The faint chalk outline a tailor marks before sewing. */
+.maison-loader__chalk {
+    fill: none;
+    stroke: rgb(var(--c-line));
+    stroke-width: 1;
+}
+
+.maison-loader__monogram {
+    fill: rgb(var(--c-ink));
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    font-size: 30px;
+    font-weight: 500;
+    animation: maison-loader-breathe 2.8s ease-in-out infinite;
+}
+
+.maison-loader__label {
+    margin: 0;
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    font-style: italic;
+    font-size: 1.125rem;
+    line-height: 1.4;
+    color: rgb(var(--c-ink-soft));
+    text-align: center;
+}
+
+.maison-loader--inline .maison-loader__label {
+    font-size: 1rem;
+}
+
+.maison-loader__sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
+
+@keyframes maison-loader-appear {
+    to { opacity: 1; }
+}
+
+@keyframes maison-loader-sew {
+    0%   { stroke-dashoffset: 100; }   /* nothing sewn */
+    45%  { stroke-dashoffset: 0; }     /* door fully stitched */
+    60%  { stroke-dashoffset: 0; }     /* hold */
+    100% { stroke-dashoffset: -100; }  /* unpick from the start */
+}
+
+@keyframes maison-loader-breathe {
+    0%, 100% { opacity: 0.45; }
+    45%, 60% { opacity: 1; }
+}
+
+/* Reduced motion: the finished door, no movement. */
+@media (prefers-reduced-motion: reduce) {
+    .maison-loader {
+        animation: none;
+        opacity: 1;
+    }
+    .maison-loader__thread {
+        animation: none;
+        stroke-dashoffset: 0;
+    }
+    .maison-loader__monogram {
+        animation: none;
+        opacity: 1;
+    }
+}

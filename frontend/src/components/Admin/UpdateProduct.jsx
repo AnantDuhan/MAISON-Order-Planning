@@ -17,6 +17,7 @@ const categories = [
     'Laptop', 'Footwear', 'Bottom', 'Tops', 'Attire',
     'Camera', 'SmartPhones', 'Jeans',
 ];
+const ADD_CATEGORY_OPTION = '__add_new_category__';
 
 const UpdateProduct = () => {
     const dispatch = useDispatch();
@@ -30,6 +31,8 @@ const UpdateProduct = () => {
     const [price, setPrice] = useState(0);
     const [description, setDescription] = useState('');
     const [category, setCategory] = useState('');
+    const [isAddingCategory, setIsAddingCategory] = useState(false);
+    const [newCategory, setNewCategory] = useState('');
     const [Stock, setStock] = useState(0);
     const [images, setImages] = useState([]);
     const [oldImages, setOldImages] = useState([]);
@@ -65,11 +68,17 @@ const UpdateProduct = () => {
 
     const updateProductSubmitHandler = e => {
         e.preventDefault();
+        const productCategory = isAddingCategory ? newCategory.trim() : category;
+        if (!productCategory) {
+            toast.error('Please choose or enter a category');
+            return;
+        }
+
         const myForm = new FormData();
         myForm.set('name', name);
         myForm.set('price', price);
         myForm.set('description', description);
-        myForm.set('category', category);
+        myForm.set('category', productCategory);
         myForm.set('Stock', Stock);
         images.forEach(image => myForm.append('product', image));
         dispatch(updateProduct(productId, myForm));
@@ -137,13 +146,45 @@ const UpdateProduct = () => {
 
                         <div className='field-row'>
                             <AccountTreeIcon />
-                            <select value={category} onChange={e => setCategory(e.target.value)}>
+                            <select
+                                value={isAddingCategory ? ADD_CATEGORY_OPTION : category}
+                                required={!isAddingCategory}
+                                onChange={e => {
+                                    const selectedCategory = e.target.value;
+                                    if (selectedCategory === ADD_CATEGORY_OPTION) {
+                                        setIsAddingCategory(true);
+                                        setNewCategory('');
+                                        return;
+                                    }
+                                    setCategory(selectedCategory);
+                                    setIsAddingCategory(false);
+                                    setNewCategory('');
+                                }}
+                            >
                                 <option value=''>Choose Category</option>
+                                {category && !categories.includes(category) && !isAddingCategory && (
+                                    <option value={category}>{category}</option>
+                                )}
                                 {categories.map(cate => (
                                     <option key={cate} value={cate}>{cate}</option>
                                 ))}
+                                <option value={ADD_CATEGORY_OPTION}>Add new category…</option>
                             </select>
                         </div>
+                        {isAddingCategory && (
+                            <div className='field-row'>
+                                <AccountTreeIcon />
+                                <input
+                                    type='text'
+                                    placeholder='New category name'
+                                    aria-label='New category name'
+                                    maxLength={80}
+                                    required
+                                    value={newCategory}
+                                    onChange={e => setNewCategory(e.target.value)}
+                                />
+                            </div>
+                        )}
 
                         <div>
                             <label className='eyebrow'>Description</label>

@@ -11,6 +11,7 @@ import { UPDATE_USER_RESET } from '../../constants/userConstants';
 import Loader from '../layout/Loader/Loader';
 import MetaData from '../layout/MetaData';
 import AdminPage from './shared/AdminPage';
+import WalletAdminPanel from './WalletAdminPanel';
 
 const UpdateUser = () => {
     const dispatch = useDispatch();
@@ -58,7 +59,7 @@ const UpdateUser = () => {
             <MetaData title='Update User · Admin' />
             <AdminPage title='Update User'>
                 {loading ? (
-                    <Loader />
+                    <Loader label='Loading this customer' />
                 ) : (
                     <form
                         className='mx-auto max-w-lg border border-line bg-surface p-8 sm:p-10'
@@ -104,6 +105,7 @@ const UpdateUser = () => {
                         </div>
                     </form>
                 )}
+                <WalletAdminPanel userId={id} />
             </AdminPage>
         </Fragment>
     );

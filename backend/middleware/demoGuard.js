@@ -42,6 +42,14 @@ const demoGuard = (operation) => {
           status: 403,
           message: "Demo accounts cannot start or change memberships.",
         },
+        "feature-flags": {
+          status: 403,
+          message: "Demo accounts can view feature switches but not change them.",
+        },
+        "wallet-adjust": {
+          status: 403,
+          message: "Demo accounts cannot change store credit.",
+        },
       };
 
       if (blockedOps[operation]) {

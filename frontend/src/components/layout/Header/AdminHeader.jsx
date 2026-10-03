@@ -19,6 +19,10 @@ const links = [
     { to: '/admin/refunds', label: 'Refunds' },
     { to: '/admin/coupon', label: 'Coupons' },
     { to: '/admin/memberships', label: 'Memberships' },
+    { to: '/admin/inventory', label: 'Inventory' },
+    { to: '/admin/cart-recovery', label: 'Cart Recovery' },
+    { to: '/admin/audit-log', label: 'Audit Log' },
+    { to: '/admin/features', label: 'Features' },
 ];
 
 const primaryLinks = links.slice(0, 4);

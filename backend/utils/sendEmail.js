@@ -1,3 +1,4 @@
+const logger = require('../config/logger');
 /**
  * Transactional email through Resend's HTTPS API.
  *
@@ -13,15 +14,18 @@ const RESEND_EMAILS_URL = "https://api.resend.com/emails";
 
 const getEmailConfig = () => {
   const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.RESEND_FROM_EMAIL;
+  const senders = {
+    noreply: process.env.EMAIL_FROM_NOREPLY,
+    support: process.env.EMAIL_FROM_SUPPORT,
+  };
 
-  if (!apiKey || !from) {
+  if (!apiKey || !senders.noreply || !senders.support) {
     throw new Error(
-      "Resend email configuration is missing. Required: RESEND_API_KEY, RESEND_FROM_EMAIL",
+      "Resend email configuration is missing. Required: RESEND_API_KEY, EMAIL_FROM_NOREPLY, EMAIL_FROM_SUPPORT",
     );
   }
 
-  return { apiKey, from };
+  return { apiKey, senders, replyTo: process.env.EMAIL_REPLY_TO };
 };
 
 const assertEmailOptions = (options) => {
@@ -29,6 +33,16 @@ const assertEmailOptions = (options) => {
   if (!options.subject) throw new Error("Email subject is required");
   if (!options.html) throw new Error("Email HTML content is required");
 };
+
+// Resend expects attachment content as base64. Accept Buffers for convenience.
+const toResendAttachments = (attachments = []) =>
+  attachments.map((attachment) => ({
+    filename: attachment.filename,
+    content: Buffer.isBuffer(attachment.content)
+      ? attachment.content.toString("base64")
+      : attachment.content,
+    ...(attachment.contentType && { content_type: attachment.contentType }),
+  }));
 
 const getResponseBody = async (response) => {
   try {
@@ -41,7 +55,8 @@ const getResponseBody = async (response) => {
 // Send a message and wait until Resend accepts it for delivery.
 const sendEmail = async (options) => {
   assertEmailOptions(options);
-  const { apiKey, from } = getEmailConfig();
+  const { apiKey, senders, replyTo } = getEmailConfig();
+  const from = senders[options.sender || "noreply"];
 
   const response = await fetch(RESEND_EMAILS_URL, {
     method: "POST",
@@ -52,10 +67,14 @@ const sendEmail = async (options) => {
     body: JSON.stringify({
       from,
       to: [options.email],
+      reply_to: options.replyTo || replyTo,
       subject: options.subject,
       html: options.html,
+      ...(options.attachments?.length && {
+        attachments: toResendAttachments(options.attachments),
+      }),
     }),
-    signal: AbortSignal.timeout(15_000),
+    signal: AbortSignal.timeout(options.attachments?.length ? 30_000 : 15_000),
   });
 
   const body = await getResponseBody(response);
@@ -63,7 +82,7 @@ const sendEmail = async (options) => {
     throw new Error(body.message || body.name || `Resend request failed (${response.status})`);
   }
 
-  console.log(`📧 Email accepted by Resend for ${options.email}`);
+  logger.info({ to: options.email, sender: options.sender || 'noreply' }, 'Email accepted by Resend');
   return body;
 };
 
