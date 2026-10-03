@@ -46,6 +46,8 @@ const ProductCard = ({ product }) => {
                     <img
                         src={imageUrl}
                         alt={product.name}
+                        loading='lazy'
+                        decoding='async'
                         className='h-full w-full object-cover transition-transform duration-700 ease-luxe group-hover:scale-105'
                     />
                     <button

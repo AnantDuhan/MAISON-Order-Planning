@@ -22,6 +22,7 @@ const runWishlistReminders = async () => {
             );
             await sendEmail({
                 email: user.email,
+                sender: "support",
                 subject: 'Still thinking it over? Your wishlist awaits',
                 html: emailMessage,
             });

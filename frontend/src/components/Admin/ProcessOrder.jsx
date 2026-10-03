@@ -14,6 +14,7 @@ import {
     Select,
 } from '@mui/material';
 import LoadingBar from 'react-top-loading-bar';
+import Loader from '../layout/Loader/Loader';
 
 import { UPDATE_ORDER_RESET } from '../../constants/orderConstants';
 import {
@@ -24,6 +25,10 @@ import {
     updateRefundStatus,
 } from '../../actions/orderAction';
 import MetaData from '../layout/MetaData';
+import ShipmentPanel, { ShipFields } from './ShipmentPanel';
+import OrderItemsList from '../Order/OrderItemsList';
+import { EntityHistory } from './AuditLog';
+import { useFeature } from '../../context/FeatureFlagsContext';
 
 const refundOptions = ['Initiated', 'Pending', 'Approved', 'Rejected', 'Refunded'];
 
@@ -68,31 +73,32 @@ const ProcessOrder = () => {
     const [initiateOpen, setInitiateOpen] = useState(false);
     const [approveOpen, setApproveOpen] = useState(false);
     const [selectedRefundStatus, setSelectedRefundStatus] = useState('');
+    const [refundMethod, setRefundMethod] = useState('original');
+    const storeCreditOn = useFeature('storeCredit');
     const [status, setStatus] = useState('');
+    const [shipDetails, setShipDetails] = useState({ courier: '', awb: '', trackingUrl: '' });
     const [progress, setProgress] = useState(0);
 
     const onLoaderFinished = () => setProgress(0);
 
-    const submitInitiateRefund = () => {
-        if (!order?._id) return;
+    const [refundBusy, setRefundBusy] = useState(false);
 
+    // Wait for the server before saying anything: this used to report success
+    // immediately (and hide any error) because the request wasn't awaited.
+    const submitInitiateRefund = async () => {
+        if (!order?._id || refundBusy) return;
+        setRefundBusy(true);
+        setProgress(50);
         try {
-            setProgress(50);
-
-            dispatch(initiateRefund(id));
-
-            toast.success('Refund request initiated successfully');
+            await dispatch(initiateRefund(id));
+            toast.success('Refund initiated. Approve it to send the money back.');
             setInitiateOpen(false);
-
-            // Refresh order so refund status/details are immediately visible
-            dispatch(getOrderDetails(id));
         } catch (error) {
-            toast.error(
-                error.response?.data?.message ||
-                error.message ||
-                'Failed to initiate refund'
-            );
+            toast.error(error.response?.data?.message || error.message || 'Could not initiate the refund');
         } finally {
+            // Reload so the refund buttons and status reflect what the server has.
+            dispatch(getOrderDetails(id));
+            setRefundBusy(false);
             setProgress(100);
         }
     };
@@ -102,12 +108,19 @@ const ProcessOrder = () => {
         const refundId = typeof refund === 'object' ? refund?._id : refund;
 
         if (order && refundId) {
+            if (refundBusy) return;
+            setRefundBusy(true);
             try {
-                await dispatch(updateRefundStatus(order._id, refundId, selectedRefundStatus));
-                toast.success('Refund status updated successfully');
+                await dispatch(updateRefundStatus(order._id, refundId, selectedRefundStatus, refundMethod));
+                toast.success(selectedRefundStatus === 'Refunded'
+                    ? `Refunded ${refundMethod === 'store-credit' ? 'as store credit' : 'to the original payment method'}`
+                    : `Refund status set to ${selectedRefundStatus}`);
                 setApproveOpen(false);
             } catch (error) {
-                toast.error(error.response?.data?.message || error.message);
+                toast.error(error.response?.data?.message || error.message || 'Could not update the refund');
+            } finally {
+                dispatch(getOrderDetails(id));
+                setRefundBusy(false);
             }
         } else {
             toast.error('Initiate the refund before updating its status');
@@ -121,7 +134,7 @@ const ProcessOrder = () => {
 
     const updateOrderSubmitHandler = e => {
         e.preventDefault();
-        dispatch(updateOrder(id, status));
+        dispatch(updateOrder(id, status, status === 'Shipped' ? shipDetails : {}));
     };
 
     useEffect(() => {
@@ -142,7 +155,8 @@ const ProcessOrder = () => {
         setTimeout(() => setProgress(0), 1000);
     }, [dispatch, error, id, updateError, isUpdated]);
 
-    const isPaid = order?.paymentInfo?.status === 'succeeded';
+    // Cashfree orders are stored as 'PAID'; 'succeeded' covers legacy orders.
+    const isPaid = ['PAID', 'succeeded'].includes(order?.paymentInfo?.status);
     const isDelivered = order?.orderStatus === 'Delivered';
     const address = order?.shippingInfo
         ? `${order.shippingInfo.address}, ${order.shippingInfo.city}, ${order.shippingInfo.state}, ${order.shippingInfo.pinCode}, ${order.shippingInfo.country}`
@@ -151,7 +165,10 @@ const ProcessOrder = () => {
     return (
         <Fragment>
             {loading ? (
-                <LoadingBar color='#A07C4B' progress={progress} onLoaderFinished={onLoaderFinished} />
+                <Fragment>
+                    <LoadingBar color='#A07C4B' progress={progress} onLoaderFinished={onLoaderFinished} />
+                    <Loader label='Finding the order' />
+                </Fragment>
             ) : (
                 <Fragment>
                     <MetaData title='Process Order · Admin' />
@@ -168,34 +185,8 @@ const ProcessOrder = () => {
                             {/* Items + processing form */}
                             <div>
                                 <p className='eyebrow'>Order Items</p>
-                                <div className='mt-5 divide-y divide-line border border-line bg-surface'>
-                                    {order.orderItems &&
-                                        order.orderItems.map(item => (
-                                            <div key={item.product} className='flex flex-col gap-5 p-6 sm:flex-row'>
-                                                <div className='w-full shrink-0 overflow-hidden border border-line bg-surface-2 sm:w-32'>
-                                                    <img
-                                                        src={item.images?.[0]?.url || item.image}
-                                                        alt='Product'
-                                                        className='aspect-square w-full object-cover'
-                                                    />
-                                                </div>
-                                                <div className='flex flex-1 flex-col justify-center'>
-                                                    <Link
-                                                        to={`/product/${item.product}`}
-                                                        className='font-display text-xl font-medium text-ink hover:text-brass'
-                                                    >
-                                                        {item.name}
-                                                    </Link>
-                                                    <div className='mt-3 space-y-1 font-sans text-sm text-ink-soft'>
-                                                        <p>Quantity: {item.quantity}</p>
-                                                        <p>Price: ₹{item.price}</p>
-                                                        <p className='text-ink'>
-                                                            Total: <b>₹{item.price * item.quantity}</b>
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        ))}
+                                <div className='mt-5'>
+                                    <OrderItemsList items={order.orderItems} />
                                 </div>
 
                                 {!isDelivered && (
@@ -226,7 +217,20 @@ const ProcessOrder = () => {
                                                 Process
                                             </button>
                                         </div>
+                                        {status === 'Shipped' && (
+                                            <ShipFields value={shipDetails} onChange={setShipDetails} />
+                                        )}
                                     </form>
+                                )}
+
+                                {order._id && (
+                                    <ShipmentPanel order={order} onChanged={() => dispatch(getOrderDetails(id))} />
+                                )}
+
+                                {order._id && (
+                                    <div className='mt-10'>
+                                        <EntityHistory entityType='order' entityId={order._id} key={`${order._id}-${order.orderStatus}-${order.shipment?.events?.length || 0}`} />
+                                    </div>
                                 )}
                             </div>
 
@@ -289,6 +293,17 @@ const ProcessOrder = () => {
                                     >
                                         Initiate Refund
                                     </button>
+                                    <p className='font-sans text-xs leading-relaxed text-ink-faint'>
+                                        {order.isRefunded
+                                            ? 'This order has been refunded.'
+                                            : order.refund?.length
+                                                ? `Refund ${String(order.refundStatus || 'initiated').toLowerCase()}. Use Approve Refund to complete it.`
+                                                : !isDelivered
+                                                    ? 'Refunds open once the order is delivered and the customer requests a return.'
+                                                    : !order.return?.length
+                                                        ? 'Waiting for the customer to request a return.'
+                                                        : 'The customer requested a return. Initiate the refund to start it.'}
+                                    </p>
                                     <button
                                         onClick={openApproveDialog}
                                         disabled={!order.refund?.length || order.isRefunded === true}
@@ -311,7 +326,9 @@ const ProcessOrder = () => {
                         </DialogContent>
                         <DialogActions>
                             <Button onClick={() => setInitiateOpen(false)} sx={{ color: '#8A8278' }}>Cancel</Button>
-                            <Button onClick={submitInitiateRefund} sx={{ color: '#A07C4B' }}>Initiate Refund</Button>
+                            <Button onClick={submitInitiateRefund} disabled={refundBusy} sx={{ color: '#A07C4B' }}>
+                                {refundBusy ? 'Initiating…' : 'Initiate Refund'}
+                            </Button>
                         </DialogActions>
                     </Dialog>
 
@@ -335,10 +352,32 @@ const ProcessOrder = () => {
                                     ))}
                                 </Select>
                             </FormControl>
+                            {selectedRefundStatus === 'Refunded' && (
+                                <Fragment>
+                                    <p style={{ marginTop: '1.5rem', fontSize: '0.72rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: '#A07C4B' }}>
+                                        Refund to
+                                    </p>
+                                    <FormControl fullWidth sx={{ mt: 1.5 }}>
+                                        <Select value={refundMethod} onChange={event => setRefundMethod(event.target.value)}>
+                                            <MenuItem value='original'>Original payment method</MenuItem>
+                                            <MenuItem value='store-credit' disabled={!storeCreditOn}>
+                                                MAISON store credit (instant){storeCreditOn ? '' : ' — turned off in Features'}
+                                            </MenuItem>
+                                        </Select>
+                                    </FormControl>
+                                    {order.storeCreditApplied > 0 && (
+                                        <p style={{ marginTop: '0.75rem', fontSize: '0.8rem', opacity: 0.75 }}>
+                                            ₹{order.storeCreditApplied} of this order was paid with store credit and always goes back as store credit.
+                                        </p>
+                                    )}
+                                </Fragment>
+                            )}
                         </DialogContent>
                         <DialogActions>
                             <Button onClick={() => setApproveOpen(false)} sx={{ color: '#8A8278' }}>Cancel</Button>
-                            <Button onClick={submitApproveRefund} sx={{ color: '#A07C4B' }}>Approve Refund</Button>
+                            <Button onClick={submitApproveRefund} disabled={refundBusy} sx={{ color: '#A07C4B' }}>
+                                {refundBusy ? 'Saving…' : 'Approve Refund'}
+                            </Button>
                         </DialogActions>
                     </Dialog>
                 </Fragment>

@@ -11,6 +11,10 @@ const {
    getAllWishlistProducts,
    summerizeProductReviews,
    updateProduct,
+   getBackInStockStatus,
+   requestBackInStock,
+   cancelBackInStock,
+   getInventoryReport,
 //    searchProducts,
 //    getAutocompleteSuggestions
 } = require('../controllers/product');
@@ -18,6 +22,7 @@ const {
 const { isAuthUser, authRoles } = require('../middleware/auth');
 const demoGuard = require('../middleware/demoGuard');
 
+const { requireFeature } = require('../services/featureFlags');
 const router = express.Router();
 
 // router.get('/products/autocomplete', getAutocompleteSuggestions);
@@ -39,7 +44,15 @@ router
 
 router.route('/product/:id').get(getProductDetails);
 
-router.route('/review').post(isAuthUser, demoGuard('submit-review'), createProductReview);
+router
+    .route('/product/:id/notify-me')
+    .get(isAuthUser, getBackInStockStatus)
+    .post(isAuthUser, requireFeature('backInStock'), requestBackInStock)
+    .delete(isAuthUser, cancelBackInStock);
+
+router.route('/admin/inventory').get(isAuthUser, authRoles('admin'), getInventoryReport);
+
+router.route('/review').post(isAuthUser, requireFeature('reviews'), demoGuard('submit-review'), createProductReview);
 
 router
     .route('/reviews')

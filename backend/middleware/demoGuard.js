@@ -30,6 +30,10 @@ const demoGuard = (operation) => {
           status: 403,
           message: "Demo accounts cannot change the shared demo profile.",
         },
+        "manage-passkeys": {
+          status: 403,
+          message: "Demo accounts cannot add passkeys.",
+        },
         "manage-2fa": {
           status: 403,
           message: "Demo accounts cannot change two-factor settings.",
@@ -37,6 +41,14 @@ const demoGuard = (operation) => {
         "membership": {
           status: 403,
           message: "Demo accounts cannot start or change memberships.",
+        },
+        "feature-flags": {
+          status: 403,
+          message: "Demo accounts can view feature switches but not change them.",
+        },
+        "wallet-adjust": {
+          status: 403,
+          message: "Demo accounts cannot change store credit.",
         },
       };
 

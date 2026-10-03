@@ -18,15 +18,17 @@ const columns = [
             { label: 'About', to: '/about' },
             { label: 'Contact', to: '/contact-us' },
             { label: 'My Account', to: '/account' },
+            { label: 'Privacy Policy', to: '/privacy' },
+            { label: 'Terms & Conditions', to: '/terms' },
         ],
     },
 ];
 
 const socials = [
-    { label: 'LinkedIn', href: 'http://linkedin.com/in/anantduhan' },
-    { label: 'Instagram', href: 'http://instagram.com/anantduhan_' },
-    { label: 'Facebook', href: 'http://facebook.com/AnantDuhan12' },
-    { label: 'Snapchat', href: 'http://snapchat.com/add/anant_duhan' },
+    { label: 'LinkedIn', href: 'https://linkedin.com/in/anantduhan' },
+    { label: 'Instagram', href: 'https://instagram.com/anantduhan_' },
+    { label: 'Facebook', href: 'https://facebook.com/AnantDuhan12' },
+    { label: 'Snapchat', href: 'https://snapchat.com/add/anant_duhan' },
 ];
 
 const Footer = () => {
@@ -67,6 +69,14 @@ const Footer = () => {
                 <div className='mt-8 flex flex-col items-center justify-between gap-6 sm:flex-row'>
                     <p className='font-sans text-[0.72rem] uppercase tracking-luxe text-ink-faint'>
                         © {new Date().getFullYear()} Anant Duhan · All rights reserved
+                        {' · '}
+                        <button
+                            type='button'
+                            onClick={() => window.dispatchEvent(new Event('open-cookie-settings'))}
+                            className='link-reveal uppercase'
+                        >
+                            Cookie settings
+                        </button>
                     </p>
                     <div className='flex items-center gap-6'>
                         {socials.map(s => (

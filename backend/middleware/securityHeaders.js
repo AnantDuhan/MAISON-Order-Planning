@@ -39,13 +39,22 @@ const contentSecurityPolicy = () => ({
             ...inlineScriptHashes(),
             'https://sdk.cashfree.com',
             'https://accounts.google.com',
+            'https://www.googletagmanager.com', // GA4, only loaded after cookie consent
         ],
         // MUI/Emotion inject <style> tags at runtime, so inline styles are needed.
         styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com', 'https://accounts.google.com'],
         fontSrc: ["'self'", 'data:', 'https://fonts.gstatic.com'],
         // Product images (S3), Google profile pictures, blob previews for uploads.
         imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
-        connectSrc: ["'self'", 'wss:', 'https://*.cashfree.com', 'https://accounts.google.com'],
+        connectSrc: [
+            "'self'",
+            'wss:',
+            'https://*.cashfree.com',
+            'https://accounts.google.com',
+            'https://*.google-analytics.com',
+            'https://*.analytics.google.com',
+            'https://www.googletagmanager.com',
+        ],
         frameSrc: ["'self'", 'https://*.cashfree.com', 'https://accounts.google.com'],
         workerSrc: ["'self'", 'blob:'],
     },

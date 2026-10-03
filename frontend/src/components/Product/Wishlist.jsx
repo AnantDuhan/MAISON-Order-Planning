@@ -33,7 +33,7 @@ const Wishlist = () => {
     return (
         <Fragment>
             {loading ? (
-                <Loader />
+                <Loader label='Finding your wishlist' />
             ) : (
                 <Fragment>
                     <MetaData title='Wishlist · Maison' />

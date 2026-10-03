@@ -4,6 +4,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import LoadingBar from 'react-top-loading-bar';
+import Loader from '../layout/Loader/Loader';
 
 import { clearErrors, myOrders } from '../../actions/orderAction';
 import MetaData from '../layout/MetaData';
@@ -43,7 +44,10 @@ const MyOrders = () => {
         <Fragment>
             <MetaData title={`${user?.name} · Orders`} />
             {loading ? (
-                <LoadingBar color='#A07C4B' progress={progress} onLoaderFinished={onLoaderFinished} />
+                <Fragment>
+                    <LoadingBar color='#A07C4B' progress={progress} onLoaderFinished={onLoaderFinished} />
+                    <Loader label='Finding your orders' />
+                </Fragment>
             ) : (
                 <div className='editorial-shell py-14'>
                     <div className='mb-12 text-center'>

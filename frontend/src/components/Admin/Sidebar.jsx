@@ -50,7 +50,7 @@ const Sidebar = () => {
                             <Link to='/admin/products' className={itemClass('/admin/products')}>
                                 <PostAddIcon fontSize='small' /> All
                             </Link>
-                            <Link to='/admin/product' className={itemClass('/admin/product')}>
+                            <Link to='/admin/add-product' className={itemClass('/admin/add-product')}>
                                 <AddIcon fontSize='small' /> Create
                             </Link>
                         </div>

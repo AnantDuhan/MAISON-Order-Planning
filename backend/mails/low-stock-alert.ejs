@@ -1,0 +1,24 @@
+<%- include('partials/head', { title: 'Low stock', preheader: products.length + ' product(s) running low.' }) %>
+
+<p style="margin:0; font-family:Helvetica,Arial,sans-serif; font-size:10px; font-weight:bold; letter-spacing:3px; text-transform:uppercase; color:#A07C4B;">Inventory alert</p>
+<h1 style="margin:14px 0 0 0; font-family:Georgia,'Times New Roman',serif; font-size:30px; font-weight:500; line-height:1.2; color:#1A1816;">
+  <%= products.length === 1 ? 'A product is running low' : products.length + ' products are running low' %>
+</h1>
+
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:26px 0 0 0; border:1px solid #E0D9CE;">
+  <% products.forEach(function (p) { %>
+  <tr>
+    <td style="padding:14px 18px; border-bottom:1px solid #E0D9CE; font-family:Helvetica,Arial,sans-serif; font-size:14px; color:#1A1816;"><%= p.name %></td>
+    <td align="right" style="padding:14px 18px; border-bottom:1px solid #E0D9CE; font-family:Helvetica,Arial,sans-serif; font-size:14px; color:<%= p.Stock <= 0 ? '#B3261E' : '#A07C4B' %>;">
+      <%= p.Stock <= 0 ? 'Out of stock' : p.Stock + ' left' %>
+      <span style="color:#8A8278; font-size:12px;"> &middot; alert at <%= p.threshold %></span>
+    </td>
+  </tr>
+  <% }) %>
+</table>
+
+<p style="margin:26px 0 0 0;">
+  <a href="<%= adminLink %>" style="display:inline-block; background-color:#1A1816; color:#F7F4EF; padding:14px 26px; font-family:Helvetica,Arial,sans-serif; font-size:11px; letter-spacing:2px; text-transform:uppercase; text-decoration:none;">Open inventory</a>
+</p>
+
+<%- include('partials/foot') %>

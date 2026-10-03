@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import LaunchIcon from '@mui/icons-material/Launch';
 import LoadingBar from 'react-top-loading-bar';
+import Loader from '../layout/Loader/Loader';
 
 import { clearErrors, allReturns, updateReturnStatus } from '../../actions/orderAction';
 import MetaData from '../layout/MetaData';
@@ -112,7 +113,10 @@ const ReturnList = () => {
         <Fragment>
             <MetaData title='All Returns · Admin' />
             {loading ? (
-                <LoadingBar color='#A07C4B' progress={progress} onLoaderFinished={onLoaderFinished} />
+                <Fragment>
+                    <LoadingBar color='#A07C4B' progress={progress} onLoaderFinished={onLoaderFinished} />
+                    <Loader label='Loading returns' />
+                </Fragment>
             ) : (
                 <AdminPage title='All Returns'>
                     <AdminTable columns={columns} rows={rows} emptyMessage='No returns requested.' />

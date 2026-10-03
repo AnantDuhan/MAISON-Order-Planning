@@ -1,12 +1,13 @@
 import RemoveShoppingCartIcon from '@mui/icons-material/RemoveShoppingCart';
-import React, { Fragment } from 'react';
+import React, { Fragment, useEffect, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router';
 import { Link } from 'react-router-dom';
 
-import { addItemsToCart, removeItemsFromCart } from '../../actions/cartAction';
+import { addItemsToCart, pushCartToServer, removeItemsFromCart, restoreCartFromServer } from '../../actions/cartAction';
 import MetaData from '../layout/MetaData';
 import CartItemCard from './CartItemCard';
+import { useFeature } from '../../context/FeatureFlagsContext';
 
 const Cart = () => {
     const { isAuthenticated } = useSelector(state => state.user);
@@ -15,6 +16,21 @@ const Cart = () => {
     const { cartItems } = useSelector(state => state.cart);
 
     const deleteCartItems = id => dispatch(removeItemsFromCart(id));
+    const checkoutOpen = useFeature('checkout');
+
+    // Arriving from a reminder email (?restore=1): bring the saved cart onto
+    // this device. Otherwise make sure the server has this device's cart.
+    const synced = useRef(false);
+    useEffect(() => {
+        if (!isAuthenticated || synced.current) return;
+        synced.current = true;
+        const restore = new URLSearchParams(window.location.search).get('restore') === '1';
+        if (restore && cartItems.length === 0) {
+            dispatch(restoreCartFromServer()).catch(() => {});
+        } else if (cartItems.length > 0) {
+            dispatch(pushCartToServer());
+        }
+    }, [isAuthenticated, cartItems.length, dispatch]);
 
     const checkOutHandler = () => {
         if (!isAuthenticated) navigate('/login');
@@ -94,9 +110,14 @@ const Cart = () => {
                                     <span className='font-sans text-[0.72rem] uppercase tracking-luxe text-ink'>Total</span>
                                     <span className='font-display text-2xl font-medium text-ink'>{`₹${grossTotal}`}</span>
                                 </div>
-                                <button onClick={checkOutHandler} className='btn-solid mt-8 w-full'>
+                                <button onClick={checkOutHandler} disabled={!checkoutOpen} className='btn-solid mt-8 w-full disabled:opacity-40'>
                                     Proceed to Checkout
                                 </button>
+                                {!checkoutOpen && (
+                                    <p className='mt-3 text-center font-sans text-sm text-ink-soft'>
+                                        We’re not taking new orders right now. Your bag is saved.
+                                    </p>
+                                )}
                                 <Link
                                     to='/products'
                                     className='mt-4 block text-center font-sans text-[0.72rem] uppercase tracking-luxe text-ink-soft hover:text-brass'
