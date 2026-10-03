@@ -5,6 +5,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import CheckoutSteps from '../Cart/CheckoutSteps';
 import MetaData from '../layout/MetaData';
 import { getAllCoupons } from '../../actions/couponAction';
+import { useFeature } from '../../context/FeatureFlagsContext';
 
 const ConfirmOrder = () => {
     const { shippingInfo, cartItems } = useSelector(state => state.cart);
@@ -15,6 +16,7 @@ const ConfirmOrder = () => {
     const dispatch = useDispatch();
 
     const [selectedCoupon, setSelectedCoupon] = useState(null);
+    const couponsOn = useFeature('coupons');
 
     const subtotal = cartItems.reduce((acc, item) => acc + item.quantity * item.price, 0);
     const shippingCharges = subtotal > 1000 ? 0 : 150;
@@ -99,6 +101,7 @@ const ConfirmOrder = () => {
                                 </div>
                             </div>
 
+                            {couponsOn && (
                             <div className='mt-6'>
                                 <label className='eyebrow'>Select Coupon</label>
                                 <select
@@ -116,6 +119,7 @@ const ConfirmOrder = () => {
                                     ))}
                                 </select>
                             </div>
+                            )}
 
                             <div className='my-6 rule-luxe' />
                             <div className='flex items-center justify-between'>

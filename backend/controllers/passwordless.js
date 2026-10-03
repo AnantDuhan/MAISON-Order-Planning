@@ -215,8 +215,21 @@ exports.verifyMagicLink = async (req, res) => {
 // ---------------------------------------------------------------------------
 
 // GET /api/v1/login/methods — lets the UI hide phone login when SMS is off.
-exports.loginMethods = (req, res) =>
-    res.status(200).json({ success: true, methods: { password: true, emailCode: true, phone: isSmsConfigured(), passkey: true } });
+// Which sign-in options to show. Admin feature switches can turn off all but
+// the password.
+exports.loginMethods = async (req, res) => {
+    const features = await require('../services/featureFlags').getAll();
+    res.status(200).json({
+        success: true,
+        methods: {
+            password: true,
+            emailCode: features.passwordlessLogin !== false,
+            phone: features.passwordlessLogin !== false && isSmsConfigured(),
+            passkey: features.passkeys !== false,
+            google: features.googleLogin !== false,
+        },
+    });
+};
 
 // POST /api/v1/login/phone-otp  { phone }
 exports.requestPhoneOtp = async (req, res) => {

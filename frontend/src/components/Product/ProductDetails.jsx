@@ -39,6 +39,7 @@ import ReviewsSection from "./ReviewsSection";
 import "react-responsive-carousel/lib/styles/carousel.min.css";
 
 import io from "socket.io-client";
+import { useFeature } from '../../context/FeatureFlagsContext';
 
 const ProductDetails = () => {
   const dispatch = useDispatch();
@@ -96,6 +97,9 @@ const ProductDetails = () => {
     }
     setProgress(progress + 80);
   };
+
+  const reviewsOn = useFeature('reviews');
+  const backInStockOn = useFeature('backInStock');
 
   const submitReviewToggle = () => {
     open ? setOpen(false) : setOpen(true);
@@ -295,7 +299,7 @@ const ProductDetails = () => {
                     </select>
                   </div>
 
-                  {!inStock && (
+                  {!inStock && backInStockOn && (
                     <BackInStockButton productId={product._id} isAuthenticated={Boolean(user)} />
                   )}
 
@@ -325,12 +329,14 @@ const ProductDetails = () => {
                   </p>
                 </div>
 
+                {reviewsOn && (
                 <button
                   onClick={submitReviewToggle}
                   className="mt-10 self-start font-sans text-[0.72rem] uppercase tracking-luxe text-brass underline-offset-4 hover:underline"
                 >
                   Write a Review
                 </button>
+                )}
               </div>
             </div>
 

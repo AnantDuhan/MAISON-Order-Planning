@@ -9,6 +9,7 @@ import axios from 'axios';
 import CheckoutSteps from '../Cart/CheckoutSteps';
 import MetaData from '../layout/MetaData';
 import { createOrder, clearErrors } from '../../actions/orderAction';
+import { useFeature } from '../../context/FeatureFlagsContext';
 
 const cashfree = window.Cashfree
     ? window.Cashfree({ mode: import.meta.env.REACT_APP_CASHFREE_MODE || 'sandbox' })
@@ -26,6 +27,7 @@ const Payment = () => {
     const [isProcessing, setIsProcessing] = useState(false);
     const [storeCredit, setStoreCredit] = useState(0);
     const [useStoreCredit, setUseStoreCredit] = useState(false);
+    const storeCreditOn = useFeature('storeCredit');
 
     useEffect(() => {
         axios.get('/api/v1/wallet/me')
@@ -37,7 +39,7 @@ const Payment = () => {
     }, []);
 
     const total = Number(orderInfo?.totalPrice || 0);
-    const creditToApply = useStoreCredit ? Math.min(storeCredit, total) : 0;
+    const creditToApply = useStoreCredit && storeCreditOn ? Math.min(storeCredit, total) : 0;
     const dueNow = Math.max(0, Math.round((total - creditToApply) * 100) / 100);
 
     const submitHandler = async e => {
@@ -58,7 +60,7 @@ const Payment = () => {
                 orderItems: pricedItems,
                 couponCode,
                 phoneNumber: shippingInfo.phoneNumber,
-                useStoreCredit,
+                useStoreCredit: useStoreCredit && storeCreditOn,
             });
 
             // Store credit covered everything: place the order directly.
@@ -156,7 +158,7 @@ const Payment = () => {
                         )}
                     </div>
 
-                    {storeCredit > 0 && (
+                    {storeCreditOn && storeCredit > 0 && (
                         <label className='mt-8 flex cursor-pointer items-center justify-between gap-4 border border-line px-5 py-4 text-left'>
                             <span>
                                 <span className='block font-sans text-sm text-ink'>Use store credit</span>

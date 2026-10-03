@@ -21,6 +21,7 @@ import {
 import LoadingBar from 'react-top-loading-bar';
 import Loader from '../layout/Loader/Loader';
 import MetaData from '../layout/MetaData';
+import { useFeature } from '../../context/FeatureFlagsContext';
 
 const formatDate = value => (value
     ? new Date(value).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
@@ -179,8 +180,10 @@ const OrderDetails = () => {
         ? 'with store credit'
         : order?.storeCreditApplied > 0 ? 'online and with store credit' : 'online';
 
-    const canReturn = isDelivered && !order?.isReturned && !order?.isRefunded;
+    const returnsOn = useFeature('returns');
+    const canReturn = returnsOn && isDelivered && !order?.isReturned && !order?.isRefunded;
     const returnNote = order?.isRefunded ? 'This order has been refunded.'
+        : !returnsOn && !order?.isReturned ? 'Return requests are paused right now. Please contact us about this order.'
         : order?.isReturned ? 'You’ve requested a return. We’ll email you with the next steps.'
             : isDelivered ? 'Returns are accepted for delivered orders.'
                 : 'You can request a return once the order has been delivered.';

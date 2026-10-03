@@ -265,6 +265,8 @@ const checkLowStock = async productIds => {
  * email the same person twice.
  */
 const notifyBackInStock = async productIds => {
+    // Switched off in admin Features: keep requests until it's turned back on.
+    if (!(await require('./featureFlags').isEnabled('backInStock'))) return 0;
     const products = await Product.find({ _id: { $in: productIds }, Stock: { $gt: 0 } })
         .select('name price images Stock').lean();
     let sent = 0;

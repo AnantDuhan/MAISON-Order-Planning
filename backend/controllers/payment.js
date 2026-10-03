@@ -1,6 +1,7 @@
 const generateId = require('../utils/generateId');
 const inventory = require('../services/inventoryService');
 const wallet = require('../services/walletService');
+const featureFlags = require('../services/featureFlags');
 const { priceOrder } = require('../utils/orderPricing');
 const {
     cashfreeRequest,
@@ -21,6 +22,14 @@ exports.createCashfreeOrder = async (req, res) => {
         // The amount is computed on the server from DB prices. Any `amount`
         // the client sends is ignored.
         const { orderItems, couponCode, useStoreCredit } = req.body;
+
+        // Admin feature switches (/admin/features).
+        if (couponCode && !(await featureFlags.isEnabled('coupons'))) {
+            return res.status(403).json({ success: false, code: 'FEATURE_DISABLED', feature: 'coupons', message: featureFlags.offMessage('coupons') });
+        }
+        if (useStoreCredit && !(await featureFlags.isEnabled('storeCredit'))) {
+            return res.status(403).json({ success: false, code: 'FEATURE_DISABLED', feature: 'storeCredit', message: featureFlags.offMessage('storeCredit') });
+        }
 
         // Housekeeping: return stock from checkouts that were never paid.
         inventory.releaseExpiredHolds({ limit: 20 }).catch(() => {});

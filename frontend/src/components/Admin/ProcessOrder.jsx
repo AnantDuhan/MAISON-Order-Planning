@@ -28,6 +28,7 @@ import MetaData from '../layout/MetaData';
 import ShipmentPanel, { ShipFields } from './ShipmentPanel';
 import OrderItemsList from '../Order/OrderItemsList';
 import { EntityHistory } from './AuditLog';
+import { useFeature } from '../../context/FeatureFlagsContext';
 
 const refundOptions = ['Initiated', 'Pending', 'Approved', 'Rejected', 'Refunded'];
 
@@ -73,6 +74,7 @@ const ProcessOrder = () => {
     const [approveOpen, setApproveOpen] = useState(false);
     const [selectedRefundStatus, setSelectedRefundStatus] = useState('');
     const [refundMethod, setRefundMethod] = useState('original');
+    const storeCreditOn = useFeature('storeCredit');
     const [status, setStatus] = useState('');
     const [shipDetails, setShipDetails] = useState({ courier: '', awb: '', trackingUrl: '' });
     const [progress, setProgress] = useState(0);
@@ -358,7 +360,9 @@ const ProcessOrder = () => {
                                     <FormControl fullWidth sx={{ mt: 1.5 }}>
                                         <Select value={refundMethod} onChange={event => setRefundMethod(event.target.value)}>
                                             <MenuItem value='original'>Original payment method</MenuItem>
-                                            <MenuItem value='store-credit'>MAISON store credit (instant)</MenuItem>
+                                            <MenuItem value='store-credit' disabled={!storeCreditOn}>
+                                                MAISON store credit (instant){storeCreditOn ? '' : ' — turned off in Features'}
+                                            </MenuItem>
                                         </Select>
                                     </FormControl>
                                     {order.storeCreditApplied > 0 && (
