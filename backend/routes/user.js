@@ -20,6 +20,9 @@ const {
    setupTwoFactorAuth,
    verifyTwoFactorAuth,
    disableTwoFactorAuth,
+   getTrustedDevices,
+   revokeTrustedDevice,
+   revokeAllTrustedDevices,
    getAddresses,
    addAddress,
    deleteAddress,
@@ -104,6 +107,11 @@ router.route('/login/2fa/enroll').post(authLimiter, verifyAdminTwoFactorEnrollme
 router.route('/2fa/setup').get(isAuthUser, demoGuard('manage-2fa'), setupTwoFactorAuth);    // begin setup → returns QR
 router.route('/2fa/verify').post(isAuthUser, demoGuard('manage-2fa'), accountLimiter, verifyTwoFactorAuth); // confirm setup → enables 2FA
 router.route('/2fa/disable').post(isAuthUser, demoGuard('manage-2fa'), accountLimiter, disableTwoFactorAuth);
+// Devices where the user chose "don't ask for a code on this device".
+router.route('/2fa/trusted-devices')
+    .get(isAuthUser, getTrustedDevices)
+    .delete(isAuthUser, accountLimiter, revokeAllTrustedDevices);
+router.route('/2fa/trusted-devices/:id').delete(isAuthUser, accountLimiter, revokeTrustedDevice);
 
 router.route('/password/forgot').post(authLimiter, forgotPassword);
 

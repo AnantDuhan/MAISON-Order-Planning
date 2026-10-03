@@ -66,6 +66,7 @@ const sendVerificationEmail = async user => {
 };
 
 const { createTwoFactorPendingToken, issueSession } = require('../utils/session');
+const trustedDevice = require('../utils/trustedDevice');
 
 // register user
 // Register User
@@ -173,7 +174,12 @@ exports.loginUser = async (req, res, next) => {
         if (!user.isDemo) {
             // Check 2FA for non-demo users only
             const enrollmentRequired = user.role === 'admin' && !user.twoFactorAuth.enabled;
-            
+
+            // The user chose "don't ask again on this device" earlier.
+            if (user.twoFactorAuth.enabled && await trustedDevice.isTrustedDevice(user, req)) {
+                return issueSession(user, res, 200, true);
+            }
+
             if (user.twoFactorAuth.enabled || enrollmentRequired) {
                 const twoFactorToken = createTwoFactorPendingToken(user, enrollmentRequired);
 
@@ -787,6 +793,9 @@ exports.googleLogin = async (req, res, next) => {
         }
 
         const enrollmentRequired = user.role === 'admin' && !user.twoFactorAuth.enabled;
+        if (user.twoFactorAuth.enabled && await trustedDevice.isTrustedDevice(user, req)) {
+            return issueSession(user, res, 200, true);
+        }
         if (user.twoFactorAuth.enabled || enrollmentRequired) {
             return res.status(200).json({
                 success: true,
@@ -968,7 +977,7 @@ exports.setupAdminTwoFactorEnrollment = async (req, res) => {
 
 exports.verifyAdminTwoFactorEnrollment = async (req, res) => {
     try {
-        const { twoFactorToken, code } = req.body;
+        const { twoFactorToken, code, rememberDevice } = req.body;
         const decoded = jwt.verify(twoFactorToken, process.env.JWT_SECRET_KEY);
         if (!decoded.twoFactorPending || !decoded.enrollmentRequired) {
             return res.status(400).json({ success: false, message: 'Invalid admin enrollment session' });
@@ -992,6 +1001,9 @@ exports.verifyAdminTwoFactorEnrollment = async (req, res) => {
         user.twoFactorAuth.tempSecret = undefined;
         user.twoFactorAuth.enabled = true;
         await user.save({ validateBeforeSave: false });
+        await trustedDevice.revokeAllTrustedDevices(user._id);
+        if (rememberDevice === true) await trustedDevice.trustThisDevice(user, req, res);
+        await trustedDevice.revokeAllTrustedDevices(user._id);
         return issueSession(user, res, 200, true);
     } catch (error) {
         return res.status(401).json({ success: false, message: 'Admin enrollment session expired. Please sign in again.' });
@@ -1049,6 +1061,7 @@ exports.disableTwoFactorAuth = async (req, res) => {
         user.twoFactorAuth.tempSecret = undefined;
         user.twoFactorAuth.enabled = false;
         await user.save({ validateBeforeSave: false });
+        await trustedDevice.revokeAllTrustedDevices(user._id, res);
         res.status(200).json({ success: true, message: 'Two-factor authentication disabled' });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
@@ -1059,7 +1072,7 @@ exports.disableTwoFactorAuth = async (req, res) => {
 // TOTP code, then issue the real session.
 exports.verifyLoginOtp = async (req, res) => {
     try {
-        const { twoFactorToken, code } = req.body;
+        const { twoFactorToken, code, rememberDevice } = req.body;
         if (!twoFactorToken || !code) {
             return res.status(400).json({ success: false, message: 'Authentication code is required' });
         }
@@ -1085,8 +1098,28 @@ exports.verifyLoginOtp = async (req, res) => {
         if (!verified) {
             return res.status(400).json({ success: false, message: 'Invalid authentication code' });
         }
+        // The user's choice on the code screen: skip the code on this device next time.
+        if (rememberDevice === true) await trustedDevice.trustThisDevice(user, req, res);
         return issueSession(user, res, 200, true);
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
+};
+
+// GET /api/v1/2fa/trusted-devices
+exports.getTrustedDevices = async (req, res) => {
+    const devices = await trustedDevice.listTrustedDevices(req.user._id, req);
+    res.status(200).json({ success: true, devices, trustDays: trustedDevice.trustDays() });
+};
+
+// DELETE /api/v1/2fa/trusted-devices/:id  — ask for a code again on that device
+exports.revokeTrustedDevice = async (req, res) => {
+    await trustedDevice.revokeTrustedDevice(req.user._id, req.params.id, req, res);
+    res.status(200).json({ success: true });
+};
+
+// DELETE /api/v1/2fa/trusted-devices  — ask for a code again everywhere
+exports.revokeAllTrustedDevices = async (req, res) => {
+    await trustedDevice.revokeAllTrustedDevices(req.user._id, res);
+    res.status(200).json({ success: true });
 };

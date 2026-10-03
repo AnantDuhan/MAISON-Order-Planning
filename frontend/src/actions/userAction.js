@@ -418,7 +418,7 @@ export const deleteAddress = addressId => async dispatch => {
 };
 
 // Complete login with 2FA
-export const verifyLoginOtp = (twoFactorToken, code) => async dispatch => {
+export const verifyLoginOtp = (twoFactorToken, code, rememberDevice = false) => async dispatch => {
     try {
         dispatch({ type: LOGIN_2FA_REQUEST });
 
@@ -427,6 +427,7 @@ export const verifyLoginOtp = (twoFactorToken, code) => async dispatch => {
             {
                 twoFactorToken,
                 code,
+                rememberDevice,
             },
             {
                 headers: {
@@ -456,12 +457,12 @@ export const verifyLoginOtp = (twoFactorToken, code) => async dispatch => {
 
 // Complete required first-time TOTP enrollment for an admin. The server only
 // issues the admin session after the code has been verified.
-export const enrollAdminTwoFactor = (twoFactorToken, code) => async dispatch => {
+export const enrollAdminTwoFactor = (twoFactorToken, code, rememberDevice = false) => async dispatch => {
     try {
         dispatch({ type: LOGIN_2FA_REQUEST });
         const { data } = await axios.post(
             '/api/v1/login/2fa/enroll',
-            { twoFactorToken, code },
+            { twoFactorToken, code, rememberDevice },
             { headers: { 'Content-Type': 'application/json' } }
         );
         dispatch({ type: LOGIN_2FA_SUCCESS, payload: data.user });

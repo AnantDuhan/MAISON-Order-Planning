@@ -247,7 +247,7 @@ exports.passkeyLoginVerify = async (req, res) => {
 
         // A passkey unlocked with Face ID / fingerprint / PIN is already
         // two factors (device + biometric/PIN), so the TOTP step is skipped.
-        return completeLogin(user, res, { strongFactor: verification.authenticationInfo.userVerified });
+        return completeLogin(user, res, { strongFactor: verification.authenticationInfo.userVerified, req });
     } catch (error) {
         console.error('🔑 Passkey login verify error:', error);
         res.status(500).json({ success: false, message: 'Passkey sign-in failed. Please try again.' });

@@ -12,6 +12,7 @@ import {
   clear2FAError,
 } from "../../actions/userAction";
 
+import TrustedDevices from "./TrustedDevices";
 const Profile = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -595,6 +596,8 @@ const Profile = () => {
                         2FA is mandatory for administrators and cannot be disabled.
                       </p>
                     )}
+
+                    {is2FAEnabled && !user?.isDemo && <TrustedDevices />}
 
                     {is2FAEnabled && !isAdmin && !showDisable && (
                       <div className="mt-6">
