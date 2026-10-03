@@ -12,6 +12,7 @@ import { Carousel } from "react-responsive-carousel";
 import { useParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import LoadingBar from "react-top-loading-bar";
+import Loader from "../layout/Loader/Loader";
 import Lightbox from "yet-another-react-lightbox";
 import "yet-another-react-lightbox/styles.css";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
@@ -181,11 +182,14 @@ const ProductDetails = () => {
   return (
     <Fragment>
       {loading || !product?._id ? (
-        <LoadingBar
-          color="#A07C4B"
-          progress={progress}
-          onLoaderFinished={onLoaderFinished}
-        />
+        <Fragment>
+          <LoadingBar
+            color="#A07C4B"
+            progress={progress}
+            onLoaderFinished={onLoaderFinished}
+          />
+          <Loader label="Bringing out this piece" />
+        </Fragment>
       ) : (
         <Fragment>
           <MetaData

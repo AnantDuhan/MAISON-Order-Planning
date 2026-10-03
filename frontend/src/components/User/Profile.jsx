@@ -12,6 +12,7 @@ import {
   clear2FAError,
 } from "../../actions/userAction";
 
+import Loader from "../layout/Loader/Loader";
 import TrustedDevices from "./TrustedDevices";
 const Profile = () => {
   const navigate = useNavigate();
@@ -164,11 +165,7 @@ const Profile = () => {
       />
 
       {loading ? (
-        <div className="editorial-shell py-32 text-center">
-          <p className="font-sans text-[0.72rem] uppercase tracking-luxe text-ink-faint">
-            Loading your profile…
-          </p>
-        </div>
+        <Loader label="Opening your account" />
       ) : (
         <Fragment>
           <MetaData title={`${user?.name} · Maison`} />

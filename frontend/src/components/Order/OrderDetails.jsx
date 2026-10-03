@@ -20,6 +20,7 @@ import {
     Select,
 } from '@mui/material';
 import LoadingBar from 'react-top-loading-bar';
+import Loader from '../layout/Loader/Loader';
 import MetaData from '../layout/MetaData';
 
 const OrderDetails = () => {
@@ -133,7 +134,10 @@ const OrderDetails = () => {
     return (
         <Fragment>
             {loading ? (
-                <LoadingBar color='#A07C4B' progress={progress} onLoaderFinished={onLoaderFinished} />
+                <Fragment>
+                    <LoadingBar color='#A07C4B' progress={progress} onLoaderFinished={onLoaderFinished} />
+                    <Loader label='Finding your order' />
+                </Fragment>
             ) : (
                 <Fragment>
                     <MetaData title='Order Details · Maison' />

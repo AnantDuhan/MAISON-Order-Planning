@@ -14,6 +14,7 @@ import {
     Select,
 } from '@mui/material';
 import LoadingBar from 'react-top-loading-bar';
+import Loader from '../layout/Loader/Loader';
 
 import { UPDATE_ORDER_RESET } from '../../constants/orderConstants';
 import {
@@ -156,7 +157,10 @@ const ProcessOrder = () => {
     return (
         <Fragment>
             {loading ? (
-                <LoadingBar color='#A07C4B' progress={progress} onLoaderFinished={onLoaderFinished} />
+                <Fragment>
+                    <LoadingBar color='#A07C4B' progress={progress} onLoaderFinished={onLoaderFinished} />
+                    <Loader label='Finding the order' />
+                </Fragment>
             ) : (
                 <Fragment>
                     <MetaData title='Process Order · Admin' />
