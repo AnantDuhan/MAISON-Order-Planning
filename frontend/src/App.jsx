@@ -74,6 +74,7 @@ const MagicLinkLogin = lazy(() => import("./components/User/MagicLinkLogin"));
 const PrivacyPolicy = lazy(() => import("./components/layout/Legal/PrivacyPolicy"));
 const TermsAndConditions = lazy(() => import("./components/layout/Legal/TermsAndConditions"));
 const MembershipAnalytics = lazy(() => import("./components/Admin/MembershipAnalytics"));
+const FeatureFlags = lazy(() => import("./components/Admin/FeatureFlags"));
 const AuditLog = lazy(() => import("./components/Admin/AuditLog"));
 const CartRecovery = lazy(() => import("./components/Admin/CartRecovery"));
 const Inventory = lazy(() => import("./components/Admin/Inventory"));
@@ -240,6 +241,15 @@ function App() {
                 element={
                   <ProtectedAdminRoute>
                     <AuditLog />
+                  </ProtectedAdminRoute>
+                }
+                exact
+              />
+              <Route
+                path="/admin/features"
+                element={
+                  <ProtectedAdminRoute>
+                    <FeatureFlags />
                   </ProtectedAdminRoute>
                 }
                 exact

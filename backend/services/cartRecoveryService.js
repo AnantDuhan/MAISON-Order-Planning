@@ -148,6 +148,9 @@ const sendReminder = async (cart, stage) => {
 
 /** Cron entry point: POST /api/v1/jobs/abandoned-carts */
 const runAbandonedCartReminders = async ({ limit = 200, now = Date.now() } = {}) => {
+    if (!(await require('./featureFlags').isEnabled('cartReminders'))) {
+        return { scanned: 0, sent: 0, skipped: 0, failed: 0, disabled: true };
+    }
     const carts = await Cart.find({
         'items.0': { $exists: true },
         updatedAt: { $lte: new Date(now - FIRST_AFTER), $gte: new Date(now - GIVE_UP_AFTER) },

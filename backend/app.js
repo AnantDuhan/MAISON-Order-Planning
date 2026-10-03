@@ -203,6 +203,7 @@ const seoRoute = require("./routes/seo");
 const invoiceRoute = require("./routes/invoice");
 const auditRoute = require("./routes/audit");
 const walletRoute = require("./routes/wallet");
+const featuresRoute = require("./routes/features");
 const inventory = require("./services/inventoryService");
 const { auditAdminWrites, snapshot } = require("./middleware/audit");
 
@@ -236,6 +237,7 @@ app.use("/api/v1", cartRoute);
 app.use("/api/v1", invoiceRoute);
 app.use("/api/v1", auditRoute);
 app.use("/api/v1", walletRoute);
+app.use("/api/v1", featuresRoute);
 app.use(redirectRoute);
 app.use(seoRoute); // /sitemap.xml
 

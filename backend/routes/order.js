@@ -11,6 +11,7 @@ const {
    updateShipment,
    packingSlip,
 } = require('../controllers/order');
+const { requireFeature } = require('../services/featureFlags');
 const router = express.Router();
 
 const { isAuthUser, authRoles } = require('../middleware/auth');
@@ -24,7 +25,7 @@ router.route('/order/:id').get(isAuthUser, getSingleOrder);
 
 router.route('/orders/me').get(isAuthUser, myOrders);
 
-router.route('/order/:id/return').post(isAuthUser, demoGuard('place-order'), requestReturn);
+router.route('/order/:id/return').post(isAuthUser, requireFeature('returns'), demoGuard('place-order'), requestReturn);
 
 router.route('/admin/orders').get(isAuthUser, authRoles('admin'), getAllOrders);
 

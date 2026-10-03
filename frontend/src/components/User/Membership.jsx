@@ -3,6 +3,7 @@ import { toast } from 'react-toastify';
 import axios from 'axios';
 
 import MetaData from '../layout/MetaData';
+import { useFeature } from '../../context/FeatureFlagsContext';
 
 const cashfree = window.Cashfree
     ? window.Cashfree({ mode: import.meta.env.REACT_APP_CASHFREE_MODE || 'sandbox' })
@@ -38,6 +39,8 @@ const Membership = () => {
             .then(({ data }) => setInvoices(data.invoices || []))
             .catch(() => {});
     }, []);
+
+    const membershipsOn = useFeature('memberships');
 
     const startMembership = async interval => {
         setLoading(true);
@@ -179,7 +182,7 @@ const Membership = () => {
                                 <h2 className='mt-4 font-display text-3xl text-ink'>{plan.name}</h2>
                                 <p className='mt-6 font-display text-4xl text-ink'>₹{plan.amount}</p>
                                 <p className='mt-2 font-sans text-sm text-ink-soft'>Billed {plan.interval}ly</p>
-                                <button disabled={loading} onClick={() => startMembership(plan.interval)} className='btn-solid mt-8 w-full disabled:opacity-40'>
+                                <button disabled={loading || !membershipsOn} onClick={() => startMembership(plan.interval)} className='btn-solid mt-8 w-full disabled:opacity-40'>
                                     Authorize Membership
                                 </button>
                             </div>

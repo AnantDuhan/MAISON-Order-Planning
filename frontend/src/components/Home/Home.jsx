@@ -10,8 +10,10 @@ import Loader from '../layout/Loader/Loader';
 import MetaData from '../layout/MetaData';
 import ProductCard from './ProductCard';
 import ProductGridItem from './ProductGridItem';
+import { useFeature } from '../../context/FeatureFlagsContext';
 
 const Home = () => {
+    const newsletterOn = useFeature('newsletter');
     const dispatch = useDispatch();
 
     const [email, setEmail] = useState('');
@@ -149,6 +151,7 @@ const Home = () => {
                     </section>
 
                     {/* ── Newsletter ─────────────────────────────── */}
+                    {newsletterOn && (
                     <section className='editorial-shell mt-28'>
                         <div className='relative overflow-hidden border border-line bg-ink px-6 py-20 text-center'>
                             <p className='eyebrow !text-brass-soft'>Stay in the Know</p>
@@ -177,6 +180,7 @@ const Home = () => {
                             </form>
                         </div>
                     </section>
+                    )}
                 </Fragment>
             )}
         </Fragment>

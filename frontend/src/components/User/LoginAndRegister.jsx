@@ -47,7 +47,7 @@ const LoginAndRegister = () => {
 
     const loginMethodTabs = [
         { id: 'password', label: 'Password' },
-        { id: 'email', label: 'Email Code' },
+        ...(methods.emailCode !== false ? [{ id: 'email', label: 'Email Code' }] : []),
         ...(methods.phone ? [{ id: 'phone', label: 'Phone OTP' }] : []),
     ];
     const [loginIdentifier, setLoginIdentifier] = useState('');
@@ -286,7 +286,7 @@ const LoginAndRegister = () => {
                                                 'Login'
                                             )}
                                         </button>
-                                        {canUsePasskey && (
+                                        {canUsePasskey && methods.passkey !== false && (
                                             <button
                                                 type='button'
                                                 onClick={() => dispatch(loginWithPasskey())}
@@ -327,6 +327,7 @@ const LoginAndRegister = () => {
                                                 <FingerprintIcon fontSize='small' /> Sign in with a passkey
                                             </button>
                                         )}
+                                        {methods.google !== false && (
                                         <GoogleLogin
                                             onSuccess={handleGoogleLoginSuccess}
                                             onError={handleGoogleLoginError}
@@ -335,6 +336,7 @@ const LoginAndRegister = () => {
                                             size='large'
                                             width='300'
                                         />
+                                        )}
                                     </div>
                                 </div>
                             )}
@@ -402,6 +404,7 @@ const LoginAndRegister = () => {
 
                                     <Divider />
                                     <div className='flex justify-center'>
+                                        {methods.google !== false && (
                                         <GoogleLogin
                                             onSuccess={handleGoogleLoginSuccess}
                                             onError={handleGoogleLoginError}
@@ -409,6 +412,7 @@ const LoginAndRegister = () => {
                                             size='large'
                                             width='300'
                                         />
+                                        )}
                                     </div>
                                 </form>
                             )}
