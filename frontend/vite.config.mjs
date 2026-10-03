@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react';
 // Dev server proxies /api and /socket.io to the DEPLOYED backend by default.
 // To use a local backend instead: VITE_API_PROXY_TARGET=http://localhost:8080 npm run dev
 const API_TARGET =
-    process.env.VITE_API_PROXY_TARGET || 'https://maison-order-planning.onrender.com';
+    process.env.VITE_API_PROXY_TARGET || 'https://api.maisonorderplanning.in';
 
 // Production cookies are `Secure; SameSite=None`. Rewrite them so the browser
 // keeps them on http://localhost — otherwise login works but /me says logged out.
@@ -23,7 +23,7 @@ const rewriteCookies = proxy => {
 
 const proxyOptions = {
     target: API_TARGET,
-    changeOrigin: true, // sends Host: maison-order-planning.onrender.com
+    changeOrigin: true, // sends Host: api.maisonorderplanning.in
     secure: true,
     configure: rewriteCookies,
 };

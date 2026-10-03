@@ -1,0 +1,33 @@
+<%- include('partials/head', { title: copy.headline, preheader: copy.body }) %>
+
+<p style="margin:0; font-family:Helvetica,Arial,sans-serif; font-size:10px; font-weight:bold; letter-spacing:3px; text-transform:uppercase; color:#A07C4B;"><%= event.status %></p>
+<h1 style="margin:14px 0 0 0; font-family:Georgia,'Times New Roman',serif; font-size:34px; font-weight:500; line-height:1.15; color:#1A1816;">
+  <%= copy.headline %><%= user && user.name ? ', ' + user.name.split(' ')[0] : '' %>
+</h1>
+<p style="margin:22px 0 0 0; font-family:Helvetica,Arial,sans-serif; font-size:15px; line-height:1.75; color:#4A453F;"><%= copy.body %></p>
+
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:28px 0 0 0;">
+  <tr>
+    <td style="background-color:#F7F4EF; border:1px solid #E0D9CE; padding:20px 22px;">
+      <p style="margin:0; font-family:Helvetica,Arial,sans-serif; font-size:10px; letter-spacing:2px; text-transform:uppercase; color:#8A8278;">Order</p>
+      <p style="margin:5px 0 0 0; font-family:Helvetica,Arial,sans-serif; font-size:14px; color:#1A1816;"><%= order._id %></p>
+      <% if (order.shipment && order.shipment.awb) { %>
+      <p style="margin:16px 0 0 0; font-family:Helvetica,Arial,sans-serif; font-size:10px; letter-spacing:2px; text-transform:uppercase; color:#8A8278;">Courier</p>
+      <p style="margin:5px 0 0 0; font-family:Helvetica,Arial,sans-serif; font-size:14px; color:#1A1816;"><%= order.shipment.courier || 'Courier' %> &middot; AWB <%= order.shipment.awb %></p>
+      <% } %>
+      <% if (event.location) { %>
+      <p style="margin:16px 0 0 0; font-family:Helvetica,Arial,sans-serif; font-size:10px; letter-spacing:2px; text-transform:uppercase; color:#8A8278;">Latest location</p>
+      <p style="margin:5px 0 0 0; font-family:Helvetica,Arial,sans-serif; font-size:14px; color:#1A1816;"><%= event.location %></p>
+      <% } %>
+    </td>
+  </tr>
+</table>
+
+<p style="margin:28px 0 0 0;">
+  <a href="<%= orderLink %>" style="display:inline-block; background-color:#1A1816; color:#F7F4EF; padding:14px 26px; font-family:Helvetica,Arial,sans-serif; font-size:11px; letter-spacing:2px; text-transform:uppercase; text-decoration:none;">View tracking</a>
+  <% if (order.shipment && order.shipment.trackingUrl) { %>
+  <a href="<%= order.shipment.trackingUrl %>" style="display:inline-block; margin-left:12px; padding:14px 0; font-family:Helvetica,Arial,sans-serif; font-size:11px; letter-spacing:2px; text-transform:uppercase; color:#A07C4B; text-decoration:none;">Courier site &rarr;</a>
+  <% } %>
+</p>
+
+<%- include('partials/foot') %>

@@ -66,6 +66,8 @@ export const userReducer = (
     user: {},
     loading: false,
     isAuthenticated: false,
+    // True once the startup session check (/me) has finished either way.
+    authChecked: false,
 
     // 2FA login state
     twoFactorRequired: false,
@@ -218,6 +220,7 @@ export const userReducer = (
       return {
         ...state,
         loading: false,
+        authChecked: true,
         isAuthenticated: true,
 
         user: action.payload,
@@ -254,6 +257,7 @@ export const userReducer = (
       return {
         ...state,
         loading: false,
+        authChecked: true,
         isAuthenticated: false,
         user: null,
         error: action.payload,

@@ -64,6 +64,7 @@ const LoginAndRegister = lazy(
   () => import("./components/User/LoginAndRegister"),
 );
 const Profile = lazy(() => import("./components/User/Profile"));
+const StoreCredit = lazy(() => import("./components/User/StoreCredit"));
 const ResetPassword = lazy(() => import("./components/User/ResetPassword"));
 const UpdatePassword = lazy(() => import("./components/User/UpdatePassword"));
 const UpdateProfile = lazy(() => import("./components/User/UpdateProfile"));
@@ -73,9 +74,14 @@ const MagicLinkLogin = lazy(() => import("./components/User/MagicLinkLogin"));
 const PrivacyPolicy = lazy(() => import("./components/layout/Legal/PrivacyPolicy"));
 const TermsAndConditions = lazy(() => import("./components/layout/Legal/TermsAndConditions"));
 const MembershipAnalytics = lazy(() => import("./components/Admin/MembershipAnalytics"));
+const FeatureFlags = lazy(() => import("./components/Admin/FeatureFlags"));
+const AuditLog = lazy(() => import("./components/Admin/AuditLog"));
+const CartRecovery = lazy(() => import("./components/Admin/CartRecovery"));
+const Inventory = lazy(() => import("./components/Admin/Inventory"));
+const VerifyInvoice = lazy(() => import("./components/Invoice/VerifyInvoice"));
 
 function App() {
-  const { isAuthenticated } = useSelector((state) => state.user);
+  const { isAuthenticated, authChecked } = useSelector((state) => state.user);
   // const [stripeApiKey, setStripeApiKey] = useState('');
 
   const location = useLocation();
@@ -134,6 +140,8 @@ function App() {
               <Route path="/login/2fa" element={<TwoFactorLogin />} />
               <Route path="/login/magic/:token" element={<MagicLinkLogin />} />
               <Route path="/verify-email/:token" element={<VerifyEmail />} />
+              <Route path="/verify" element={<VerifyInvoice />} />
+              <Route path="/verify/:ref" element={<VerifyInvoice />} />
               <Route
                 path="/password/forgot"
                 element={<ForgotPassword />}
@@ -151,6 +159,9 @@ function App() {
               )}
               {isAuthenticated && (
                 <Route path="/membership" element={<Membership />} exact />
+              )}
+              {isAuthenticated && (
+                <Route path="/account/store-credit" element={<StoreCredit />} exact />
               )}
               {isAuthenticated && (
                 <Route path="/account/addresses" element={<AddressBook />} exact />
@@ -203,6 +214,42 @@ function App() {
                 element={
                   <ProtectedAdminRoute>
                     <Dashboard />
+                  </ProtectedAdminRoute>
+                }
+                exact
+              />
+              <Route
+                path="/admin/inventory"
+                element={
+                  <ProtectedAdminRoute>
+                    <Inventory />
+                  </ProtectedAdminRoute>
+                }
+                exact
+              />
+              <Route
+                path="/admin/cart-recovery"
+                element={
+                  <ProtectedAdminRoute>
+                    <CartRecovery />
+                  </ProtectedAdminRoute>
+                }
+                exact
+              />
+              <Route
+                path="/admin/audit-log"
+                element={
+                  <ProtectedAdminRoute>
+                    <AuditLog />
+                  </ProtectedAdminRoute>
+                }
+                exact
+              />
+              <Route
+                path="/admin/features"
+                element={
+                  <ProtectedAdminRoute>
+                    <FeatureFlags />
                   </ProtectedAdminRoute>
                 }
                 exact
@@ -317,7 +364,9 @@ function App() {
               />
 
               {/* Catch-all Not Found Route - MUST BE LAST */}
-              <Route path="*" element={<NotFound />} />
+              {/* Signed-in pages only exist once the session check finishes;
+                  until then show a loader, not "page not found". */}
+              <Route path="*" element={authChecked ? <NotFound /> : <Loader />} />
             </Routes>
           </Suspense>
         </ErrorBoundary>

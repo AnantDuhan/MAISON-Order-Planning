@@ -10,6 +10,7 @@ import { GoogleOAuthProvider } from '@react-oauth/google';
 import App from './App';
 import store from './store';
 import { ThemeProvider } from './context/ThemeContext';
+import { FeatureFlagsProvider } from './context/FeatureFlagsContext';
 
 import './styles/theme.css';
 
@@ -35,7 +36,9 @@ root.render(
         <BrowserRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
           <Provider store={store}>
             <ThemeProvider>
-              <App />
+              <FeatureFlagsProvider>
+                <App />
+              </FeatureFlagsProvider>
             </ThemeProvider>
           </Provider>
         </BrowserRouter>

@@ -68,7 +68,8 @@ exports.requestReturn = async (req, res) => {
         order.returnReason = reason;
         order.returnRequestedAt = new Date();
         order.refundStatus = 'Initiated';
-        await order.save();
+        // Status fields only; don't re-validate the whole historical order.
+        await order.save({ validateBeforeSave: false });
 
         await cache.del('returns', 'orders', `order:${order._id}`, `orders:${order.user}`);
 
@@ -174,6 +175,11 @@ exports.updateReturnStatus = async (req, res) => {
             });
         }
 
+        res.locals.audit = {
+            before: { status: returnRequest.status },
+            after: { status },
+            summary: `Return ${returnRequest._id}: ${returnRequest.status} → ${status}`,
+        };
         returnRequest.status = status;
         returnRequest.resolvedAt = ['Rejected', 'Completed'].includes(status) ? new Date() : undefined;
         await returnRequest.save();

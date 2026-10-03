@@ -95,7 +95,7 @@ export const getAllOrders = () => async dispatch => {
 };
 
 // Update Order
-export const updateOrder = (id, status) => async dispatch => {
+export const updateOrder = (id, status, shipment = {}) => async dispatch => {
     try {
         dispatch({ type: UPDATE_ORDER_REQUEST });
 
@@ -106,7 +106,7 @@ export const updateOrder = (id, status) => async dispatch => {
         };
         const { data } = await axios.put(
             `/api/v1/admin/order/${id}`,
-            { status },
+            { status, ...shipment },
             config
         );
 
@@ -199,12 +199,13 @@ export const initiateRefund = id => async dispatch => {
 export const updateRefundStatus = (
     orderId,
     refundId,
-    refundStatus
+    refundStatus,
+    refundMethod
 ) => async dispatch => {
     try {
         dispatch({ type: REFUND_STATUS_UPDATE_REQUEST });
 
-        await axios.patch(`/api/v1/admin/order/${orderId}/refund/${refundId}/status`, { refundStatus });
+        await axios.patch(`/api/v1/admin/order/${orderId}/refund/${refundId}/status`, { refundStatus, refundMethod });
 
         dispatch({
             type: REFUND_STATUS_UPDATE_SUCCESS,

@@ -14,6 +14,8 @@ const TwoFactorLogin = () => {
     const enrollmentRequired = location.state?.enrollmentRequired === true;
 
     const [code, setCode] = useState('');
+    // The user's choice: ask for a code on every login, or remember this device.
+    const [rememberDevice, setRememberDevice] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [setup, setSetup] = useState(null);
@@ -52,8 +54,8 @@ const TwoFactorLogin = () => {
             setError('');
 
             await dispatch(enrollmentRequired
-                ? enrollAdminTwoFactor(twoFactorToken, code)
-                : verifyLoginOtp(twoFactorToken, code)
+                ? enrollAdminTwoFactor(twoFactorToken, code, rememberDevice)
+                : verifyLoginOtp(twoFactorToken, code, rememberDevice)
             );
 
             navigate('/');
@@ -140,6 +142,40 @@ const TwoFactorLogin = () => {
                         className="mt-2 w-full border border-line bg-surface-2 px-4 py-3 text-center text-xl tracking-[0.4em] text-ink outline-none"
                         autoFocus
                     />
+
+                    <fieldset className="mt-6 border border-line p-4">
+                        <legend className="px-1 font-sans text-[0.68rem] uppercase tracking-luxe text-ink-faint">
+                            On this device
+                        </legend>
+                        <label className="flex cursor-pointer items-start gap-3 py-1">
+                            <input
+                                type="radio"
+                                name="mfaRemember"
+                                checked={!rememberDevice}
+                                onChange={() => setRememberDevice(false)}
+                                className="mt-1 accent-[#A07C4B]"
+                            />
+                            <span>
+                                <span className="block text-sm text-ink">Ask for a code every time I sign in</span>
+                                <span className="block text-xs text-ink-faint">Most secure. Best on shared or public computers.</span>
+                            </span>
+                        </label>
+                        <label className="mt-2 flex cursor-pointer items-start gap-3 py-1">
+                            <input
+                                type="radio"
+                                name="mfaRemember"
+                                checked={rememberDevice}
+                                onChange={() => setRememberDevice(true)}
+                                className="mt-1 accent-[#A07C4B]"
+                            />
+                            <span>
+                                <span className="block text-sm text-ink">Don’t ask again on this device for 30 days</span>
+                                <span className="block text-xs text-ink-faint">
+                                    You’ll still sign in as usual. You can undo this in Account → Security.
+                                </span>
+                            </span>
+                        </label>
+                    </fieldset>
 
                     {error && (
                         <p className="mt-3 text-sm text-red-600">

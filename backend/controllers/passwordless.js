@@ -98,7 +98,7 @@ const consumeCode = async (channel, target, code) => {
         const updated = await LoginCode.findOneAndUpdate(
             { _id: record._id },
             { $inc: { attempts: 1 } },
-            { new: true }
+            { returnDocument: 'after' }
         );
         const left = Math.max(0, MAX_ATTEMPTS - (updated?.attempts ?? MAX_ATTEMPTS));
         return {
@@ -167,7 +167,7 @@ exports.verifyEmailCode = async (req, res) => {
             await User.updateOne({ _id: result.user._id }, { isEmailVerified: true });
         }
         await LoginCode.deleteMany({ channel: 'email', target: email });
-        return completeLogin(result.user, res);
+        return completeLogin(result.user, res, { req });
     } catch (error) {
         console.error('✉️ Email code verify error:', error);
         return res.status(500).json({ success: false, message: 'Sign-in failed. Please try again.' });
@@ -203,7 +203,7 @@ exports.verifyMagicLink = async (req, res) => {
             await User.updateOne({ _id: user._id }, { isEmailVerified: true });
         }
         await LoginCode.deleteMany({ channel: 'email', target: record.target });
-        return completeLogin(user, res);
+        return completeLogin(user, res, { req });
     } catch (error) {
         console.error('✉️ Magic link error:', error);
         return res.status(500).json({ success: false, message: 'Sign-in failed. Please try again.' });
@@ -215,8 +215,21 @@ exports.verifyMagicLink = async (req, res) => {
 // ---------------------------------------------------------------------------
 
 // GET /api/v1/login/methods — lets the UI hide phone login when SMS is off.
-exports.loginMethods = (req, res) =>
-    res.status(200).json({ success: true, methods: { password: true, emailCode: true, phone: isSmsConfigured(), passkey: true } });
+// Which sign-in options to show. Admin feature switches can turn off all but
+// the password.
+exports.loginMethods = async (req, res) => {
+    const features = await require('../services/featureFlags').getAll();
+    res.status(200).json({
+        success: true,
+        methods: {
+            password: true,
+            emailCode: features.passwordlessLogin !== false,
+            phone: features.passwordlessLogin !== false && isSmsConfigured(),
+            passkey: features.passkeys !== false,
+            google: features.googleLogin !== false,
+        },
+    });
+};
 
 // POST /api/v1/login/phone-otp  { phone }
 exports.requestPhoneOtp = async (req, res) => {
@@ -269,7 +282,7 @@ exports.verifyPhoneOtp = async (req, res) => {
             await User.updateOne({ _id: result.user._id }, { isPhoneVerified: true });
         }
         await LoginCode.deleteMany({ channel: 'phone', target: national });
-        return completeLogin(result.user, res);
+        return completeLogin(result.user, res, { req });
     } catch (error) {
         console.error('📱 Phone OTP verify error:', error);
         return res.status(500).json({ success: false, message: 'Sign-in failed. Please try again.' });

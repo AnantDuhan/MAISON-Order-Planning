@@ -26,6 +26,7 @@ function mockRes() {
         body: undefined,
         headers: {},
         cookies: {},
+        locals: {},
         status(code) { this.statusCode = code; return this; },
         json(body) { this.body = body; return this; },
         send(body) { this.body = body; return this; },

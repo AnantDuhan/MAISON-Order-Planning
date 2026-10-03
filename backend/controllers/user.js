@@ -60,12 +60,13 @@ const sendVerificationEmail = async user => {
     );
     sendEmailInBackground({
         email: user.email,
-        subject: 'Verify Your Email - Ecommerce',
+        subject: 'Verify Your Email - MAISON',
         html: emailMessage
     });
 };
 
-const { createTwoFactorPendingToken, issueSession } = require('../utils/session');
+const { createTwoFactorPendingToken, issueSession, completeLogin } = require('../utils/session');
+const trustedDevice = require('../utils/trustedDevice');
 
 // register user
 // Register User
@@ -168,57 +169,9 @@ exports.loginUser = async (req, res, next) => {
             });
         }
 
-        // 3. Email verified.
-        // SKIP 2FA ENTIRELY for demo accounts
-        if (!user.isDemo) {
-            // Check 2FA for non-demo users only
-            const enrollmentRequired = user.role === 'admin' && !user.twoFactorAuth.enabled;
-            
-            if (user.twoFactorAuth.enabled || enrollmentRequired) {
-                const twoFactorToken = createTwoFactorPendingToken(user, enrollmentRequired);
-
-                return res.status(200).json({
-                    success: true,
-                    twoFactorRequired: true,
-                    enrollmentRequired,
-                    twoFactorToken
-                });
-            }
-        }
-
-        // 4. No 2FA required (or demo user) → create normal login session
-        const token = jwt.sign(
-            {
-                id: user._id,
-                name: user.name,
-                email: user.email,
-                avatar: user.avatar,
-                isDemo: user.isDemo,
-                mfaVerified: false,
-            },
-            process.env.JWT_SECRET_KEY,
-            { expiresIn: '90d' }
-        );
-
-        const options = {
-            expires: new Date(
-                Date.now() + 90 * 24 * 60 * 60 * 1000
-            ),
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite:
-                process.env.NODE_ENV === 'production'
-                    ? 'none'
-                    : 'lax'
-        };
-
-        return res.status(200)
-            .cookie('token', token, options)
-            .json({
-                success: true,
-                user
-            });
-
+        // 3. Email verified. 2FA (or a trusted device), then the session —
+        // shared with every other sign-in method, including "Remember me".
+        return completeLogin(user, res, { req });
     } catch (err) {
         console.error('⚠️ Login Error:', err);
 
@@ -322,7 +275,7 @@ exports.verifyEmail = async (req, res) => {
 
       sendEmailInBackground({
         email: user.email,
-        subject: "Verify Your Email - Ecommerce",
+        subject: "Verify Your Email - MAISON",
         html: emailMessage,
       });
 
@@ -676,14 +629,22 @@ exports.updateUserRole = async (req, res, next) => {
         if (email) newUserData.email = normalizeEmail(email);
         if (role) newUserData.role = role;
 
+        const previous = await User.findById(req.params.id).select('name email role').lean();
         const user = await User.findByIdAndUpdate(req.params.id, newUserData, {
-            new: true,
+            returnDocument: 'after',
             runValidators: true
         });
 
         if (!user) {
             return res.status(404).json({ success: false, message: 'User not found' });
         }
+        res.locals.audit = {
+            before: previous && { name: previous.name, email: previous.email, role: previous.role },
+            after: { name: user.name, email: user.email, role: user.role },
+            summary: previous && previous.role !== user.role
+                ? `${user.email}: role ${previous.role} → ${user.role}`
+                : `Updated user ${user.email}`,
+        };
 
         res.status(200).json({
             success: true,
@@ -714,6 +675,10 @@ exports.deleteUser = async (req, res) => {
         }
 
         await User.deleteOne({ _id: user._id });
+        res.locals.audit = {
+            before: { name: user.name, email: user.email, role: user.role },
+            summary: `Deleted user ${user.email}`,
+        };
 
         // Best effort: only delete avatars that actually live in our bucket.
         const key = s3KeyFromUrl(user.avatar);
@@ -774,33 +739,8 @@ exports.googleLogin = async (req, res, next) => {
             });
         }
 
-        const enrollmentRequired = user.role === 'admin' && !user.twoFactorAuth.enabled;
-        if (user.twoFactorAuth.enabled || enrollmentRequired) {
-            return res.status(200).json({
-                success: true,
-                twoFactorRequired: true,
-                enrollmentRequired,
-                twoFactorToken: createTwoFactorPendingToken(user, enrollmentRequired),
-            });
-        }
-
-        let token = jwt.sign(
-            { id: user._id, mfaVerified: false },
-            process.env.JWT_SECRET_KEY,
-            { expiresIn: '90d' }
-        );
-
-        const options = {
-            expires: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
-            secure: process.env.NODE_ENV === 'production',
-            httpOnly: true,
-            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
-        };
-
-        res.status(200).cookie('token', token, options).json({
-            success: true,
-            user
-        });
+        // 2FA (or a trusted device), then the session — same as every login.
+        return completeLogin(user, res, { req });
     } catch (error) {
         console.error('🔐 Google login error: ', error.message);
         if (error.code === 11000) {
@@ -956,7 +896,7 @@ exports.setupAdminTwoFactorEnrollment = async (req, res) => {
 
 exports.verifyAdminTwoFactorEnrollment = async (req, res) => {
     try {
-        const { twoFactorToken, code } = req.body;
+        const { twoFactorToken, code, rememberDevice } = req.body;
         const decoded = jwt.verify(twoFactorToken, process.env.JWT_SECRET_KEY);
         if (!decoded.twoFactorPending || !decoded.enrollmentRequired) {
             return res.status(400).json({ success: false, message: 'Invalid admin enrollment session' });
@@ -980,7 +920,11 @@ exports.verifyAdminTwoFactorEnrollment = async (req, res) => {
         user.twoFactorAuth.tempSecret = undefined;
         user.twoFactorAuth.enabled = true;
         await user.save({ validateBeforeSave: false });
-        return issueSession(user, res, 200, true);
+        await trustedDevice.revokeAllTrustedDevices(user._id);
+        if (rememberDevice === true) await trustedDevice.trustThisDevice(user, req, res);
+        await trustedDevice.revokeAllTrustedDevices(user._id);
+        // "Remember me" was chosen on the sign-in form and carried in the pending token.
+        return issueSession(user, res, 200, true, { remember: decoded.remember !== false });
     } catch (error) {
         return res.status(401).json({ success: false, message: 'Admin enrollment session expired. Please sign in again.' });
     }
@@ -1037,6 +981,7 @@ exports.disableTwoFactorAuth = async (req, res) => {
         user.twoFactorAuth.tempSecret = undefined;
         user.twoFactorAuth.enabled = false;
         await user.save({ validateBeforeSave: false });
+        await trustedDevice.revokeAllTrustedDevices(user._id, res);
         res.status(200).json({ success: true, message: 'Two-factor authentication disabled' });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
@@ -1047,7 +992,7 @@ exports.disableTwoFactorAuth = async (req, res) => {
 // TOTP code, then issue the real session.
 exports.verifyLoginOtp = async (req, res) => {
     try {
-        const { twoFactorToken, code } = req.body;
+        const { twoFactorToken, code, rememberDevice } = req.body;
         if (!twoFactorToken || !code) {
             return res.status(400).json({ success: false, message: 'Authentication code is required' });
         }
@@ -1073,8 +1018,29 @@ exports.verifyLoginOtp = async (req, res) => {
         if (!verified) {
             return res.status(400).json({ success: false, message: 'Invalid authentication code' });
         }
-        return issueSession(user, res, 200, true);
+        // The user's choice on the code screen: skip the code on this device next time.
+        if (rememberDevice === true) await trustedDevice.trustThisDevice(user, req, res);
+        // "Remember me" was chosen on the sign-in form and carried in the pending token.
+        return issueSession(user, res, 200, true, { remember: decoded.remember !== false });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
+};
+
+// GET /api/v1/2fa/trusted-devices
+exports.getTrustedDevices = async (req, res) => {
+    const devices = await trustedDevice.listTrustedDevices(req.user._id, req);
+    res.status(200).json({ success: true, devices, trustDays: trustedDevice.trustDays() });
+};
+
+// DELETE /api/v1/2fa/trusted-devices/:id  — ask for a code again on that device
+exports.revokeTrustedDevice = async (req, res) => {
+    await trustedDevice.revokeTrustedDevice(req.user._id, req.params.id, req, res);
+    res.status(200).json({ success: true });
+};
+
+// DELETE /api/v1/2fa/trusted-devices  — ask for a code again everywhere
+exports.revokeAllTrustedDevices = async (req, res) => {
+    await trustedDevice.revokeAllTrustedDevices(req.user._id, res);
+    res.status(200).json({ success: true });
 };

@@ -46,4 +46,39 @@ const enqueue = name => async (req, res, next) => {
 router.post('/jobs/newsletter', requireCronSecret, enqueue('newsletter'));
 router.post('/jobs/wishlist', requireCronSecret, enqueue('wishlist'));
 
+// Re-send invoice emails that failed or never went out. Runs inline (bounded
+// to a small batch) so it does not depend on the BullMQ worker being deployed.
+const { retryPendingInvoiceEmails } = require('../services/invoiceService');
+const inventory = require('../services/inventoryService');
+const cartRecovery = require('../services/cartRecoveryService');
+
+// Abandoned-cart reminders (24h and 72h after the cart was last touched).
+router.post('/jobs/abandoned-carts', requireCronSecret, async (req, res, next) => {
+    try {
+        const result = await cartRecovery.runAbandonedCartReminders({ limit: 200 });
+        res.status(200).json({ success: true, job: 'abandoned-carts', ...result });
+    } catch (err) {
+        next(err);
+    }
+});
+
+// Return stock from checkouts that were started but never paid.
+router.post('/jobs/stock-holds', requireCronSecret, async (req, res, next) => {
+    try {
+        const result = await inventory.releaseExpiredHolds({ limit: 200 });
+        res.status(200).json({ success: true, job: 'stock-holds', ...result });
+    } catch (err) {
+        next(err);
+    }
+});
+
+router.post('/jobs/invoice-retry', requireCronSecret, async (req, res, next) => {
+    try {
+        const result = await retryPendingInvoiceEmails({ limit: 20 });
+        res.status(200).json({ success: true, job: 'invoice-retry', ...result });
+    } catch (err) {
+        next(err);
+    }
+});
+
 module.exports = router;
