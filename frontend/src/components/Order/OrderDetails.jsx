@@ -60,13 +60,25 @@ const OrderDetails = () => {
         "Item Doesn't Meet Expectations",
     ];
 
-    const submitReturnRequest = (orders, reason) => {
-        if (orders && reason) {
-            dispatch(returnRequest(order._id, reason));
-            toast.success('Return request submitted successfully');
+    const [returnBusy, setReturnBusy] = useState(false);
+
+    // Wait for the server: this used to show success before the request had
+    // finished, so failed return requests looked like they had worked.
+    const submitReturnRequest = async (orders, reason) => {
+        if (!orders || !reason || returnBusy) return;
+        setReturnBusy(true);
+        setProgress(60);
+        try {
+            await dispatch(returnRequest(order._id, reason));
+            toast.success('Return requested. We’ll email you with the next steps.');
             handleCloseDialog();
+        } catch (error) {
+            toast.error(error.response?.data?.message || error.message || 'Could not request the return');
+        } finally {
+            dispatch(getOrderDetails(id));
+            setReturnBusy(false);
+            setProgress(100);
         }
-        setProgress(progress + 80);
     };
 
     const handleOpenDialog = () => {
@@ -403,9 +415,10 @@ const OrderDetails = () => {
                             <Button onClick={handleCloseDialog} sx={{ color: '#8A8278' }}>Cancel</Button>
                             <Button
                                 onClick={() => submitReturnRequest(selectedOrder, selectedReturnReason)}
+                                disabled={returnBusy}
                                 sx={{ color: '#A07C4B' }}
                             >
-                                Submit Return
+                                {returnBusy ? 'Submitting…' : 'Submit Return'}
                             </Button>
                         </DialogActions>
                     </Dialog>

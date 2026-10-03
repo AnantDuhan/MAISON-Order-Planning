@@ -115,7 +115,8 @@ exports.initiateRefund = async (req, res) => {
         order.refundStatus = 'Processing';
         order.refundRequestedAt = resolvedAt;
 
-        await order.save();
+        // Status fields only; don't re-validate the whole historical order.
+        await order.save({ validateBeforeSave: false });
 
         /*
          * Clear shared cache so the admin panel gets
@@ -231,7 +232,8 @@ exports.updateRefundStatus = async (req, res) => {
 
         // Dynamically update based on what the Admin selected in the dropdown
         order.refundStatus = refundStatus;
-        await order.save();
+        // Status fields only; don't re-validate the whole historical order.
+        await order.save({ validateBeforeSave: false });
 
         refund.status = refundStatus;
         if (refundStatus === 'Refunded') {

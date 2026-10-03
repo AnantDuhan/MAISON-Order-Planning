@@ -79,26 +79,24 @@ const ProcessOrder = () => {
 
     const onLoaderFinished = () => setProgress(0);
 
-    const submitInitiateRefund = () => {
-        if (!order?._id) return;
+    const [refundBusy, setRefundBusy] = useState(false);
 
+    // Wait for the server before saying anything: this used to report success
+    // immediately (and hide any error) because the request wasn't awaited.
+    const submitInitiateRefund = async () => {
+        if (!order?._id || refundBusy) return;
+        setRefundBusy(true);
+        setProgress(50);
         try {
-            setProgress(50);
-
-            dispatch(initiateRefund(id));
-
-            toast.success('Refund request initiated successfully');
+            await dispatch(initiateRefund(id));
+            toast.success('Refund initiated. Approve it to send the money back.');
             setInitiateOpen(false);
-
-            // Refresh order so refund status/details are immediately visible
-            dispatch(getOrderDetails(id));
         } catch (error) {
-            toast.error(
-                error.response?.data?.message ||
-                error.message ||
-                'Failed to initiate refund'
-            );
+            toast.error(error.response?.data?.message || error.message || 'Could not initiate the refund');
         } finally {
+            // Reload so the refund buttons and status reflect what the server has.
+            dispatch(getOrderDetails(id));
+            setRefundBusy(false);
             setProgress(100);
         }
     };
@@ -108,12 +106,19 @@ const ProcessOrder = () => {
         const refundId = typeof refund === 'object' ? refund?._id : refund;
 
         if (order && refundId) {
+            if (refundBusy) return;
+            setRefundBusy(true);
             try {
                 await dispatch(updateRefundStatus(order._id, refundId, selectedRefundStatus, refundMethod));
-                toast.success('Refund status updated successfully');
+                toast.success(selectedRefundStatus === 'Refunded'
+                    ? `Refunded ${refundMethod === 'store-credit' ? 'as store credit' : 'to the original payment method'}`
+                    : `Refund status set to ${selectedRefundStatus}`);
                 setApproveOpen(false);
             } catch (error) {
-                toast.error(error.response?.data?.message || error.message);
+                toast.error(error.response?.data?.message || error.message || 'Could not update the refund');
+            } finally {
+                dispatch(getOrderDetails(id));
+                setRefundBusy(false);
             }
         } else {
             toast.error('Initiate the refund before updating its status');
@@ -286,6 +291,17 @@ const ProcessOrder = () => {
                                     >
                                         Initiate Refund
                                     </button>
+                                    <p className='font-sans text-xs leading-relaxed text-ink-faint'>
+                                        {order.isRefunded
+                                            ? 'This order has been refunded.'
+                                            : order.refund?.length
+                                                ? `Refund ${String(order.refundStatus || 'initiated').toLowerCase()}. Use Approve Refund to complete it.`
+                                                : !isDelivered
+                                                    ? 'Refunds open once the order is delivered and the customer requests a return.'
+                                                    : !order.return?.length
+                                                        ? 'Waiting for the customer to request a return.'
+                                                        : 'The customer requested a return. Initiate the refund to start it.'}
+                                    </p>
                                     <button
                                         onClick={openApproveDialog}
                                         disabled={!order.refund?.length || order.isRefunded === true}
@@ -308,7 +324,9 @@ const ProcessOrder = () => {
                         </DialogContent>
                         <DialogActions>
                             <Button onClick={() => setInitiateOpen(false)} sx={{ color: '#8A8278' }}>Cancel</Button>
-                            <Button onClick={submitInitiateRefund} sx={{ color: '#A07C4B' }}>Initiate Refund</Button>
+                            <Button onClick={submitInitiateRefund} disabled={refundBusy} sx={{ color: '#A07C4B' }}>
+                                {refundBusy ? 'Initiating…' : 'Initiate Refund'}
+                            </Button>
                         </DialogActions>
                     </Dialog>
 
@@ -353,7 +371,9 @@ const ProcessOrder = () => {
                         </DialogContent>
                         <DialogActions>
                             <Button onClick={() => setApproveOpen(false)} sx={{ color: '#8A8278' }}>Cancel</Button>
-                            <Button onClick={submitApproveRefund} sx={{ color: '#A07C4B' }}>Approve Refund</Button>
+                            <Button onClick={submitApproveRefund} disabled={refundBusy} sx={{ color: '#A07C4B' }}>
+                                {refundBusy ? 'Saving…' : 'Approve Refund'}
+                            </Button>
                         </DialogActions>
                     </Dialog>
                 </Fragment>
