@@ -44,8 +44,13 @@ const orderSchema = new mongoose.Schema({
                 type: Number,
                 required: true
             },
+            // Order lines only need the image URL. No _id of their own: older
+            // orders (and seeded demo orders) stored the product's string image
+            // ids here, which failed ObjectId casting and made every later
+            // save of those orders (return request, refund) fail validation.
             images: [
                 {
+                    _id: false,
                     url: {
                         type: String,
                         required: true

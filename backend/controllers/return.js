@@ -68,7 +68,8 @@ exports.requestReturn = async (req, res) => {
         order.returnReason = reason;
         order.returnRequestedAt = new Date();
         order.refundStatus = 'Initiated';
-        await order.save();
+        // Status fields only; don't re-validate the whole historical order.
+        await order.save({ validateBeforeSave: false });
 
         await cache.del('returns', 'orders', `order:${order._id}`, `orders:${order.user}`);
 

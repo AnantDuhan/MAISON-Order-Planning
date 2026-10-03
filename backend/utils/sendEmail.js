@@ -1,3 +1,4 @@
+const logger = require('../config/logger');
 /**
  * Transactional email through Resend's HTTPS API.
  *
@@ -81,7 +82,7 @@ const sendEmail = async (options) => {
     throw new Error(body.message || body.name || `Resend request failed (${response.status})`);
   }
 
-  console.log(`📧 Email accepted by Resend for ${options.email}`);
+  logger.info({ to: options.email, sender: options.sender || 'noreply' }, 'Email accepted by Resend');
   return body;
 };
 
