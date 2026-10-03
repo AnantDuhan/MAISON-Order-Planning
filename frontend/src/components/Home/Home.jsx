@@ -6,6 +6,7 @@ import { toast } from 'react-toastify';
 import { clearErrors, getProduct } from '../../actions/productAction';
 import { clearNewsletter, newsletter } from '../../actions/subscribeAction';
 import LoadingBar from 'react-top-loading-bar';
+import Loader from '../layout/Loader/Loader';
 import MetaData from '../layout/MetaData';
 import ProductCard from './ProductCard';
 import ProductGridItem from './ProductGridItem';
@@ -48,7 +49,10 @@ const Home = () => {
     return (
         <Fragment>
             {loading ? (
-                <LoadingBar color='#A07C4B' progress={progress} onLoaderFinished={onLoaderFinished} />
+                <Fragment>
+                    <LoadingBar color='#A07C4B' progress={progress} onLoaderFinished={onLoaderFinished} />
+                    <Loader label='Opening the doors' />
+                </Fragment>
             ) : (
                 <Fragment>
                     <MetaData title='Maison · Order Planning' />

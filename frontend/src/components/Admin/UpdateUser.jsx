@@ -59,7 +59,7 @@ const UpdateUser = () => {
             <MetaData title='Update User · Admin' />
             <AdminPage title='Update User'>
                 {loading ? (
-                    <Loader />
+                    <Loader label='Loading this customer' />
                 ) : (
                     <form
                         className='mx-auto max-w-lg border border-line bg-surface p-8 sm:p-10'

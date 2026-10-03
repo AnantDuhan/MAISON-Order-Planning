@@ -2,7 +2,7 @@ import React, { Fragment, useEffect, useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router';
 import { toast } from 'react-toastify';
-import { CircularProgress } from '@mui/material';
+import Loader from '../layout/Loader/Loader';
 import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
 import axios from 'axios';
 
@@ -173,12 +173,7 @@ const Payment = () => {
 
                     <div className='mt-10'>
                         {isProcessing ? (
-                            <div className='flex flex-col items-center gap-3'>
-                                <CircularProgress sx={{ color: '#A07C4B' }} />
-                                <span className='font-sans text-[0.72rem] uppercase tracking-luxe text-ink-soft'>
-                                    Contacting Bank…
-                                </span>
-                            </div>
+                            <Loader inline label='Confirming your payment' />
                         ) : (
                             <button onClick={submitHandler} className='btn-solid w-full'>
                                 {dueNow === 0
