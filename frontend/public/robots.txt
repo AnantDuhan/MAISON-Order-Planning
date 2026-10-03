@@ -1,3 +1,19 @@
-# https://www.robotstxt.org/robotstxt.html
 User-agent: *
-Disallow:
+Allow: /
+Disallow: /admin
+Disallow: /account
+Disallow: /me/
+Disallow: /cart
+Disallow: /shipping
+Disallow: /payment
+Disallow: /order
+Disallow: /orders
+Disallow: /success
+Disallow: /wishlist
+Disallow: /password/
+Disallow: /verify-email/
+Disallow: /login/2fa
+Disallow: /login/magic/
+Disallow: /api/
+
+Sitemap: https://orderplanning.netlify.app/sitemap.xml

@@ -20,6 +20,9 @@ const {
    setupTwoFactorAuth,
    verifyTwoFactorAuth,
    disableTwoFactorAuth,
+   getTrustedDevices,
+   revokeTrustedDevice,
+   revokeAllTrustedDevices,
    getAddresses,
    addAddress,
    deleteAddress,
@@ -29,7 +32,23 @@ const {
 } = require('../controllers/user');
 
 const { isAuthUser, authRoles } = require('../middleware/auth');
-const { authLimiter, emailLimiter, accountLimiter } = require('../middleware/rateLimiter');
+const { authLimiter, emailLimiter, accountLimiter, otpSendLimiter } = require('../middleware/rateLimiter');
+const {
+   loginMethods,
+   requestEmailCode,
+   verifyEmailCode,
+   verifyMagicLink,
+   requestPhoneOtp,
+   verifyPhoneOtp,
+} = require('../controllers/passwordless');
+const {
+   listPasskeys,
+   passkeyRegisterOptions,
+   passkeyRegisterVerify,
+   deletePasskey,
+   passkeyLoginOptions,
+   passkeyLoginVerify,
+} = require('../controllers/passkey');
 const demoGuard = require('../middleware/demoGuard');
 const multer = require('multer');
 const { contactUs } = require('../controllers/contact');
@@ -53,11 +72,30 @@ const upload = multer({
     limits: { fileSize: 5 * 1024 * 1024 }
 });
 
+const { requireFeature } = require('../services/featureFlags');
 const router = express.Router();
 
 router.route('/register').post(authLimiter, upload.single('image'), registerUser);
 
 router.route('/login').post(authLimiter, loginUser);
+
+// Passwordless sign-in (existing accounts). All end in the same 2FA step.
+router.route('/login/methods').get(loginMethods);
+const passwordless = requireFeature('passwordlessLogin');
+const passkeys = requireFeature('passkeys');
+router.route('/login/email-code').post(passwordless, otpSendLimiter, requestEmailCode);
+router.route('/login/email-code/verify').post(passwordless, authLimiter, verifyEmailCode);
+router.route('/login/magic').post(passwordless, authLimiter, verifyMagicLink);
+router.route('/login/phone-otp').post(passwordless, otpSendLimiter, requestPhoneOtp);
+router.route('/login/phone-otp/verify').post(passwordless, authLimiter, verifyPhoneOtp);
+router.route('/login/passkey/options').post(passkeys, authLimiter, passkeyLoginOptions);
+router.route('/login/passkey/verify').post(passkeys, authLimiter, passkeyLoginVerify);
+
+// Passkey management (signed in)
+router.route('/passkeys').get(isAuthUser, listPasskeys);
+router.route('/passkeys/register/options').post(isAuthUser, passkeys, demoGuard('manage-passkeys'), accountLimiter, passkeyRegisterOptions);
+router.route('/passkeys/register/verify').post(isAuthUser, passkeys, demoGuard('manage-passkeys'), accountLimiter, passkeyRegisterVerify);
+router.route('/passkeys/:id').delete(isAuthUser, demoGuard('manage-passkeys'), deletePasskey);
 
 router.route("/verify-email/:token").get(authLimiter, verifyEmail);
 
@@ -72,6 +110,11 @@ router.route('/login/2fa/enroll').post(authLimiter, verifyAdminTwoFactorEnrollme
 router.route('/2fa/setup').get(isAuthUser, demoGuard('manage-2fa'), setupTwoFactorAuth);    // begin setup → returns QR
 router.route('/2fa/verify').post(isAuthUser, demoGuard('manage-2fa'), accountLimiter, verifyTwoFactorAuth); // confirm setup → enables 2FA
 router.route('/2fa/disable').post(isAuthUser, demoGuard('manage-2fa'), accountLimiter, disableTwoFactorAuth);
+// Devices where the user chose "don't ask for a code on this device".
+router.route('/2fa/trusted-devices')
+    .get(isAuthUser, getTrustedDevices)
+    .delete(isAuthUser, accountLimiter, revokeAllTrustedDevices);
+router.route('/2fa/trusted-devices/:id').delete(isAuthUser, accountLimiter, revokeTrustedDevice);
 
 router.route('/password/forgot').post(authLimiter, forgotPassword);
 
@@ -101,10 +144,10 @@ router
 
 router.route('/contact-us').post(emailLimiter, contactUs);
 
-router.route('/subscribe').post(emailLimiter, subscriber);
+router.route('/subscribe').post(requireFeature('newsletter'), emailLimiter, subscriber);
 router.route('/unsubscribe/:token').get(unsubscribe);
 
-router.route('/auth/google').post(authLimiter, googleLogin);
+router.route('/auth/google').post(requireFeature('googleLogin'), authLimiter, googleLogin);
 
 router.route('/demo/quick-login').get(accountLimiter, demoQuickLogin);
 

@@ -26,11 +26,7 @@ const UpdatePassword = () => {
 
     const updatePasswordSubmit = e => {
         e.preventDefault();
-        const myForm = new FormData();
-        myForm.set('oldPassword', oldPassword);
-        myForm.set('newPassword', newPassword);
-        myForm.set('confirmPassword', confirmPassword);
-        dispatch(updatePassword(myForm));
+        dispatch(updatePassword({ oldPassword, newPassword, confirmPassword }));
         setProgress(50);
     };
 

@@ -24,10 +24,9 @@ const ResetPassword = () => {
 
     const resetPasswordSubmit = e => {
         e.preventDefault();
-        const myForm = new FormData();
-        myForm.set('password', password);
-        myForm.set('confirmPassword', confirmPassword);
-        dispatch(resetPassword(token, myForm));
+        // Plain object → sent as JSON. FormData would go out as multipart,
+        // which express.json() doesn't parse, leaving req.body undefined.
+        dispatch(resetPassword(token, { password, confirmPassword }));
         setProgress(50);
     };
 

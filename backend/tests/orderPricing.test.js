@@ -72,3 +72,30 @@ test('no coupon code means no coupon lookup at all', async () => {
     assert.equal(looked, false);
     assert.equal(result.discount, 0);
 });
+
+// Regression: product image ids are strings (generateId), but order line
+// images are subdocuments with ObjectId _ids. Copying the product image
+// objects made every Order.create fail validation ("Could not place the order").
+test('priced order items carry image URLs only, and pass Order validation', async () => {
+    useCatalogue();
+    const Order = require('../models/order');
+    const productsWithStringImageIds = catalogue.map(p => ({ ...p, images: [{ _id: 'img12345', url: `https://cdn.example/${p._id}.jpg` }] }));
+    s.set(Product, 'find', async query => productsWithStringImageIds.filter(p => query._id.$in.includes(p._id)));
+
+    const pricing = await priceOrder([{ product: 'lamp', quantity: 1 }]);
+    assert.deepEqual(pricing.orderItems[0].images, [{ url: 'https://cdn.example/lamp.jpg' }]);
+
+    const order = new Order({
+        _id: 'o1',
+        shippingInfo: { address: 'a', city: 'c', state: 's', country: 'IN', pinCode: 641018, phoneNumber: 9876543210 },
+        orderItems: pricing.orderItems,
+        user: 'u1',
+        paymentInfo: { id: 'cf1', status: 'PAID', provider: 'cashfree' },
+        paidAt: new Date(),
+        itemsPrice: pricing.itemsPrice,
+        taxPrice: 0,
+        shippingPrice: pricing.shippingPrice,
+        totalPrice: pricing.totalPrice,
+    });
+    assert.equal(order.validateSync(), undefined);
+});

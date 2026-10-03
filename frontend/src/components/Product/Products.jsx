@@ -4,6 +4,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import LoadingBar from 'react-top-loading-bar';
+import Loader from '../layout/Loader/Loader';
 
 import { clearErrors, getProduct } from '../../actions/productAction';
 import ProductCard from '../Home/ProductCard';
@@ -66,7 +67,10 @@ const Products = () => {
     return (
         <Fragment>
             {loading ? (
-                <LoadingBar color='#A07C4B' progress={progress} onLoaderFinished={onLoaderFinished} />
+                <Fragment>
+                    <LoadingBar color='#A07C4B' progress={progress} onLoaderFinished={onLoaderFinished} />
+                    <Loader label='Gathering the collection' />
+                </Fragment>
             ) : (
                 <Fragment>
                     <MetaData title='Shop · Maison' />

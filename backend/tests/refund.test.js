@@ -7,6 +7,8 @@ const Refund = require('../models/refund');
 const Product = require('../models/product');
 const cache = require('../utils/cache');
 const { updateRefundStatus } = require('../controllers/refund');
+const invoiceService = require('../services/invoiceService');
+const inventory = require('../services/inventoryService');
 
 const s = stubs();
 afterEach(() => s.restore());
@@ -32,6 +34,10 @@ function setup(orderOverrides = {}) {
     s.set(Refund, 'findById', async () => refund);
     s.set(Product, 'bulkWrite', async ops => { bulkWrites.push(ops); });
     s.set(cache, 'del', async () => {});
+    s.set(inventory, 'afterStockIncrease', () => {});
+    const creditNotes = [];
+    s.set(invoiceService, 'setOrderInvoiceStatus', async () => true);
+    s.set(invoiceService, 'issueCreditNoteInBackground', (o, r, opts) => creditNotes.push([o._id, r._id, opts]));
 
     const call = async status => {
         const res = mockRes();
@@ -41,7 +47,7 @@ function setup(orderOverrides = {}) {
         );
         return res;
     };
-    return { order, bulkWrites, call };
+    return { order, bulkWrites, call, creditNotes };
 }
 
 test('a completed refund puts every item back into stock', async () => {
@@ -73,4 +79,12 @@ test('a completed refund cannot be moved back to another status', async () => {
     const { call } = setup({ isRefunded: true, stockRestoredAt: new Date() });
     const res = await call('Rejected');
     assert.equal(res.statusCode, 409);
+});
+
+test('a completed refund issues one credit note', async () => {
+    const { call, creditNotes } = setup();
+    await call('Approved');
+    assert.equal(creditNotes.length, 0);
+    await call('Refunded');
+    assert.deepEqual(creditNotes, [['o1', 'r1', { refundMethod: 'original' }]]);
 });

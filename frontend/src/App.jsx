@@ -4,7 +4,6 @@
 import { Fragment, Suspense, lazy, useEffect } from "react";
 import { useSelector } from "react-redux";
 import { Route, Routes, useLocation } from "react-router-dom";
-import WebFont from "webfontloader";
 
 import { loadUser } from "./actions/userAction";
 import Home from "./components/Home/Home";
@@ -19,6 +18,8 @@ import Loader from "./components/layout/Loader/Loader";
 import ProtectedAdminRoute from "./components/route/ProtectedAdminRoute";
 import TwoFactorLogin from "./components/User/TwoFactorLogin";
 import DemoBanner from "./components/layout/DemoBanner";
+import CookieConsent from "./components/layout/CookieConsent";
+import { trackPageView } from "./utils/analytics";
 
 /* Route-level code splitting.
    Home, the headers, the footer and the waker stay eager because they are
@@ -63,15 +64,24 @@ const LoginAndRegister = lazy(
   () => import("./components/User/LoginAndRegister"),
 );
 const Profile = lazy(() => import("./components/User/Profile"));
+const StoreCredit = lazy(() => import("./components/User/StoreCredit"));
 const ResetPassword = lazy(() => import("./components/User/ResetPassword"));
 const UpdatePassword = lazy(() => import("./components/User/UpdatePassword"));
 const UpdateProfile = lazy(() => import("./components/User/UpdateProfile"));
 const Membership = lazy(() => import("./components/User/Membership"));
 const VerifyEmail = lazy(() => import("./components/User/VerifyEmail"));
+const MagicLinkLogin = lazy(() => import("./components/User/MagicLinkLogin"));
+const PrivacyPolicy = lazy(() => import("./components/layout/Legal/PrivacyPolicy"));
+const TermsAndConditions = lazy(() => import("./components/layout/Legal/TermsAndConditions"));
 const MembershipAnalytics = lazy(() => import("./components/Admin/MembershipAnalytics"));
+const FeatureFlags = lazy(() => import("./components/Admin/FeatureFlags"));
+const AuditLog = lazy(() => import("./components/Admin/AuditLog"));
+const CartRecovery = lazy(() => import("./components/Admin/CartRecovery"));
+const Inventory = lazy(() => import("./components/Admin/Inventory"));
+const VerifyInvoice = lazy(() => import("./components/Invoice/VerifyInvoice"));
 
 function App() {
-  const { isAuthenticated } = useSelector((state) => state.user);
+  const { isAuthenticated, authChecked } = useSelector((state) => state.user);
   // const [stripeApiKey, setStripeApiKey] = useState('');
 
   const location = useLocation();
@@ -89,16 +99,14 @@ function App() {
     //     }
     // }
 
-    WebFont.load({
-      google: {
-        families: ["Roboto", "Droid Sans", "Chilanka"],
-      },
-    });
     store.dispatch(loadUser());
     // getStripeApiKey();
   }, []);
 
-  window.addEventListener("contextmenu", (e) => e.preventDefault());
+  // SPA page views for analytics (no-op until the visitor consents).
+  useEffect(() => {
+    trackPageView(location.pathname + location.search);
+  }, [location.pathname, location.search]);
 
   return (
     <Fragment>
@@ -124,11 +132,16 @@ function App() {
               <Route path="/about" element={<About />} exact />
               <Route path="/contact-us" element={<Contact />} exact />
               <Route path="/cart" element={<Cart />} exact />
+              <Route path="/privacy" element={<PrivacyPolicy />} />
+              <Route path="/terms" element={<TermsAndConditions />} />
 
               {/* Auth Routes */}
               <Route path="/login" element={<LoginAndRegister />} exact />
               <Route path="/login/2fa" element={<TwoFactorLogin />} />
+              <Route path="/login/magic/:token" element={<MagicLinkLogin />} />
               <Route path="/verify-email/:token" element={<VerifyEmail />} />
+              <Route path="/verify" element={<VerifyInvoice />} />
+              <Route path="/verify/:ref" element={<VerifyInvoice />} />
               <Route
                 path="/password/forgot"
                 element={<ForgotPassword />}
@@ -146,6 +159,9 @@ function App() {
               )}
               {isAuthenticated && (
                 <Route path="/membership" element={<Membership />} exact />
+              )}
+              {isAuthenticated && (
+                <Route path="/account/store-credit" element={<StoreCredit />} exact />
               )}
               {isAuthenticated && (
                 <Route path="/account/addresses" element={<AddressBook />} exact />
@@ -198,6 +214,42 @@ function App() {
                 element={
                   <ProtectedAdminRoute>
                     <Dashboard />
+                  </ProtectedAdminRoute>
+                }
+                exact
+              />
+              <Route
+                path="/admin/inventory"
+                element={
+                  <ProtectedAdminRoute>
+                    <Inventory />
+                  </ProtectedAdminRoute>
+                }
+                exact
+              />
+              <Route
+                path="/admin/cart-recovery"
+                element={
+                  <ProtectedAdminRoute>
+                    <CartRecovery />
+                  </ProtectedAdminRoute>
+                }
+                exact
+              />
+              <Route
+                path="/admin/audit-log"
+                element={
+                  <ProtectedAdminRoute>
+                    <AuditLog />
+                  </ProtectedAdminRoute>
+                }
+                exact
+              />
+              <Route
+                path="/admin/features"
+                element={
+                  <ProtectedAdminRoute>
+                    <FeatureFlags />
                   </ProtectedAdminRoute>
                 }
                 exact
@@ -312,12 +364,15 @@ function App() {
               />
 
               {/* Catch-all Not Found Route - MUST BE LAST */}
-              <Route path="*" element={<NotFound />} />
+              {/* Signed-in pages only exist once the session check finishes;
+                  until then show a loader, not "page not found". */}
+              <Route path="*" element={authChecked ? <NotFound /> : <Loader />} />
             </Routes>
           </Suspense>
         </ErrorBoundary>
 
         {!isAdminRoute && <Footer />}
+        {!isAdminRoute && <CookieConsent />}
       </BackendWaker>
     </Fragment>
   );

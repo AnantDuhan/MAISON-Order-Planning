@@ -94,7 +94,24 @@ const userSchema = new mongoose.Schema({
         enabled: {
             type: Boolean,
             default: false,
-        }
+        },
+        // Browsers where the user chose "don't ask for a code on this device".
+        // Only a SHA-256 hash of each device secret is stored; the secret
+        // itself lives in an httpOnly cookie (utils/trustedDevice.js).
+        trustedDevices: {
+            type: [
+                {
+                    _id: String,
+                    tokenHash: String,
+                    label: String,
+                    createdAt: Date,
+                    lastUsedAt: Date,
+                    expiresAt: Date,
+                },
+            ],
+            select: false,
+            default: undefined,
+        },
     },
     role: {
         type: String,
@@ -150,11 +167,44 @@ const userSchema = new mongoose.Schema({
         type: Date,
         select: false
     },
+    // Opted out of abandoned-cart reminder emails (one-click link in the email).
+    cartRemindersOptOut: {
+        type: Boolean,
+        default: false
+    },
     isEmailVerified: {
         type: Boolean,
         default: false
     },
+    // Set once the user has signed in with an SMS code sent to whatsappNumber.
+    isPhoneVerified: {
+        type: Boolean,
+        default: false
+    },
+
+    // WebAuthn passkeys. _id is the credential ID (base64url); publicKey is
+    // base64url of the COSE public key. select:false keeps them out of /me.
+    passkeys: {
+        type: [
+            {
+                _id: String,
+                publicKey: { type: String, required: true },
+                counter: { type: Number, default: 0 },
+                transports: { type: [String], default: [] },
+                deviceType: String,     // 'singleDevice' | 'multiDevice'
+                backedUp: Boolean,      // synced via iCloud/Google Password Manager
+                name: { type: String, default: 'Passkey', maxLength: 60 },
+                createdAt: { type: Date, default: Date.now },
+                lastUsedAt: Date
+            }
+        ],
+        default: [],
+        select: false
+    },
 });
+
+// Passkey login looks users up by credential ID.
+userSchema.index({ 'passkeys._id': 1 }, { sparse: true });
 
 // Never serialise secrets, even when a query explicitly selected them.
 userSchema.set('toJSON', {
@@ -165,9 +215,11 @@ userSchema.set('toJSON', {
         delete ret.emailVerificationToken;
         delete ret.emailVerificationExpire;
         delete ret.passwordChangedAt;
+        delete ret.passkeys;
         if (ret.twoFactorAuth) {
             delete ret.twoFactorAuth.secret;
             delete ret.twoFactorAuth.tempSecret;
+            delete ret.twoFactorAuth.trustedDevices;
         }
         return ret;
     }

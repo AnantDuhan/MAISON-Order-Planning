@@ -3,6 +3,7 @@ import { toast } from 'react-toastify';
 import axios from 'axios';
 
 import MetaData from '../layout/MetaData';
+import { useFeature } from '../../context/FeatureFlagsContext';
 
 const cashfree = window.Cashfree
     ? window.Cashfree({ mode: import.meta.env.REACT_APP_CASHFREE_MODE || 'sandbox' })
@@ -12,6 +13,7 @@ const Membership = () => {
     const [plans, setPlans] = useState([]);
     const [membership, setMembership] = useState(null);
     const [loading, setLoading] = useState(false);
+    const [invoices, setInvoices] = useState([]);
 
     useEffect(() => {
         axios.get('/api/v1/membership/plans').then(({ data }) => setPlans(data.plans)).catch(error => {
@@ -32,7 +34,13 @@ const Membership = () => {
                 .then(({ data }) => setMembership(data.membership))
                 .catch(() => {});
         }
+
+        axios.get('/api/v1/invoices/me', { params: { type: 'membership' } })
+            .then(({ data }) => setInvoices(data.invoices || []))
+            .catch(() => {});
     }, []);
+
+    const membershipsOn = useFeature('memberships');
 
     const startMembership = async interval => {
         setLoading(true);
@@ -135,6 +143,37 @@ const Membership = () => {
                         )}
                     </div>
                 )}
+                {invoices.length > 0 && (
+                    <div className='mt-12 border border-line bg-surface p-8'>
+                        <p className='eyebrow'>Billing history</p>
+                        <ul className='mt-5 divide-y divide-line'>
+                            {invoices.map(invoice => (
+                                <li key={invoice._id} className='flex flex-wrap items-center justify-between gap-3 py-4'>
+                                    <div>
+                                        <p className='font-display text-lg text-ink'>{invoice.invoiceNumber}</p>
+                                        <p className='font-sans text-xs text-ink-soft'>
+                                            {new Date(invoice.issuedAt).toLocaleDateString(undefined, {
+                                                day: 'numeric',
+                                                month: 'short',
+                                                year: 'numeric',
+                                            })}
+                                        </p>
+                                    </div>
+                                    <div className='flex items-center gap-6'>
+                                        <span className='font-display text-lg text-ink'>₹{invoice.total}</span>
+                                        <a
+                                            href={`/api/v1/invoice/${invoice._id}/download`}
+                                            download
+                                            className='font-sans text-[0.68rem] uppercase tracking-luxe text-brass transition-opacity hover:opacity-70'
+                                        >
+                                            Download ↓
+                                        </a>
+                                    </div>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
                 {(!membership || (!isMember && !isAuthorizationPending)) && (
                     <div className='mt-12 grid gap-6 md:grid-cols-2'>
                         {plans.map(plan => (
@@ -143,7 +182,7 @@ const Membership = () => {
                                 <h2 className='mt-4 font-display text-3xl text-ink'>{plan.name}</h2>
                                 <p className='mt-6 font-display text-4xl text-ink'>₹{plan.amount}</p>
                                 <p className='mt-2 font-sans text-sm text-ink-soft'>Billed {plan.interval}ly</p>
-                                <button disabled={loading} onClick={() => startMembership(plan.interval)} className='btn-solid mt-8 w-full disabled:opacity-40'>
+                                <button disabled={loading || !membershipsOn} onClick={() => startMembership(plan.interval)} className='btn-solid mt-8 w-full disabled:opacity-40'>
                                     Authorize Membership
                                 </button>
                             </div>

@@ -40,9 +40,24 @@ const productSchema = mongoose.Schema({
         type: String,
         required: [true, 'Please Enter product category']
     },
+    // Units available to sell right now. Checkout holds and placed orders are
+    // already subtracted (see services/inventoryService.js).
     Stock: {
         type: Number,
         required: [true, 'Please Enter product stock']
+    },
+    // Alert admins when Stock falls to or below this. null = use the default
+    // (LOW_STOCK_THRESHOLD env, else 5).
+    lowStockThreshold: {
+        type: Number,
+        default: null,
+        min: 0
+    },
+    // Set when a low-stock alert has gone out; cleared when restocked above the
+    // threshold, so each dip alerts once.
+    lowStockAlertedAt: {
+        type: Date,
+        default: null
     },
     numOfReviews: {
         type: Number,

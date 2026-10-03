@@ -44,7 +44,7 @@ exports.syncCart = async (req, res) => {
                 },
                 $setOnInsert: { _id: generateId(), user: req.user._id }
             },
-            { upsert: true, new: true }
+            { upsert: true, returnDocument: 'after' }
         );
 
         res.status(200).json({
@@ -59,4 +59,37 @@ exports.syncCart = async (req, res) => {
             error: error.message
         });
     }
+};
+
+// ---- Abandoned-cart links (public, signed) ------------------------------------
+const cartRecovery = require('../services/cartRecoveryService');
+
+const page = (title, body) => `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><title>${title}</title>
+<style>body{margin:0;background:#F7F4EF;font-family:Helvetica,Arial,sans-serif;color:#1A1816;display:flex;min-height:100vh;align-items:center;justify-content:center;text-align:center}
+h1{font-family:Georgia,serif;font-weight:500;font-size:28px;margin:0 0 12px}p{color:#4A453F;font-size:15px;line-height:1.7;margin:0 0 20px}a{color:#A07C4B;text-decoration:none;font-size:12px;letter-spacing:2px;text-transform:uppercase}</style></head>
+<body><div style="max-width:420px;padding:24px">${body}</div></body></html>`;
+
+// GET /api/v1/cart/recover/:token  -> records the click, then the cart page
+exports.recoverCart = async (req, res) => {
+    const target = await cartRecovery.recordClick(req.params.token);
+    res.redirect(302, target);
+};
+
+// GET /api/v1/cart/reminders/unsubscribe/:token
+exports.unsubscribeCartReminders = async (req, res) => {
+    const ok = await cartRecovery.optOut(req.params.token);
+    const home = (process.env.FRONTEND_URL || '/').replace(/\/+$/, '') || '/';
+    res.status(ok ? 200 : 400).type('html').send(ok
+        ? page('Unsubscribed', `<h1>Done</h1><p>You won't get reminders about items left in your bag. Order and account emails are not affected.</p><a href="${home}">Back to MAISON</a>`)
+        : page('Link not valid', `<h1>This link isn't valid</h1><p>It may have been copied incompletely.</p><a href="${home}">Back to MAISON</a>`));
+};
+
+// GET /api/v1/admin/cart-recovery?days=30
+exports.cartRecoveryStats = async (req, res) => {
+    if (req.user?.isDemo) {
+        return res.status(200).json({ success: true, demoMode: true, stats: { days: 30, emailed: 0, clicked: 0, recovered: 0, recoveredRevenue: 0, clickRate: 0, recoveryRate: 0, abandonedNow: 0, recent: [] } });
+    }
+    const days = Math.min(Math.max(Number(req.query.days) || 30, 1), 365);
+    const stats = await cartRecovery.recoveryStats({ days });
+    res.status(200).json({ success: true, stats });
 };

@@ -68,4 +68,34 @@ const accountLimiter = rateLimit({
     store: makeStore('rl:account:'),
 });
 
-module.exports = { apiLimiter, authLimiter, emailLimiter, accountLimiter };
+// Sending a sign-in code (email or SMS). SMS costs money per message, so this
+// is tighter than authLimiter; the controller also enforces a 30s cooldown
+// per email/number.
+const otpSendLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: 5,
+    standardHeaders: 'draft-7',
+    legacyHeaders: false,
+    handler: json429('Too many codes requested - please wait a few minutes and try again.'),
+    store: makeStore('rl:otp:'),
+});
+
+// Public invoice verification: anyone can call it, so keep it tight per IP to
+// make brute-forcing verification codes pointless.
+const invoiceVerifyLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: 30,
+    standardHeaders: 'draft-7',
+    legacyHeaders: false,
+    handler: json429('Too many verification attempts. Please try again in a few minutes.'),
+    store: makeStore('rl:invoice-verify:'),
+});
+
+module.exports = {
+    apiLimiter,
+    authLimiter,
+    emailLimiter,
+    accountLimiter,
+    otpSendLimiter,
+    invoiceVerifyLimiter,
+};
