@@ -77,7 +77,10 @@ async function priceOrder(requestedItems, couponCode, { checkStock = true } = {}
             name: product.name,
             price: product.price,
             quantity,
-            images: product.images,
+            // Only the URL: product image ids are strings, while order line
+            // images are subdocuments with their own ObjectId — copying the
+            // product's _id made Order validation fail.
+            images: (product.images || []).map(image => ({ url: image.url })),
         });
     }
 
