@@ -26,6 +26,7 @@ import {
 } from '../../actions/orderAction';
 import MetaData from '../layout/MetaData';
 import ShipmentPanel, { ShipFields } from './ShipmentPanel';
+import OrderItemsList from '../Order/OrderItemsList';
 import { EntityHistory } from './AuditLog';
 
 const refundOptions = ['Initiated', 'Pending', 'Approved', 'Rejected', 'Refunded'];
@@ -177,34 +178,8 @@ const ProcessOrder = () => {
                             {/* Items + processing form */}
                             <div>
                                 <p className='eyebrow'>Order Items</p>
-                                <div className='mt-5 divide-y divide-line border border-line bg-surface'>
-                                    {order.orderItems &&
-                                        order.orderItems.map(item => (
-                                            <div key={item.product} className='flex flex-col gap-5 p-6 sm:flex-row'>
-                                                <div className='w-full shrink-0 overflow-hidden border border-line bg-surface-2 sm:w-32'>
-                                                    <img
-                                                        src={item.images?.[0]?.url || item.image}
-                                                        alt='Product'
-                                                        className='aspect-square w-full object-cover'
-                                                    />
-                                                </div>
-                                                <div className='flex flex-1 flex-col justify-center'>
-                                                    <Link
-                                                        to={`/product/${item.product}`}
-                                                        className='font-display text-xl font-medium text-ink hover:text-brass'
-                                                    >
-                                                        {item.name}
-                                                    </Link>
-                                                    <div className='mt-3 space-y-1 font-sans text-sm text-ink-soft'>
-                                                        <p>Quantity: {item.quantity}</p>
-                                                        <p>Price: ₹{item.price}</p>
-                                                        <p className='text-ink'>
-                                                            Total: <b>₹{item.price * item.quantity}</b>
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        ))}
+                                <div className='mt-5'>
+                                    <OrderItemsList items={order.orderItems} />
                                 </div>
 
                                 {!isDelivered && (
