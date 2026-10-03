@@ -6,6 +6,7 @@ dotenv.config({ path: require('path').join(__dirname, '../config/config.env'), q
 const Product = require('../models/product');
 const User = require('../models/user');
 const generateId = require('../utils/generateId');
+const { placeholderImageUrl } = require('../utils/placeholderImage');
 
 // ---- config (override via env) --------------------------------------------
 const TOTAL = Number(process.env.SEED_COUNT) || 1000;
@@ -122,9 +123,9 @@ function buildImages(id, keyword) {
     const base = seedNum(id);
     return Array.from({ length: count }, (_, i) => ({
         _id: generateId(),
-        // LoremFlickr returns a real photo matching the keyword(s); `lock`
-        // keeps the image stable across runs and varies it per image index.
-        url: `https://loremflickr.com/600/600/${keyword}?lock=${base + i}`,
+        // Stable placeholder photo per product and image index
+        // (LoremFlickr now rejects hotlinking with 401).
+        url: placeholderImageUrl(`${keyword}-${base + i}`),
     }));
 }
 
