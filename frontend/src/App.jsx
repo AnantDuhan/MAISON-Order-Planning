@@ -80,7 +80,7 @@ const Inventory = lazy(() => import("./components/Admin/Inventory"));
 const VerifyInvoice = lazy(() => import("./components/Invoice/VerifyInvoice"));
 
 function App() {
-  const { isAuthenticated } = useSelector((state) => state.user);
+  const { isAuthenticated, authChecked } = useSelector((state) => state.user);
   // const [stripeApiKey, setStripeApiKey] = useState('');
 
   const location = useLocation();
@@ -354,7 +354,9 @@ function App() {
               />
 
               {/* Catch-all Not Found Route - MUST BE LAST */}
-              <Route path="*" element={<NotFound />} />
+              {/* Signed-in pages only exist once the session check finishes;
+                  until then show a loader, not "page not found". */}
+              <Route path="*" element={authChecked ? <NotFound /> : <Loader />} />
             </Routes>
           </Suspense>
         </ErrorBoundary>

@@ -10,6 +10,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import LoadingBar from 'react-top-loading-bar';
 import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
+import RememberMeToggle from './RememberMeToggle';
 import axios from 'axios';
 
 import FingerprintIcon from '@mui/icons-material/Fingerprint';
@@ -244,9 +245,12 @@ const LoginAndRegister = () => {
                                             {showLoginPassword ? <VisibilityIcon fontSize='small' /> : <VisibilityOffIcon fontSize='small' />}
                                         </span>
                                     </div>
-                                    <Link to='/password/forgot' className='self-end font-sans text-[0.7rem] uppercase tracking-luxe text-ink-soft hover:text-brass'>
-                                        Forgot Password?
-                                    </Link>
+                                    <div className='flex flex-wrap items-center justify-between gap-3'>
+                                        <RememberMeToggle />
+                                        <Link to='/password/forgot' className='font-sans text-[0.7rem] uppercase tracking-luxe text-ink-soft hover:text-brass'>
+                                            Forgot Password?
+                                        </Link>
+                                    </div>
 
                                     {unverifiedEmail && (
                                         <div className='border border-amber-500/40 bg-amber-50 p-4 text-sm text-amber-900'>
@@ -299,7 +303,12 @@ const LoginAndRegister = () => {
                                 </form>
                                     )}
 
-                                    {method !== 'password' && <PasswordlessLogin key={method} channel={method} />}
+                                    {method !== 'password' && (
+                                        <>
+                                            <PasswordlessLogin key={method} channel={method} />
+                                            <RememberMeToggle className='mt-4' />
+                                        </>
+                                    )}
 
                                     <div className='mt-6 flex justify-center'>
                                         <TryDemoButton />

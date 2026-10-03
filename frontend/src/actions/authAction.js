@@ -1,3 +1,4 @@
+import { getRememberMe } from '../utils/rememberMe';
 import axios from 'axios';
 import { browserSupportsWebAuthn, startAuthentication, startRegistration } from '@simplewebauthn/browser';
 
@@ -56,8 +57,8 @@ export const verifyLoginCode = (channel, identifier, code) => async dispatch => 
         dispatch({ type: LOGIN_REQUEST });
         const { data } =
             channel === 'email'
-                ? await axios.post('/api/v1/login/email-code/verify', { email: identifier, code })
-                : await axios.post('/api/v1/login/phone-otp/verify', { phone: identifier, code });
+                ? await axios.post('/api/v1/login/email-code/verify', { email: identifier, code, rememberMe: getRememberMe() })
+                : await axios.post('/api/v1/login/phone-otp/verify', { phone: identifier, code, rememberMe: getRememberMe() });
         return finishLogin(dispatch, data);
     } catch (error) {
         dispatch({ type: LOGIN_FAIL, payload: errorMessage(error, 'Sign-in failed. Please try again.') });
@@ -68,7 +69,7 @@ export const verifyLoginCode = (channel, identifier, code) => async dispatch => 
 export const loginWithMagicLink = token => async dispatch => {
     try {
         dispatch({ type: LOGIN_REQUEST });
-        const { data } = await axios.post('/api/v1/login/magic', { token });
+        const { data } = await axios.post('/api/v1/login/magic', { token, rememberMe: getRememberMe() });
         return finishLogin(dispatch, data);
     } catch (error) {
         dispatch({ type: LOGIN_FAIL, payload: errorMessage(error, 'This sign-in link is invalid or has expired.') });
@@ -84,6 +85,7 @@ export const loginWithPasskey = () => async dispatch => {
         const { data } = await axios.post('/api/v1/login/passkey/verify', {
             response,
             challengeToken: start.challengeToken,
+            rememberMe: getRememberMe(),
         });
         return finishLogin(dispatch, data);
     } catch (error) {
