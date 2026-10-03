@@ -94,7 +94,24 @@ const userSchema = new mongoose.Schema({
         enabled: {
             type: Boolean,
             default: false,
-        }
+        },
+        // Browsers where the user chose "don't ask for a code on this device".
+        // Only a SHA-256 hash of each device secret is stored; the secret
+        // itself lives in an httpOnly cookie (utils/trustedDevice.js).
+        trustedDevices: {
+            type: [
+                {
+                    _id: String,
+                    tokenHash: String,
+                    label: String,
+                    createdAt: Date,
+                    lastUsedAt: Date,
+                    expiresAt: Date,
+                },
+            ],
+            select: false,
+            default: undefined,
+        },
     },
     role: {
         type: String,
@@ -202,6 +219,7 @@ userSchema.set('toJSON', {
         if (ret.twoFactorAuth) {
             delete ret.twoFactorAuth.secret;
             delete ret.twoFactorAuth.tempSecret;
+            delete ret.twoFactorAuth.trustedDevices;
         }
         return ret;
     }

@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const { isTrustedDevice } = require('./trustedDevice');
 
 /**
  * One place that decides how a successful sign-in ends. Every login method
@@ -34,13 +35,17 @@ const issueSession = (user, res, statusCode = 200, mfaVerified = false) => {
  * token for the existing /login/2fa step (TOTP) when the account requires it.
  * `strongFactor` = the first factor already counts as MFA (a user-verified
  * passkey), so TOTP is skipped and admin sessions are marked mfaVerified.
- * `user` must have twoFactorAuth.enabled selected.
+ * `user` must have twoFactorAuth.enabled selected. Pass `req` so a device the
+ * user chose to trust ("don't ask again on this device") can skip TOTP.
  */
-const completeLogin = (user, res, { strongFactor = false } = {}) => {
+const completeLogin = async (user, res, { strongFactor = false, req } = {}) => {
     if (strongFactor) return issueSession(user, res, 200, true);
 
     if (!user.isDemo) {
         const enrollmentRequired = user.role === 'admin' && !user.twoFactorAuth?.enabled;
+        if (user.twoFactorAuth?.enabled && req && await isTrustedDevice(user, req)) {
+            return issueSession(user, res, 200, true);
+        }
         if (user.twoFactorAuth?.enabled || enrollmentRequired) {
             return res.status(200).json({
                 success: true,

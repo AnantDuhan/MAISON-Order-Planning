@@ -167,7 +167,7 @@ exports.verifyEmailCode = async (req, res) => {
             await User.updateOne({ _id: result.user._id }, { isEmailVerified: true });
         }
         await LoginCode.deleteMany({ channel: 'email', target: email });
-        return completeLogin(result.user, res);
+        return completeLogin(result.user, res, { req });
     } catch (error) {
         console.error('✉️ Email code verify error:', error);
         return res.status(500).json({ success: false, message: 'Sign-in failed. Please try again.' });
@@ -203,7 +203,7 @@ exports.verifyMagicLink = async (req, res) => {
             await User.updateOne({ _id: user._id }, { isEmailVerified: true });
         }
         await LoginCode.deleteMany({ channel: 'email', target: record.target });
-        return completeLogin(user, res);
+        return completeLogin(user, res, { req });
     } catch (error) {
         console.error('✉️ Magic link error:', error);
         return res.status(500).json({ success: false, message: 'Sign-in failed. Please try again.' });
@@ -269,7 +269,7 @@ exports.verifyPhoneOtp = async (req, res) => {
             await User.updateOne({ _id: result.user._id }, { isPhoneVerified: true });
         }
         await LoginCode.deleteMany({ channel: 'phone', target: national });
-        return completeLogin(result.user, res);
+        return completeLogin(result.user, res, { req });
     } catch (error) {
         console.error('📱 Phone OTP verify error:', error);
         return res.status(500).json({ success: false, message: 'Sign-in failed. Please try again.' });
