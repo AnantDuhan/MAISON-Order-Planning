@@ -65,7 +65,7 @@ const sendVerificationEmail = async user => {
     });
 };
 
-const { createTwoFactorPendingToken, issueSession } = require('../utils/session');
+const { createTwoFactorPendingToken, issueSession, completeLogin } = require('../utils/session');
 const trustedDevice = require('../utils/trustedDevice');
 
 // register user
@@ -169,62 +169,9 @@ exports.loginUser = async (req, res, next) => {
             });
         }
 
-        // 3. Email verified.
-        // SKIP 2FA ENTIRELY for demo accounts
-        if (!user.isDemo) {
-            // Check 2FA for non-demo users only
-            const enrollmentRequired = user.role === 'admin' && !user.twoFactorAuth.enabled;
-
-            // The user chose "don't ask again on this device" earlier.
-            if (user.twoFactorAuth.enabled && await trustedDevice.isTrustedDevice(user, req)) {
-                return issueSession(user, res, 200, true);
-            }
-
-            if (user.twoFactorAuth.enabled || enrollmentRequired) {
-                const twoFactorToken = createTwoFactorPendingToken(user, enrollmentRequired);
-
-                return res.status(200).json({
-                    success: true,
-                    twoFactorRequired: true,
-                    enrollmentRequired,
-                    twoFactorToken
-                });
-            }
-        }
-
-        // 4. No 2FA required (or demo user) → create normal login session
-        const token = jwt.sign(
-            {
-                id: user._id,
-                name: user.name,
-                email: user.email,
-                avatar: user.avatar,
-                isDemo: user.isDemo,
-                mfaVerified: false,
-            },
-            process.env.JWT_SECRET_KEY,
-            { expiresIn: '90d' }
-        );
-
-        const options = {
-            expires: new Date(
-                Date.now() + 90 * 24 * 60 * 60 * 1000
-            ),
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite:
-                process.env.NODE_ENV === 'production'
-                    ? 'none'
-                    : 'lax'
-        };
-
-        return res.status(200)
-            .cookie('token', token, options)
-            .json({
-                success: true,
-                user
-            });
-
+        // 3. Email verified. 2FA (or a trusted device), then the session —
+        // shared with every other sign-in method, including "Remember me".
+        return completeLogin(user, res, { req });
     } catch (err) {
         console.error('⚠️ Login Error:', err);
 
@@ -792,36 +739,8 @@ exports.googleLogin = async (req, res, next) => {
             });
         }
 
-        const enrollmentRequired = user.role === 'admin' && !user.twoFactorAuth.enabled;
-        if (user.twoFactorAuth.enabled && await trustedDevice.isTrustedDevice(user, req)) {
-            return issueSession(user, res, 200, true);
-        }
-        if (user.twoFactorAuth.enabled || enrollmentRequired) {
-            return res.status(200).json({
-                success: true,
-                twoFactorRequired: true,
-                enrollmentRequired,
-                twoFactorToken: createTwoFactorPendingToken(user, enrollmentRequired),
-            });
-        }
-
-        let token = jwt.sign(
-            { id: user._id, mfaVerified: false },
-            process.env.JWT_SECRET_KEY,
-            { expiresIn: '90d' }
-        );
-
-        const options = {
-            expires: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
-            secure: process.env.NODE_ENV === 'production',
-            httpOnly: true,
-            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
-        };
-
-        res.status(200).cookie('token', token, options).json({
-            success: true,
-            user
-        });
+        // 2FA (or a trusted device), then the session — same as every login.
+        return completeLogin(user, res, { req });
     } catch (error) {
         console.error('🔐 Google login error: ', error.message);
         if (error.code === 11000) {
@@ -1004,7 +923,8 @@ exports.verifyAdminTwoFactorEnrollment = async (req, res) => {
         await trustedDevice.revokeAllTrustedDevices(user._id);
         if (rememberDevice === true) await trustedDevice.trustThisDevice(user, req, res);
         await trustedDevice.revokeAllTrustedDevices(user._id);
-        return issueSession(user, res, 200, true);
+        // "Remember me" was chosen on the sign-in form and carried in the pending token.
+        return issueSession(user, res, 200, true, { remember: decoded.remember !== false });
     } catch (error) {
         return res.status(401).json({ success: false, message: 'Admin enrollment session expired. Please sign in again.' });
     }
@@ -1100,7 +1020,8 @@ exports.verifyLoginOtp = async (req, res) => {
         }
         // The user's choice on the code screen: skip the code on this device next time.
         if (rememberDevice === true) await trustedDevice.trustThisDevice(user, req, res);
-        return issueSession(user, res, 200, true);
+        // "Remember me" was chosen on the sign-in form and carried in the pending token.
+        return issueSession(user, res, 200, true, { remember: decoded.remember !== false });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }

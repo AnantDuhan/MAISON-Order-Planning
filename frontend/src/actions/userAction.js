@@ -56,6 +56,7 @@ import {
     DEMO_LOGIN_REQUEST,
     DEMO_LOGIN_FAIL
 } from '../constants/userConstants';
+import { getRememberMe } from '../utils/rememberMe';
 import axios from 'axios';
 
 // Login
@@ -71,7 +72,7 @@ export const login = (email, password) => async dispatch => {
 
         const { data } = await axios.post(
             '/api/v1/login',
-            { email, password },
+            { email, password, rememberMe: getRememberMe() },
             config
         );
 
@@ -178,14 +179,31 @@ export const register = formData => async dispatch => {
 };
 
 // Load User
+// The backend (Render free tier) sleeps when idle and can take up to a minute
+// to wake. Until now a timed-out /me looked like "not signed in", so returning
+// visitors with a valid session were shown as logged out. Network errors and
+// 5xx (including proxy 502/503/504) are now retried; only a real 401/403
+// means "not signed in".
+const ME_RETRY_DELAYS_MS = [1500, 3000, 5000, 8000, 12000, 15000, 15000];
+const isTransient = error => !error.response || error.response.status >= 500;
+const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+
 export const loadUser = () => async dispatch => {
-    try {
-        dispatch({ type: LOAD_USER_REQUEST });
-
-        const { data } = await axios.get(`/api/v1/me`);
-
-        dispatch({ type: LOAD_USER_SUCCESS, payload: data.user });
-    } catch (error) {
+    dispatch({ type: LOAD_USER_REQUEST });
+    let lastError;
+    for (let attempt = 0; attempt <= ME_RETRY_DELAYS_MS.length; attempt += 1) {
+        try {
+            const { data } = await axios.get(`/api/v1/me`, { timeout: 30000 });
+            dispatch({ type: LOAD_USER_SUCCESS, payload: data.user });
+            return;
+        } catch (error) {
+            lastError = error;
+            if (!isTransient(error) || attempt === ME_RETRY_DELAYS_MS.length) break;
+            await wait(ME_RETRY_DELAYS_MS[attempt]);
+        }
+    }
+    {
+        const error = lastError;
         const status = error.response?.status;
 
         // `/me` is a session probe run when the app starts. A 401/403 simply
@@ -370,7 +388,7 @@ export const loginWithGoogle = (googleToken) => async (dispatch) => {
 
         const { data } = await axios.post(
             `/api/v1/auth/google`,
-            { idToken: googleToken },
+            { idToken: googleToken, rememberMe: getRememberMe() },
             config
         );
 
