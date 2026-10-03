@@ -10,9 +10,14 @@ import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import LoadingBar from 'react-top-loading-bar';
 import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
+import RememberMeToggle from './RememberMeToggle';
 import axios from 'axios';
 
+import FingerprintIcon from '@mui/icons-material/Fingerprint';
+
 import { clearErrors, login, register, loginWithGoogle } from '../../actions/userAction';
+import { getLoginMethods, loginWithPasskey, passkeysSupported } from '../../actions/authAction';
+import PasswordlessLogin from './PasswordlessLogin';
 import ButtonSpinner from '../layout/ButtonSpinner';
 import TryDemoButton from '../layout/TryDemoButton';
 
@@ -31,6 +36,20 @@ const LoginAndRegister = () => {
     } = useSelector(state => state.user);
 
     const [tab, setTab] = useState('login');
+    // How to sign in on the Login tab: 'password' | 'email' | 'phone'
+    const [method, setMethod] = useState('password');
+    const [methods, setMethods] = useState({ phone: false });
+    const [canUsePasskey] = useState(() => passkeysSupported());
+
+    useEffect(() => {
+        getLoginMethods().then(setMethods);
+    }, []);
+
+    const loginMethodTabs = [
+        { id: 'password', label: 'Password' },
+        ...(methods.emailCode !== false ? [{ id: 'email', label: 'Email Code' }] : []),
+        ...(methods.phone ? [{ id: 'phone', label: 'Phone OTP' }] : []),
+    ];
     const [loginIdentifier, setLoginIdentifier] = useState('');
     const [loginPassword, setLoginPassword] = useState('');
     const [showLoginPassword, setShowLoginPassword] = useState(false);
@@ -181,12 +200,33 @@ const LoginAndRegister = () => {
 
                             {/* LOGIN */}
                             {tab === 'login' && (
-                                <form className='flex flex-col gap-6 animate-fade-in' onSubmit={loginSubmit}>
+                                <div className='animate-fade-in'>
+                                    {/* Sign-in method */}
+                                    <div role='tablist' aria-label='Sign-in method' className='mb-6 flex border border-line'>
+                                        {loginMethodTabs.map(m => (
+                                            <button
+                                                key={m.id}
+                                                type='button'
+                                                role='tab'
+                                                aria-selected={method === m.id}
+                                                onClick={() => setMethod(m.id)}
+                                                className={`flex-1 py-2.5 font-sans text-[0.62rem] uppercase tracking-luxe transition-colors ${
+                                                    method === m.id ? 'bg-ink text-canvas' : 'text-ink-soft hover:text-ink'
+                                                }`}
+                                            >
+                                                {m.label}
+                                            </button>
+                                        ))}
+                                    </div>
+
+                                    {method === 'password' && (
+                                <form className='flex flex-col gap-6' onSubmit={loginSubmit}>
                                     <div className='field-row'>
                                         <MailOutlineIcon />
                                         <input
-                                            type='text'
-                                            placeholder='Email or Mobile Number'
+                                            type='email'
+                                            autoComplete='username webauthn'
+                                            placeholder='Email'
                                             required
                                             value={loginIdentifier}
                                             onChange={e => setLoginIdentifier(e.target.value)}
@@ -205,9 +245,12 @@ const LoginAndRegister = () => {
                                             {showLoginPassword ? <VisibilityIcon fontSize='small' /> : <VisibilityOffIcon fontSize='small' />}
                                         </span>
                                     </div>
-                                    <Link to='/password/forgot' className='self-end font-sans text-[0.7rem] uppercase tracking-luxe text-ink-soft hover:text-brass'>
-                                        Forgot Password?
-                                    </Link>
+                                    <div className='flex flex-wrap items-center justify-between gap-3'>
+                                        <RememberMeToggle />
+                                        <Link to='/password/forgot' className='font-sans text-[0.7rem] uppercase tracking-luxe text-ink-soft hover:text-brass'>
+                                            Forgot Password?
+                                        </Link>
+                                    </div>
 
                                     {unverifiedEmail && (
                                         <div className='border border-amber-500/40 bg-amber-50 p-4 text-sm text-amber-900'>
@@ -228,28 +271,63 @@ const LoginAndRegister = () => {
                                         </div>
                                     )}
 
-                                    <button
-                                        type='submit'
-                                        disabled={loading}
-                                        className='btn-solid w-full disabled:opacity-40'
-                                    >
-                                        {loading ? (
-                                            <>
-                                                <ButtonSpinner />
-                                                Signing in…
-                                            </>
-                                        ) : (
-                                            'Login'
+                                    <div className='flex gap-3'>
+                                        <button
+                                            type='submit'
+                                            disabled={loading}
+                                            className='btn-solid h-14 flex-1 py-0 disabled:opacity-40'
+                                        >
+                                            {loading ? (
+                                                <>
+                                                    <ButtonSpinner />
+                                                    Signing in…
+                                                </>
+                                            ) : (
+                                                'Login'
+                                            )}
+                                        </button>
+                                        {canUsePasskey && methods.passkey !== false && (
+                                            <button
+                                                type='button'
+                                                onClick={() => dispatch(loginWithPasskey())}
+                                                disabled={loading}
+                                                title='Sign in with a passkey'
+                                                aria-label='Sign in with a passkey'
+                                                className='btn-outline h-14 w-14 shrink-0 px-0 py-0 disabled:opacity-40'
+                                            >
+                                                <FingerprintIcon />
+                                            </button>
                                         )}
-                                    </button>
+                                    </div>
 
-                                    <div className='flex justify-center'>
+                                </form>
+                                    )}
+
+                                    {method !== 'password' && (
+                                        <>
+                                            <PasswordlessLogin key={method} channel={method} />
+                                            <RememberMeToggle className='mt-4' />
+                                        </>
+                                    )}
+
+                                    <div className='mt-6 flex justify-center'>
                                         <TryDemoButton />
                                     </div>
 
                                     <Divider />
 
-                                    <div className='flex justify-center'>
+                                    <div className='flex flex-col items-center gap-4'>
+                                        {canUsePasskey && method !== 'password' && (
+                                            <button
+                                                type='button'
+                                                onClick={() => dispatch(loginWithPasskey())}
+                                                disabled={loading}
+                                                className='btn-outline w-full max-w-[300px] disabled:opacity-40'
+                                            >
+                                                <FingerprintIcon fontSize='small' /> Sign in with a passkey
+                                            </button>
+                                        )}
+                                        {methods.google !== false && (
                                         <GoogleLogin
                                             onSuccess={handleGoogleLoginSuccess}
                                             onError={handleGoogleLoginError}
@@ -258,8 +336,9 @@ const LoginAndRegister = () => {
                                             size='large'
                                             width='300'
                                         />
+                                        )}
                                     </div>
-                                </form>
+                                </div>
                             )}
 
                             {/* REGISTER */}
@@ -325,6 +404,7 @@ const LoginAndRegister = () => {
 
                                     <Divider />
                                     <div className='flex justify-center'>
+                                        {methods.google !== false && (
                                         <GoogleLogin
                                             onSuccess={handleGoogleLoginSuccess}
                                             onError={handleGoogleLoginError}
@@ -332,6 +412,7 @@ const LoginAndRegister = () => {
                                             size='large'
                                             width='300'
                                         />
+                                        )}
                                     </div>
                                 </form>
                             )}

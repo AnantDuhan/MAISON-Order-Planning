@@ -10,6 +10,13 @@ const path = require('path');
 const { getCashfreeOrder } = require('../utils/cashfree');
 const { sendPushNotification } = require('../utils/pushNotifications');
 const { priceOrder } = require('../utils/orderPricing');
+const { sendOrderConfirmationWithInvoice } = require('../services/invoiceService');
+const inventory = require('../services/inventoryService');
+const shipments = require('../services/shipmentService');
+const cartRecovery = require('../services/cartRecoveryService');
+const wallet = require('../services/walletService');
+const { renderPackingSlip } = require('../utils/packingSlipPdf');
+const logger = require('../config/logger');
 
 // Valid forward transitions for an order. Anything else is rejected.
 const NEXT_STATUS = {
@@ -37,6 +44,10 @@ exports.newOrder = async (req, res, next) => {
     try {
         const user = await User.findById(req.user._id);
 
+        if (!user) {
+            return res.status(401).json({ success: false, message: 'Please log in to place an order' });
+        }
+
         if (user.isDemo) {
             return res.status(403).json({
                 success: false,
@@ -47,10 +58,11 @@ exports.newOrder = async (req, res, next) => {
 
         const { shippingInfo, orderItems, paymentInfo, couponCode } = req.body;
 
-        if (paymentInfo?.provider !== 'cashfree' || typeof paymentInfo.id !== 'string') {
+        const provider = paymentInfo?.provider;
+        if (!['cashfree', 'wallet'].includes(provider) || typeof paymentInfo.id !== 'string') {
             return res.status(400).json({
                 success: false,
-                message: 'A completed Cashfree payment is required to place an order',
+                message: 'A completed payment is required to place an order',
             });
         }
         if (!paymentInfo.id.startsWith(`order_${req.user._id}_`)) {
@@ -60,23 +72,47 @@ exports.newOrder = async (req, res, next) => {
             });
         }
 
-        const pricing = await priceOrder(orderItems, couponCode);
+        // Stock isn't checked here: it was held for this payment at checkout
+        // (and may now read 0 because this customer holds the last unit).
+        const pricing = await priceOrder(orderItems, couponCode, { checkStock: false });
 
-        const cashfreeOrder = await getCashfreeOrder(paymentInfo.id);
-        if (cashfreeOrder.order_status !== 'PAID') {
-            return res.status(402).json({
-                success: false,
-                message: 'Cashfree payment has not been completed',
-            });
+        // Store credit taken at checkout is recorded on the checkout's hold.
+        const hold = await inventory.getHold(paymentInfo.id);
+        if (hold && String(hold.user) !== String(req.user._id)) {
+            return res.status(403).json({ success: false, message: 'You cannot use this payment for the order' });
         }
-        if (Math.abs(Number(cashfreeOrder.order_amount) - pricing.totalPrice) > 0.01) {
-            return res.status(409).json({
-                success: false,
-                message: 'The amount paid does not match the order total. Please contact support.',
-            });
-        }
+        const walletApplied = hold?.walletApplied || 0;
 
-        const paymentId = String(cashfreeOrder.cf_order_id || paymentInfo.id);
+        let paymentId;
+        if (provider === 'wallet') {
+            // Paid entirely with store credit: no gateway involved.
+            if (!hold) {
+                return res.status(402).json({ success: false, message: 'Checkout not found. Please try again.' });
+            }
+            if (Math.abs(walletApplied - pricing.totalPrice) > 0.01) {
+                return res.status(409).json({
+                    success: false,
+                    message: 'Store credit does not cover this order. Please go through checkout again.',
+                });
+            }
+            paymentId = `wallet_${paymentInfo.id}`;
+        } else {
+            const cashfreeOrder = await getCashfreeOrder(paymentInfo.id);
+            if (cashfreeOrder.order_status !== 'PAID') {
+                return res.status(402).json({
+                    success: false,
+                    message: 'Cashfree payment has not been completed',
+                });
+            }
+            const dueOnline = Math.round((pricing.totalPrice - walletApplied) * 100) / 100;
+            if (Math.abs(Number(cashfreeOrder.order_amount) - dueOnline) > 0.01) {
+                return res.status(409).json({
+                    success: false,
+                    message: 'The amount paid does not match the order total. Please contact support.',
+                });
+            }
+            paymentId = String(cashfreeOrder.cf_order_id || paymentInfo.id);
+        }
 
         // Prevent duplicate orders for the same completed payment
         // (protects against double-submit / client retries).
@@ -86,25 +122,72 @@ exports.newOrder = async (req, res, next) => {
         }
 
         const estimatedDeliveryDate = randomDeliveryDate();
+        const orderId = generateId();
 
-        const order = await Order.create({
-            _id: generateId(),
-            shippingInfo,
-            orderItems: pricing.orderItems,
-            paymentInfo: { id: paymentId, status: 'PAID' },
-            itemsPrice: pricing.itemsPrice,
-            taxPrice: pricing.taxPrice,
-            shippingPrice: pricing.shippingPrice,
-            totalPrice: pricing.totalPrice,
-            discountedAmount: pricing.discount,
-            paidAt: Date.now(),
-            user: req.user._id,
-            couponUsed: Boolean(pricing.coupon),
-            couponCode: pricing.coupon ? pricing.coupon.code : undefined,
-            estimatedDeliveryDate,
+        // Take the stock that was held when the customer started paying. If the
+        // hold expired meanwhile, take it now; if it has gone, the order is
+        // still created (the customer has paid) and flagged for admin review.
+        const stock = await inventory.commitForOrder({
+            cashfreeOrderId: paymentInfo.id,
+            orderId,
+            items: pricing.orderItems,
         });
+        if (stock.shortfall) {
+            logger.error({ orderId, payment: paymentId, reason: stock.message },
+                'order paid but stock ran out — needs admin review');
+        }
+
+        // If the hold had expired, its store credit was given back: take it again.
+        let paymentShortfall = 0;
+        if (stock.source === 'late' && walletApplied > 0) {
+            try {
+                await wallet.retakeForCheckout({ userId: req.user._id, checkoutId: paymentInfo.id, amountRupees: walletApplied });
+            } catch (error) {
+                if (provider === 'wallet') {
+                    if (stock.committed) await inventory.restoreStock(pricing.orderItems).catch(() => {});
+                    return res.status(409).json({
+                        success: false,
+                        message: 'Your checkout expired and the store credit is no longer available. Nothing was charged.',
+                    });
+                }
+                paymentShortfall = walletApplied;
+                logger.error({ orderId, payment: paymentId, walletApplied },
+                    'order paid online but store credit could not be re-applied — needs admin review');
+            }
+        }
+
+        let order;
+        try {
+            order = await Order.create({
+                _id: orderId,
+                shippingInfo,
+                orderItems: pricing.orderItems,
+                paymentInfo: { id: paymentId, status: 'PAID', provider },
+                storeCreditApplied: walletApplied - paymentShortfall,
+                paymentShortfall,
+                itemsPrice: pricing.itemsPrice,
+                taxPrice: pricing.taxPrice,
+                shippingPrice: pricing.shippingPrice,
+                totalPrice: pricing.totalPrice,
+                discountedAmount: pricing.discount,
+                paidAt: Date.now(),
+                user: req.user._id,
+                couponUsed: Boolean(pricing.coupon),
+                couponCode: pricing.coupon ? pricing.coupon.code : undefined,
+                estimatedDeliveryDate,
+                stockCommittedAt: stock.committed ? new Date() : null,
+                stockShortfall: stock.shortfall,
+            });
+        } catch (error) {
+            // Don't keep stock for an order that doesn't exist.
+            if (stock.committed) await inventory.restoreStock(pricing.orderItems).catch(() => {});
+            throw error;
+        }
 
         await invalidateOrderCaches(order._id, req.user._id);
+
+        // Credit a recent cart reminder, if there was one.
+        cartRecovery.markRecovered(req.user._id, order).catch(() => {});
 
         sendPushNotification(
             user.pushToken,
@@ -124,8 +207,12 @@ exports.newOrder = async (req, res, next) => {
             }
         );
 
-        sendEmailInBackground({
-            email: user.email,
+        // Generates the invoice and sends the confirmation with the PDF attached,
+        // after the response has gone out.
+        sendOrderConfirmationWithInvoice({
+            order,
+            user,
+            sender: "support",
             subject: `Your Order📦 has been placed successfully`,
             html: emailMessage
         });
@@ -135,6 +222,7 @@ exports.newOrder = async (req, res, next) => {
             order
         });
     } catch (error) {
+        logger.error({ err: error, userId: req.user?._id }, 'Order creation failed');
         res.status(error.statusCode || 500).json({
             success: false,
             message: error.statusCode ? error.message : 'Could not place the order'
@@ -238,7 +326,7 @@ exports.getAllOrders = async (req, res, next) => {
 exports.updateOrder = async (req, res, next) => {
     try {
         const orderId = req.params.id;
-        const { status } = req.body;
+        const { status, courier, awb, trackingUrl } = req.body;
         const order = await Order.findById(orderId);
 
         if (!order) {
@@ -248,6 +336,7 @@ exports.updateOrder = async (req, res, next) => {
             });
         }
 
+        const auditBefore = { orderStatus: order.orderStatus, awb: order.shipment?.awb, courier: order.shipment?.courier };
         const allowed = NEXT_STATUS[order.orderStatus] || [];
         if (!allowed.includes(status)) {
             return res.status(400).json({
@@ -256,11 +345,28 @@ exports.updateOrder = async (req, res, next) => {
             });
         }
 
-        // Stock leaves the warehouse exactly once, on Processing -> Shipped.
-        if (status === 'Shipped') {
+        // Orders placed since checkout holds took their stock at payment time.
+        // Older orders (no stockCommittedAt) still take it here, exactly once.
+        if (status === 'Shipped' && !order.stockCommittedAt) {
             await Promise.all(
                 order.orderItems.map(item => updateStock(item.product, item.quantity))
             );
+        }
+
+        if (status === 'Shipped' && !order.stockCommittedAt) {
+            order.stockCommittedAt = new Date();
+        }
+
+        if (status === 'Shipped') {
+            shipments.applyShipped(order, { courier, awb, trackingUrl });
+        }
+        if (status === 'Delivered') {
+            // Keep the timeline complete when an admin marks delivery by hand.
+            order.shipment = order.shipment || { events: [] };
+            order.shipment.events = [...(order.shipment.events || []),
+                { status: 'Delivered', at: new Date(), source: 'admin' }];
+            order.shipment.lastStatus = 'Delivered';
+            order.shipment.lastEventAt = new Date();
         }
 
         order.orderStatus = status;
@@ -274,13 +380,19 @@ exports.updateOrder = async (req, res, next) => {
         }
 
         await order.save({ validateBeforeSave: false });
+        res.locals.audit = {
+            before: auditBefore,
+            after: { orderStatus: order.orderStatus, awb: order.shipment?.awb, courier: order.shipment?.courier },
+            summary: `Order ${order._id}: ${auditBefore.orderStatus} → ${order.orderStatus}`,
+        };
 
         // Push the new status to the owner viewing this order in real time.
         const io = req.app.get('socketio');
         if (io) {
             io.to(`order:${orderId}`).emit('orderStatusUpdate', {
                 orderId,
-                orderStatus: order.orderStatus
+                orderStatus: order.orderStatus,
+                shipment: order.shipment
             });
         }
 
@@ -308,6 +420,7 @@ exports.updateOrder = async (req, res, next) => {
             );
             sendEmailInBackground({
                 email: orderOwner.email,
+                sender: "support",
                 subject: `Your Order📦 Status Update: ${order.orderStatus}`,
                 html: emailMessage
             });
@@ -350,8 +463,18 @@ exports.deleteOrder = async (req, res, next) => {
         });
     }
 
+    // An unshipped order's stock goes back on the shelf.
+    if (order.stockCommittedAt && !order.stockRestoredAt && !order.isRefunded
+        && order.orderStatus === 'Processing') {
+        await inventory.restoreStock(order.orderItems);
+    }
+
     await order.deleteOne();
     await invalidateOrderCaches(order._id, order.user);
+    res.locals.audit = {
+        before: { orderStatus: order.orderStatus, totalPrice: order.totalPrice, user: String(order.user) },
+        summary: `Deleted order ${order._id} (₹${order.totalPrice}, ${order.orderStatus})`,
+    };
 
     res.status(200).json({
         success: true,
@@ -411,4 +534,59 @@ exports.reorder = async (req, res, next) => {
             message: 'Internal Server Error'
         });
     }
+};
+
+// ---- Shipment tracking -------------------------------------------------------
+
+// POST /api/v1/admin/order/:id/tracking   { status, location?, note?, at? }
+exports.addTrackingEvent = async (req, res) => {
+    try {
+        const order = await Order.findById(req.params.id);
+        if (!order) {
+            return res.status(404).json({ success: false, message: 'Order📦 not found with this Id' });
+        }
+        const result = await shipments.addTrackingEvent(order, req.body || {}, {
+            source: 'admin',
+            io: req.app?.get('socketio'),
+        });
+        res.locals.audit = { summary: `Tracking: ${req.body?.status}${req.body?.location ? ` at ${req.body.location}` : ''}` };
+        res.status(200).json({
+            success: true,
+            added: result.added,
+            delivered: result.delivered,
+            shipment: order.shipment,
+            orderStatus: order.orderStatus,
+        });
+    } catch (error) {
+        res.status(error.statusCode || 500).json({
+            success: false,
+            message: error.statusCode ? error.message : 'Could not add the tracking event',
+        });
+    }
+};
+
+// PATCH /api/v1/admin/order/:id/shipment   { courier?, awb?, trackingUrl? }
+exports.updateShipment = async (req, res) => {
+    const { courier, awb, trackingUrl } = req.body || {};
+    const order = await shipments.updateShipmentDetails(req.params.id, { courier, awb, trackingUrl });
+    if (!order) {
+        return res.status(404).json({ success: false, message: 'Order📦 not found with this Id' });
+    }
+    res.status(200).json({ success: true, shipment: order.shipment });
+};
+
+// GET /api/v1/admin/order/:id/packing-slip
+exports.packingSlip = async (req, res) => {
+    const order = await Order.findById(req.params.id).populate('user', 'name').lean();
+    if (!order) {
+        return res.status(404).json({ success: false, message: 'Order📦 not found with this Id' });
+    }
+    const pdf = await renderPackingSlip(order);
+    res.set({
+        'Content-Type': 'application/pdf',
+        'Content-Length': pdf.length,
+        'Content-Disposition': `inline; filename="packing-slip-${order._id}.pdf"`,
+        'Cache-Control': 'private, no-store',
+    });
+    res.send(pdf);
 };

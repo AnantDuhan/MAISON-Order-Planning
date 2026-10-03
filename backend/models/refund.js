@@ -24,6 +24,17 @@ const refundSchema = new mongoose.Schema({
     completedAt: {
         type: Date
     },
+    // Where the money went: back to the original payment, or store credit.
+    method: {
+        type: String,
+        enum: ['original', 'store-credit'],
+        default: 'original'
+    },
+    // Portion (rupees) returned as store credit.
+    storeCreditAmount: {
+        type: Number,
+        default: 0
+    },
     isDemo: {
         type: Boolean,
         default: false,

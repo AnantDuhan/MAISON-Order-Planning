@@ -11,7 +11,7 @@
   •
   <a href="https://github.com/AnantDuhan/MAISON-Order-Planning">GitHub</a>
   •
-  <a href="https://maison-order-planning.onrender.com/api-docs">API Documentation</a>
+  <a href="https://api.maisonorderplanning.in/api-docs">API Documentation</a>
 </p>
 
 ---

@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import LaunchIcon from '@mui/icons-material/Launch';
 import LoadingBar from 'react-top-loading-bar';
+import Loader from '../layout/Loader/Loader';
 
 import { clearErrors, allRefunds } from '../../actions/orderAction';
 import MetaData from '../layout/MetaData';
@@ -76,7 +77,10 @@ const RefundList = () => {
         <Fragment>
             <MetaData title='All Refunds · Admin' />
             {loading ? (
-                <LoadingBar color='#A07C4B' progress={progress} onLoaderFinished={onLoaderFinished} />
+                <Fragment>
+                    <LoadingBar color='#A07C4B' progress={progress} onLoaderFinished={onLoaderFinished} />
+                    <Loader label='Loading refunds' />
+                </Fragment>
             ) : (
                 <AdminPage title='All Refunds'>
                     <AdminTable columns={columns} rows={rows} emptyMessage='No refunds requested.' />
