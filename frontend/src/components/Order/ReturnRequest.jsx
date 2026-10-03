@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import LoadingBar from 'react-top-loading-bar';
+import Loader from '../layout/Loader/Loader';
 
 import { returnRequest } from '../../actions/orderAction';
 import MetaData from '../layout/MetaData';
@@ -52,7 +53,10 @@ const ReturnRequest = () => {
     return (
         <Fragment>
             {loading ? (
-                <LoadingBar color='#A07C4B' progress={progress} onLoaderFinished={onLoaderFinished} />
+                <Fragment>
+                    <LoadingBar color='#A07C4B' progress={progress} onLoaderFinished={onLoaderFinished} />
+                    <Loader label='Finding your order' />
+                </Fragment>
             ) : (
                 <Fragment>
                     <MetaData title='Request Return · Maison' />

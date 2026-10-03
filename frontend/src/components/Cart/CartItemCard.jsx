@@ -8,6 +8,8 @@ const CartItemCard = ({ item, deleteCartItems }) => {
                 <img
                     src={item.image}
                     alt={item.name}
+                    loading='lazy'
+                    decoding='async'
                     className='h-28 w-24 border border-line object-cover'
                 />
             </Link>

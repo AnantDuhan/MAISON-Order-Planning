@@ -18,6 +18,7 @@ const swaggerUi = require("swagger-ui-express");
 
 const errorMiddleware = require("./middleware/error");
 const securityHeaders = require("./middleware/securityHeaders");
+const enforceHttps = require("./middleware/enforceHttps");
 const { isAuthUser, authRoles } = require("./middleware/auth");
 const { apiLimiter } = require("./middleware/rateLimiter");
 const Product = require("./models/product");
@@ -38,6 +39,7 @@ app.set("query parser", "extended");
 
 // Security headers (helmet): HSTS, nosniff, frame protection, referrer
 // policy and a Content-Security-Policy. See middleware/securityHeaders.js.
+app.use(enforceHttps);
 app.use(securityHeaders);
 
 // Gzip response bodies. Registered first so every downstream response
@@ -60,7 +62,8 @@ app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 const allowedOrigins = [
   "http://localhost:3000",
   "http://localhost:8080",
-  "https://orderplanning.netlify.app",
+  "https://maisonorderplanning.netlify.app",
+  "https://maisonorderplanning.in"
 ];
 
 const isAllowedOrigin = origin =>
@@ -86,7 +89,26 @@ const s3 = new S3Client({
   credentials: fromEnv(),
 });
 
+const sharp = require("sharp");
+
 const IMAGE_TYPES = ["image/png", "image/jpg", "image/jpeg", "image/webp"];
+
+// Resize to a sensible max and re-encode as WebP before upload. A 4 MB phone
+// photo typically lands around 150–300 KB with no visible quality loss.
+// Falls back to the original bytes if sharp can't read the file.
+const compressImage = async file => {
+  try {
+    const buffer = await sharp(file.buffer)
+      .rotate() // respect EXIF orientation
+      .resize({ width: 1600, height: 1600, fit: "inside", withoutEnlargement: true })
+      .webp({ quality: 80 })
+      .toBuffer();
+    return { buffer, mimetype: "image/webp", ext: "webp" };
+  } catch (err) {
+    console.error("⚠️ Image compression failed, uploading original:", err.message);
+    return { buffer: file.buffer, mimetype: file.mimetype, ext: null };
+  }
+};
 
 // Configure Multer for file uploads
 const upload = multer({
@@ -108,13 +130,17 @@ const bucketHost = () =>
 const uploadProductImages = async (productId, files = []) => {
   const images = [];
   for (const file of files) {
-    const safeName = file.originalname.replace(/[^\w.-]/g, "_");
+    const { buffer, mimetype, ext } = await compressImage(file);
+    let safeName = file.originalname.replace(/[^\w.-]/g, "_");
+    if (ext) safeName = safeName.replace(/\.[^.]+$/, "") + `.${ext}`;
     const key = `products/${productId}/${Date.now()}-${safeName}`;
     await s3.send(new PutObjectCommand({
       Bucket: process.env.AWS_BUCKET_NAME,
       Key: key,
-      Body: file.buffer,
-      ContentType: file.mimetype,
+      Body: buffer,
+      ContentType: mimetype,
+      // Filenames are unique per upload, so images can be cached forever.
+      CacheControl: "public, max-age=31536000, immutable",
     }));
     images.push({ _id: generateId(), url: `https://${bucketHost()}/${key}` });
   }
@@ -151,7 +177,7 @@ const deleteImages = async (images = []) => {
 
 const pickProductFields = body => {
   const fields = {};
-  for (const key of ["name", "description", "price", "category", "Stock"]) {
+  for (const key of ["name", "description", "price", "category", "Stock", "lowStockThreshold"]) {
     if (body[key] !== undefined && body[key] !== "") fields[key] = body[key];
   }
   return fields;
@@ -173,6 +199,13 @@ const bannerRoute = require("./routes/banner");
 const cartRoute = require("./routes/cart");
 const redirectRoute = require("./routes/redirect");
 const searchRoute = require("./routes/search");
+const seoRoute = require("./routes/seo");
+const invoiceRoute = require("./routes/invoice");
+const auditRoute = require("./routes/audit");
+const walletRoute = require("./routes/wallet");
+const featuresRoute = require("./routes/features");
+const inventory = require("./services/inventoryService");
+const { auditAdminWrites, snapshot } = require("./middleware/audit");
 
 app.get("/api/v1/health", (req, res) => {
   res.status(200).json({
@@ -188,6 +221,8 @@ app.get('/api-docs.json', (req, res) => {
 });
 
 app.use("/api/v1", apiLimiter);
+// Audit trail for every admin write (must run before the routes).
+app.use(["/api/v1/admin", "/admin"], auditAdminWrites);
 app.use("/api/v1", productRoute);
 app.use("/api/v1", searchRoute);
 app.use("/api/v1", userRoute);
@@ -199,7 +234,12 @@ app.use("/api/v1", analyticsRoute);
 app.use("/api/v1", jobsRoute);
 app.use("/api/v1", bannerRoute);
 app.use("/api/v1", cartRoute);
+app.use("/api/v1", invoiceRoute);
+app.use("/api/v1", auditRoute);
+app.use("/api/v1", walletRoute);
+app.use("/api/v1", featuresRoute);
 app.use(redirectRoute);
+app.use(seoRoute); // /sitemap.xml
 
 // --- Admin product routes with image uploads ---------------------------------
 // These live outside /api/v1 because the frontend calls them at these paths.
@@ -226,6 +266,12 @@ adminProducts.post("/admin/add-product", adminOnly, upload.array("product", 10),
 
     await cache.del(`product:${productId}`);
     syncSearchIndex(indexProduct(product));
+
+    res.locals.audit = {
+      entity: { type: "product", id: productId },
+      after: snapshot(product, ["name", "price", "Stock", "category"]),
+      summary: `Created product ${product.name}`,
+    };
 
     res.status(201).json({
       success: true,
@@ -270,7 +316,7 @@ adminProducts.put("/admin/product/:id", adminOnly, upload.array("product", 10), 
     }
 
     const updatedProduct = await Product.findByIdAndUpdate(productId, update, {
-      new: true,
+      returnDocument: "after",
       runValidators: true,
     });
 
@@ -278,6 +324,12 @@ adminProducts.put("/admin/product/:id", adminOnly, upload.array("product", 10), 
 
     await cache.del(`product:${productId}`);
     syncSearchIndex(indexProduct(updatedProduct));
+    inventory.onStockEdited(productId, product.Stock, updatedProduct.Stock);
+    res.locals.audit = {
+      before: snapshot(product, ['name', 'price', 'Stock', 'category', 'lowStockThreshold']),
+      after: snapshot(updatedProduct, ['name', 'price', 'Stock', 'category', 'lowStockThreshold']),
+      summary: `Updated product ${updatedProduct.name}${oldImages ? " (new images)" : ""}`,
+    };
 
     res.status(200).json({
       success: true,
@@ -304,6 +356,10 @@ adminProducts.delete("/admin/product/:id", adminOnly, async (req, res) => {
     }
 
     await Product.deleteOne({ _id: productId });
+    res.locals.audit = {
+      before: snapshot(product, ["name", "price", "Stock", "category"]),
+      summary: `Deleted product ${product.name}`,
+    };
     await deleteImages(product.images);
     await cache.del(`product:${productId}`);
     syncSearchIndex(deleteProductDoc(productId));
@@ -320,6 +376,7 @@ adminProducts.delete("/admin/product/:id", adminOnly, async (req, res) => {
 });
 
 app.use(adminProducts);
+app.use("/api/v1", adminProducts);
 
 // --- Serve the built React app (same-origin deployment) ---------------------
 // In production the backend serves the compiled frontend, so the whole app is
@@ -327,7 +384,17 @@ app.use(adminProducts);
 // Guarded by NODE_ENV so local dev (CRA dev server + proxy) is unaffected.
 if (process.env.NODE_ENV === "production") {
   const buildPath = path.join(__dirname, "../frontend/build");
-  app.use(express.static(buildPath));
+  // Vite fingerprints everything in /assets, so those can be cached for a year;
+  // index.html must always be revalidated so new deploys are picked up.
+  app.use(express.static(buildPath, {
+    setHeaders: (res, filePath) => {
+      if (filePath.includes(`${path.sep}assets${path.sep}`)) {
+        res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+      } else if (filePath.endsWith(".html")) {
+        res.setHeader("Cache-Control", "no-cache");
+      }
+    },
+  }));
 
   // SPA fallback: any non-API GET returns index.html so client-side routes
   // (e.g. /product/:id, /account/addresses) resolve. Express 5 needs a RegExp

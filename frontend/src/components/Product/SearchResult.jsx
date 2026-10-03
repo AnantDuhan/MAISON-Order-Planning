@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useSearchParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import LoadingBar from 'react-top-loading-bar';
+import Loader from '../layout/Loader/Loader';
 import { Slider } from '@mui/material';
 
 import { clearErrors, searchProducts } from '../../actions/productAction';
@@ -34,7 +35,10 @@ const SearchResult = () => {
     return (
         <Fragment>
             {loading ? (
-                <LoadingBar color='#A07C4B' progress={100} />
+                <Fragment>
+                    <LoadingBar color='#A07C4B' progress={100} />
+                    <Loader label='Searching the collection' />
+                </Fragment>
             ) : (
                 <Fragment>
                     <MetaData title={`Search · "${keyword}"`} />

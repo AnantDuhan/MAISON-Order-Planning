@@ -22,7 +22,7 @@ const ProtectedAdminRoute = ({ children }) => {
 
   // Auth state not resolved yet — wait instead of redirecting.
   if (loading !== false) {
-    return <Loader />;
+    return <Loader label='Checking your access' />;
   }
 
   if (!isAuthenticated) {

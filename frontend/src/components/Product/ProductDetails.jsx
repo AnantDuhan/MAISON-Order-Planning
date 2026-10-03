@@ -12,6 +12,7 @@ import { Carousel } from "react-responsive-carousel";
 import { useParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import LoadingBar from "react-top-loading-bar";
+import Loader from "../layout/Loader/Loader";
 import Lightbox from "yet-another-react-lightbox";
 import "yet-another-react-lightbox/styles.css";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
@@ -19,6 +20,7 @@ import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import WarningAmberOutlinedIcon from "@mui/icons-material/WarningAmberOutlined";
 
 import { addItemsToCart } from "../../actions/cartAction";
+import BackInStockButton from "./BackInStockButton";
 import {
   addProductToWishlist,
   clearErrors,
@@ -37,6 +39,7 @@ import ReviewsSection from "./ReviewsSection";
 import "react-responsive-carousel/lib/styles/carousel.min.css";
 
 import io from "socket.io-client";
+import { useFeature } from '../../context/FeatureFlagsContext';
 
 const ProductDetails = () => {
   const dispatch = useDispatch();
@@ -94,6 +97,9 @@ const ProductDetails = () => {
     }
     setProgress(progress + 80);
   };
+
+  const reviewsOn = useFeature('reviews');
+  const backInStockOn = useFeature('backInStock');
 
   const submitReviewToggle = () => {
     open ? setOpen(false) : setOpen(true);
@@ -180,14 +186,22 @@ const ProductDetails = () => {
   return (
     <Fragment>
       {loading || !product?._id ? (
-        <LoadingBar
-          color="#A07C4B"
-          progress={progress}
-          onLoaderFinished={onLoaderFinished}
-        />
+        <Fragment>
+          <LoadingBar
+            color="#A07C4B"
+            progress={progress}
+            onLoaderFinished={onLoaderFinished}
+          />
+          <Loader label="Bringing out this piece" />
+        </Fragment>
       ) : (
         <Fragment>
-          <MetaData title={`${product?.name} · Maison`} />
+          <MetaData
+            title={`${product?.name} · Maison`}
+            description={product?.description}
+            image={product?.images?.[0]?.url}
+            type="product"
+          />
 
           <div className="editorial-shell py-14">
             <div className="grid gap-12 lg:grid-cols-2 lg:gap-16">
@@ -285,14 +299,19 @@ const ProductDetails = () => {
                     </select>
                   </div>
 
+                  {!inStock && backInStockOn && (
+                    <BackInStockButton productId={product._id} isAuthenticated={Boolean(user)} />
+                  )}
+
                   <div className="flex flex-col gap-3 sm:flex-row">
-                    <button
-                      disabled={!inStock}
-                      onClick={addToCartHandler}
-                      className="btn-solid flex-1"
-                    >
-                      Add to Cart
-                    </button>
+                    {inStock && (
+                      <button
+                        onClick={addToCartHandler}
+                        className="btn-solid flex-1"
+                      >
+                        Add to Cart
+                      </button>
+                    )}
                     <button
                       onClick={wishlistHandler}
                       className="btn-outline flex-1"
@@ -310,12 +329,14 @@ const ProductDetails = () => {
                   </p>
                 </div>
 
+                {reviewsOn && (
                 <button
                   onClick={submitReviewToggle}
                   className="mt-10 self-start font-sans text-[0.72rem] uppercase tracking-luxe text-brass underline-offset-4 hover:underline"
                 >
                   Write a Review
                 </button>
+                )}
               </div>
             </div>
 

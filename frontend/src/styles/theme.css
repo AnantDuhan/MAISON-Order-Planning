@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Jost:wght@300;400;500;600&display=swap');
+/* Fonts are loaded via <link> + preconnect in index.html (faster than @import). */
 
 @tailwind base;
 @tailwind components;
@@ -17,9 +17,9 @@
     --c-surface-2: 240 235 227;   /* #F0EBE3 raised */
     --c-ink: 26 24 22;            /* #1A1816 near-black */
     --c-ink-soft: 74 69 63;       /* #4A453F */
-    --c-ink-faint: 138 130 120;   /* #8A8278 */
+    --c-ink-faint: 110 103 94;    /* #6E675E — AA 5.1:1 on canvas */
     --c-line: 224 217 206;        /* #E0D9CE hairline */
-    --c-brass: 160 124 75;        /* #A07C4B brass/gold */
+    --c-brass: 133 102 60;        /* #85663C brass — AA 4.8:1 on canvas */
     --c-brass-soft: 193 165 122;  /* #C1A57A */
     --c-success: 79 110 84;       /* #4F6E54 */
     --c-danger: 156 66 55;        /* #9C4237 */
@@ -34,7 +34,7 @@
     --c-surface-2: 36 33 30;      /* #24211E */
     --c-ink: 242 237 228;         /* #F2EDE4 warm off-white */
     --c-ink-soft: 190 182 170;    /* #BEB6AA */
-    --c-ink-faint: 138 129 116;   /* #8A8174 */
+    --c-ink-faint: 154 145 133;   /* #9A9185 — AA on surface-2 */
     --c-line: 54 49 44;           /* #36312C */
     --c-brass: 201 160 99;        /* #C9A063 lifted for contrast */
     --c-brass-soft: 168 134 88;   /* #A88658 */

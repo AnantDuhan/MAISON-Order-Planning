@@ -4,10 +4,10 @@ import { Link, useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import io from 'socket.io-client';
 
-import { Carousel } from 'react-responsive-carousel';
-import 'react-responsive-carousel/lib/styles/carousel.min.css';
 
 import { clearErrors, getOrderDetails, returnRequest, reorder } from '../../actions/orderAction';
+import TrackingTimeline from './TrackingTimeline';
+import OrderItemsList, { inr } from './OrderItemsList';
 import {
     Button,
     Dialog,
@@ -19,7 +19,15 @@ import {
     Select,
 } from '@mui/material';
 import LoadingBar from 'react-top-loading-bar';
+import Loader from '../layout/Loader/Loader';
 import MetaData from '../layout/MetaData';
+import { useFeature } from '../../context/FeatureFlagsContext';
+
+const formatDate = value => (value
+    ? new Date(value).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
+    : '');
+
+const formatShortDate = value => new Date(value).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
 
 const OrderDetails = () => {
     const { order, error, loading } = useSelector(state => state.orderDetails);
@@ -53,13 +61,25 @@ const OrderDetails = () => {
         "Item Doesn't Meet Expectations",
     ];
 
-    const submitReturnRequest = (orders, reason) => {
-        if (orders && reason) {
-            dispatch(returnRequest(order._id, reason));
-            toast.success('Return request submitted successfully');
+    const [returnBusy, setReturnBusy] = useState(false);
+
+    // Wait for the server: this used to show success before the request had
+    // finished, so failed return requests looked like they had worked.
+    const submitReturnRequest = async (orders, reason) => {
+        if (!orders || !reason || returnBusy) return;
+        setReturnBusy(true);
+        setProgress(60);
+        try {
+            await dispatch(returnRequest(order._id, reason));
+            toast.success('Return requested. We’ll email you with the next steps.');
             handleCloseDialog();
+        } catch (error) {
+            toast.error(error.response?.data?.message || error.message || 'Could not request the return');
+        } finally {
+            dispatch(getOrderDetails(id));
+            setReturnBusy(false);
+            setProgress(100);
         }
-        setProgress(progress + 80);
     };
 
     const handleOpenDialog = () => {
@@ -109,8 +129,8 @@ const OrderDetails = () => {
         const room = `order:${id}`;
         socket.emit('joinRoom', room);
 
-        const onStatus = ({ orderStatus }) => {
-            toast.info(`Order status updated: ${orderStatus}`);
+        const onStatus = ({ orderStatus, shipment }) => {
+            toast.info(`Order update: ${shipment?.lastStatus || orderStatus}`);
             dispatch(getOrderDetails(id));
         };
         socket.on('orderStatusUpdate', onStatus);
@@ -122,150 +142,233 @@ const OrderDetails = () => {
         };
     }, [dispatch, id]);
 
-    const isPaid = order?.paymentInfo?.status === 'succeeded';
+    // Cashfree orders are stored as 'PAID'; 'succeeded' covers legacy orders.
+    const isPaid = ['PAID', 'succeeded'].includes(order?.paymentInfo?.status);
     const isDelivered = order?.orderStatus === 'Delivered';
-    const address = order?.shippingInfo
-        ? `${order.shippingInfo.address}, ${order.shippingInfo.city}, ${order.shippingInfo.state}, ${order.shippingInfo.pinCode}, ${order.shippingInfo.country}`
-        : '';
+    const placedAt = order?.createdAt || order?.paidAt;
+    const itemCount = (order?.orderItems || []).reduce((n, item) => n + (item.quantity || 0), 0);
+    const shippedAt = order?.shipment?.shippedAt
+        || order?.shipment?.events?.find(event => event.status === 'Shipped')?.at;
+    const isShipped = ['Shipped', 'Delivered'].includes(order?.orderStatus);
 
+    const steps = [
+        { label: 'Placed', done: Boolean(order?._id), date: placedAt },
+        { label: 'Shipped', done: isShipped, date: shippedAt },
+        { label: 'Delivered', done: isDelivered, date: order?.DeliveredAt },
+    ];
+
+    const statusLabel = order?.isRefunded ? 'Refunded'
+        : order?.isReturned ? 'Return requested'
+            : order?.orderStatus || '';
+    const statusTone = isDelivered && !order?.isRefunded
+        ? { badge: 'border-success/40 text-success', dot: 'bg-success' }
+        : order?.isRefunded || order?.isReturned
+            ? { badge: 'border-line text-ink-soft', dot: 'bg-ink-faint' }
+            : { badge: 'border-brass/40 text-brass', dot: 'bg-brass' };
+
+    const lastEvent = order?.shipment?.lastStatus;
+    const progressHeadline = order?.isRefunded ? 'This order was refunded'
+        : isDelivered ? `Delivered ${formatDate(order?.DeliveredAt)}`
+            : lastEvent && lastEvent !== 'Shipped' ? lastEvent
+                : isShipped ? 'On its way to you'
+                    : 'We’re preparing your order';
+    const progressDetail = !isDelivered && !order?.isRefunded && order?.estimatedDeliveryDate
+        ? `Expected by ${formatDate(order.estimatedDeliveryDate)}`
+        : null;
+
+    const paymentMethod = order?.paymentInfo?.provider === 'wallet'
+        ? 'with store credit'
+        : order?.storeCreditApplied > 0 ? 'online and with store credit' : 'online';
+
+    const returnsOn = useFeature('returns');
+    const canReturn = returnsOn && isDelivered && !order?.isReturned && !order?.isRefunded;
+    const returnNote = order?.isRefunded ? 'This order has been refunded.'
+        : !returnsOn && !order?.isReturned ? 'Return requests are paused right now. Please contact us about this order.'
+        : order?.isReturned ? 'You’ve requested a return. We’ll email you with the next steps.'
+            : isDelivered ? 'Returns are accepted for delivered orders.'
+                : 'You can request a return once the order has been delivered.';
     return (
         <Fragment>
             {loading ? (
-                <LoadingBar color='#A07C4B' progress={progress} onLoaderFinished={onLoaderFinished} />
+                <Fragment>
+                    <LoadingBar color='#A07C4B' progress={progress} onLoaderFinished={onLoaderFinished} />
+                    <Loader label='Finding your order' />
+                </Fragment>
             ) : (
                 <Fragment>
                     <MetaData title='Order Details · Maison' />
 
                     <div className='editorial-shell py-14'>
-                        <div className='mb-12'>
-                            <p className='eyebrow'>Order Record</p>
-                            <h1 className='heading-display mt-3 break-all text-4xl'>
-                                #{order && order._id}
-                            </h1>
-                        </div>
-
-                        <div className='grid gap-14 lg:grid-cols-[1fr_380px]'>
-                            {/* Left: items */}
+                        {/* Header: what this order is, where it stands, what you can do */}
+                        <header className='flex flex-col gap-6 border-b border-line pb-10 lg:flex-row lg:items-end lg:justify-between'>
                             <div>
-                                <p className='eyebrow'>Order Items</p>
-                                <div className='mt-5 divide-y divide-line border border-line bg-surface'>
-                                    {order.orderItems &&
-                                        order.orderItems.map(item => (
-                                            <div key={item.product} className='flex flex-col gap-5 p-6 sm:flex-row'>
-                                                <div className='w-full shrink-0 overflow-hidden border border-line bg-surface-2 sm:w-32'>
-                                                    {item.images && item.images.length > 1 ? (
-                                                        <Carousel showThumbs={false} showStatus={false}>
-                                                            {item.images.map((img, index) => (
-                                                                <div key={index}>
-                                                                    <img
-                                                                        src={img.url}
-                                                                        alt={`Product ${index + 1}`}
-                                                                        className='aspect-square w-full object-cover'
-                                                                    />
-                                                                </div>
-                                                            ))}
-                                                        </Carousel>
-                                                    ) : (
-                                                        <img
-                                                            src={item.images?.[0]?.url || item.image}
-                                                            alt='Product'
-                                                            className='aspect-square w-full object-cover'
-                                                        />
-                                                    )}
-                                                </div>
-
-                                                <div className='flex flex-1 flex-col justify-center'>
-                                                    <Link
-                                                        to={`/product/${item.product}`}
-                                                        className='font-display text-xl font-medium text-ink hover:text-brass'
-                                                    >
-                                                        {item.name}
-                                                    </Link>
-                                                    <div className='mt-3 space-y-1 font-sans text-sm text-ink-soft'>
-                                                        <p>Quantity: {item.quantity}</p>
-                                                        <p>Price: ₹{item.price}</p>
-                                                        <p className='text-ink'>
-                                                            Total: <b>₹{item.price * item.quantity}</b>
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        ))}
-                                </div>
+                                <Link to='/orders' className='font-sans text-sm text-ink-soft hover:text-brass'>
+                                    ← All orders
+                                </Link>
+                                <h1 className='heading-display mt-4 break-all text-4xl sm:text-5xl'>Order {order._id}</h1>
+                                <p className='mt-3 font-sans text-sm text-ink-soft'>
+                                    Placed {formatDate(placedAt)} · {itemCount} {itemCount === 1 ? 'item' : 'items'} · {inr(order.totalPrice)}
+                                </p>
                             </div>
-
-                            {/* Right: meta */}
-                            <div className='space-y-8 lg:sticky lg:top-28 lg:self-start'>
-                                <div className='border border-line bg-surface p-6'>
-                                    <p className='eyebrow'>Shipping Info</p>
-                                    <div className='mt-5 space-y-3'>
-                                        <div className='flex justify-between gap-6'>
-                                            <span className='font-sans text-sm text-ink-faint'>Name</span>
-                                            <span className='text-right font-sans text-sm text-ink'>
-                                                {order.user && order.user.name}
-                                            </span>
-                                        </div>
-                                        <div className='flex justify-between gap-6'>
-                                            <span className='font-sans text-sm text-ink-faint'>Phone</span>
-                                            <span className='text-right font-sans text-sm text-ink'>
-                                                {order.shippingInfo && order.shippingInfo.phoneNumber}
-                                            </span>
-                                        </div>
-                                        <div className='flex justify-between gap-6'>
-                                            <span className='font-sans text-sm text-ink-faint'>Address</span>
-                                            <span className='text-right font-sans text-sm text-ink'>{address}</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className='border border-line bg-surface p-6'>
-                                    <p className='eyebrow'>Payment</p>
-                                    <div className='mt-5 flex items-center justify-between'>
-                                        <span className={`font-sans text-[0.72rem] uppercase tracking-luxe ${isPaid ? 'text-success' : 'text-danger'}`}>
-                                            {isPaid ? 'Paid' : 'Not Paid'}
-                                        </span>
-                                        <span className='font-display text-2xl font-medium text-ink'>
-                                            ₹{order.totalPrice}
-                                        </span>
-                                    </div>
-                                </div>
-
-                                <div className='border border-line bg-surface p-6'>
-                                    <p className='eyebrow'>Order Status</p>
-                                    <div className='mt-5 flex items-center gap-2'>
-                                        <span className={`h-2 w-2 rounded-full ${isDelivered ? 'bg-success' : 'bg-danger'}`} />
-                                        <span className={`font-sans text-[0.72rem] uppercase tracking-luxe ${isDelivered ? 'text-success' : 'text-danger'}`}>
-                                            {order.orderStatus}
-                                        </span>
-                                    </div>
-                                </div>
-
-                                <button
-                                    onClick={handleOpenDialog}
-                                    disabled={
-                                        order.isReturned === true ||
-                                        order.orderStatus === 'Processing' ||
-                                        order.orderStatus === 'Shipped'
-                                    }
-                                    className='btn-outline w-full'
-                                >
-                                    Request Return
+                            <div className='flex flex-wrap items-center gap-3'>
+                                <span className={`inline-flex items-center gap-2 border px-4 py-2 font-sans text-sm ${statusTone.badge}`}>
+                                    <span className={`h-2 w-2 rounded-full ${statusTone.dot}`} />
+                                    {statusLabel}
+                                </span>
+                                {isPaid && (
+                                    <a href={`/api/v1/order/${order._id}/invoice`} download className='btn-outline'>
+                                        Invoice
+                                    </a>
+                                )}
+                                <button onClick={handleReorder} disabled={reordering} className='btn-solid disabled:opacity-60'>
+                                    {reordering ? 'Adding to bag…' : 'Buy again'}
                                 </button>
+                            </div>
+                        </header>
 
-                                <button
-                                    onClick={handleReorder}
-                                    disabled={reordering}
-                                    className='btn-outline mt-3 flex w-full items-center justify-center gap-2 disabled:opacity-60'
-                                >
-                                    {reordering && (
-                                        <span
-                                            className='h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent'
-                                            aria-hidden='true'
-                                        />
+                        <div className='mt-12 grid gap-12 lg:grid-cols-[minmax(0,1fr)_360px]'>
+                            {/* Main column */}
+                            <div className='space-y-12'>
+                                {/* Progress */}
+                                <section aria-label='Delivery progress' className='border border-line bg-surface p-6 sm:p-8'>
+                                    <p className='font-display text-2xl text-ink'>{progressHeadline}</p>
+                                    {progressDetail && (
+                                        <p className='mt-1 font-sans text-sm text-ink-soft'>{progressDetail}</p>
                                     )}
-                                    {reordering ? 'Adding to cart…' : 'Reorder'}
-                                </button>
+                                    <ol className='mt-8 grid grid-cols-3'>
+                                        {steps.map((step, index) => (
+                                            <li key={step.label} className='relative'>
+                                                {index > 0 && (
+                                                    <span
+                                                        aria-hidden='true'
+                                                        className={`absolute right-1/2 top-[7px] h-px w-full ${step.done ? 'bg-brass' : 'bg-line'}`}
+                                                    />
+                                                )}
+                                                <div className='relative flex flex-col items-center text-center'>
+                                                    <span
+                                                        className={`h-[15px] w-[15px] rounded-full border-2 ${step.done ? 'border-brass bg-brass' : 'border-line bg-surface'}`}
+                                                    />
+                                                    <span className={`mt-3 font-sans text-sm ${step.done ? 'text-ink' : 'text-ink-faint'}`}>
+                                                        {step.label}
+                                                    </span>
+                                                    <span className='mt-1 font-sans text-xs text-ink-faint'>
+                                                        {step.date ? formatShortDate(step.date) : '\u00a0'}
+                                                    </span>
+                                                </div>
+                                            </li>
+                                        ))}
+                                    </ol>
+                                </section>
+
+                                {/* Items */}
+                                <section aria-labelledby='items-heading'>
+                                    <h2 id='items-heading' className='font-display text-2xl text-ink'>
+                                        {itemCount === 1 ? 'Your item' : `Your ${itemCount} items`}
+                                    </h2>
+                                    <div className='mt-5'>
+                                        <OrderItemsList items={order.orderItems} />
+                                    </div>
+                                </section>
+
+                                {/* Tracking */}
+                                {order.shipment?.events?.length > 0 && (
+                                    <section aria-label='Tracking'>
+                                        <TrackingTimeline shipment={order.shipment} />
+                                    </section>
+                                )}
+
+                                {/* Price breakdown */}
+                                <section aria-labelledby='summary-heading' className='border border-line bg-surface p-6 sm:p-8'>
+                                    <h2 id='summary-heading' className='font-display text-2xl text-ink'>Order summary</h2>
+                                    <dl className='mt-6 space-y-3 font-sans text-sm'>
+                                        <div className='flex justify-between'>
+                                            <dt className='text-ink-soft'>Subtotal</dt>
+                                            <dd className='text-ink'>{inr(order.itemsPrice)}</dd>
+                                        </div>
+                                        <div className='flex justify-between'>
+                                            <dt className='text-ink-soft'>Shipping</dt>
+                                            <dd className='text-ink'>{order.shippingPrice ? inr(order.shippingPrice) : 'Free'}</dd>
+                                        </div>
+                                        {order.discountedAmount > 0 && (
+                                            <div className='flex justify-between'>
+                                                <dt className='text-ink-soft'>
+                                                    Discount{order.couponCode ? ` (${order.couponCode})` : ''}
+                                                </dt>
+                                                <dd className='text-success'>−{inr(order.discountedAmount)}</dd>
+                                            </div>
+                                        )}
+                                        {order.storeCreditApplied > 0 && (
+                                            <div className='flex justify-between'>
+                                                <dt className='text-ink-soft'>Paid with store credit</dt>
+                                                <dd className='text-ink'>−{inr(order.storeCreditApplied)}</dd>
+                                            </div>
+                                        )}
+                                        <div className='flex items-baseline justify-between border-t border-line pt-4'>
+                                            <dt className='text-ink'>{order.storeCreditApplied > 0 ? 'Paid online' : 'Total'}</dt>
+                                            <dd className='font-display text-3xl text-ink'>
+                                                {inr(order.totalPrice - (order.storeCreditApplied || 0))}
+                                            </dd>
+                                        </div>
+                                    </dl>
+                                </section>
                             </div>
+
+                            {/* Side rail */}
+                            <aside className='space-y-6 lg:sticky lg:top-28 lg:self-start'>
+                                <section className='border border-line bg-surface p-6'>
+                                    <h2 className='font-display text-xl text-ink'>Delivering to</h2>
+                                    <address className='mt-4 font-sans text-sm not-italic leading-relaxed text-ink-soft'>
+                                        <span className='block text-ink'>{order.user?.name}</span>
+                                        {order.shippingInfo?.address}
+                                        <br />
+                                        {order.shippingInfo?.city}, {order.shippingInfo?.state} {order.shippingInfo?.pinCode}
+                                        <br />
+                                        {order.shippingInfo?.country}
+                                        {order.shippingInfo?.phoneNumber && (
+                                            <span className='mt-2 block'>Phone {order.shippingInfo.phoneNumber}</span>
+                                        )}
+                                    </address>
+                                </section>
+
+                                <section className='border border-line bg-surface p-6'>
+                                    <h2 className='font-display text-xl text-ink'>Payment</h2>
+                                    <p className={`mt-4 font-sans text-sm ${isPaid ? 'text-success' : 'text-danger'}`}>
+                                        {isPaid ? `Paid ${paymentMethod}` : 'Payment pending'}
+                                    </p>
+                                    {order.paidAt && (
+                                        <p className='mt-1 font-sans text-xs text-ink-faint'>{formatDate(order.paidAt)}</p>
+                                    )}
+                                    {(isPaid || order.isRefunded) && (
+                                        <div className='mt-5 flex flex-wrap gap-x-6 gap-y-2'>
+                                            {isPaid && (
+                                                <a href={`/api/v1/order/${order._id}/invoice`} download className='font-sans text-sm text-brass underline-offset-4 hover:underline'>
+                                                    Download invoice
+                                                </a>
+                                            )}
+                                            {order.isRefunded && (
+                                                <a href={`/api/v1/order/${order._id}/credit-note`} download className='font-sans text-sm text-brass underline-offset-4 hover:underline'>
+                                                    Download credit note
+                                                </a>
+                                            )}
+                                        </div>
+                                    )}
+                                </section>
+
+                                <section className='border border-line bg-surface p-6'>
+                                    <h2 className='font-display text-xl text-ink'>Something not right?</h2>
+                                    <button
+                                        onClick={handleOpenDialog}
+                                        disabled={!canReturn}
+                                        className='btn-outline mt-5 w-full disabled:opacity-50'
+                                    >
+                                        Request a return
+                                    </button>
+                                    <p className='mt-3 font-sans text-xs leading-relaxed text-ink-faint'>{returnNote}</p>
+                                    <Link to='/contact-us' className='mt-4 inline-block font-sans text-sm text-ink-soft hover:text-brass'>
+                                        Contact us about this order
+                                    </Link>
+                                </section>
+                            </aside>
                         </div>
                     </div>
 
@@ -315,9 +418,10 @@ const OrderDetails = () => {
                             <Button onClick={handleCloseDialog} sx={{ color: '#8A8278' }}>Cancel</Button>
                             <Button
                                 onClick={() => submitReturnRequest(selectedOrder, selectedReturnReason)}
+                                disabled={returnBusy}
                                 sx={{ color: '#A07C4B' }}
                             >
-                                Submit Return
+                                {returnBusy ? 'Submitting…' : 'Submit Return'}
                             </Button>
                         </DialogActions>
                     </Dialog>
