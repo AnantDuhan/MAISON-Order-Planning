@@ -123,7 +123,9 @@ ensureIndex().catch(err => console.error("Elasticsearch index init failed:", err
 // Open the SMTP pool at boot so the first user-facing email is fast too.
 warmUpEmailTransport();
 
-const server = createServer.listen(process.env.PORT || 8080, () => {
+// Render sets PORT in production; locally the backend runs on 4000, which is
+// where the frontend dev server (vite.config.mjs) sends /api requests.
+const server = createServer.listen(process.env.PORT || 4000, () => {
     console.log(`✅ Server is working on https://api.maisonorderplanning.in`)
 })
 

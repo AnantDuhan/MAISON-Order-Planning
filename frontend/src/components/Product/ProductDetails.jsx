@@ -21,6 +21,7 @@ import WarningAmberOutlinedIcon from "@mui/icons-material/WarningAmberOutlined";
 
 import { addItemsToCart } from "../../actions/cartAction";
 import BackInStockButton from "./BackInStockButton";
+import VariantPicker, { colorOption, findSelectedVariant, imagesForColor } from "./VariantPicker";
 import {
   addProductToWishlist,
   clearErrors,
@@ -79,10 +80,39 @@ const ProductDetails = () => {
     dispatch(summarizeProductReviews(id));
   };
 
-  const addToCartHandler = () => {
-    dispatch(addItemsToCart(id, quantity));
-    toast.success("Item Added To Cart");
-    setProgress(progress + 80);
+  // Options (Size, Colour…): which combination the shopper has picked.
+  const [selection, setSelection] = useState({});
+  const hasOptions = (product?.options || []).length > 0;
+  const selectedVariant = hasOptions ? findSelectedVariant(product, selection) : null;
+
+  // Picking a colour switches the gallery to that colour's photos.
+  const chosenColor = selection[colorOption(product)?.name];
+  const galleryImages = imagesForColor(product, chosenColor);
+
+  // Single-value options (e.g. only one colour) are pre-selected.
+  useEffect(() => {
+    if (!product?._id) return;
+    const preset = {};
+    for (const option of product.options || []) {
+      if (option.values.length === 1) preset[option.name] = option.values[0].value;
+    }
+    setSelection(preset);
+    setQuantity(1);
+  }, [product?._id]);
+
+  const addToCartHandler = async () => {
+    if (hasOptions && !selectedVariant) {
+      const missing = product.options.filter((o) => !selection[o.name]).map((o) => o.name.toLowerCase());
+      toast.info(`Please choose ${missing.join(' and ') || 'an option'}`);
+      return;
+    }
+    try {
+      await dispatch(addItemsToCart(id, quantity, selectedVariant?._id || null));
+      toast.success(selectedVariant ? `Added to your bag · ${Object.values(selection).filter(Boolean).join(' / ')}` : "Item Added To Cart");
+      setProgress(progress + 80);
+    } catch (error) {
+      toast.error(error.message || "Could not add to your bag");
+    }
   };
 
   const wishlistHandler = () => {
@@ -181,7 +211,14 @@ const ProductDetails = () => {
     };
   }, [dispatch, id]);
 
-  const inStock = product?.Stock >= 1;
+  // With options, stock and price follow the chosen combination.
+  const inStock = selectedVariant ? selectedVariant.Stock >= 1 : product?.Stock >= 1;
+  const unitsLeft = selectedVariant ? selectedVariant.Stock : product?.Stock;
+  const shownPrice = selectedVariant
+    ? (selectedVariant.price ?? product.price)
+    : product?.priceFrom != null && product?.priceTo != null && product.priceFrom !== product.priceTo
+      ? null
+      : (product?.priceFrom ?? product?.price);
 
   return (
     <Fragment>
@@ -208,14 +245,15 @@ const ProductDetails = () => {
               {/* Gallery */}
               <div className="lg:sticky lg:top-28 lg:self-start">
                 <div className="overflow-hidden border border-line bg-surface-2">
-                  {product.images && product.images.length > 0 && (
+                  {galleryImages.length > 0 && (
                     <Carousel
+                      key={chosenColor || "all"}
                       showThumbs={false}
                       autoPlay
                       infiniteLoop
                       showStatus={false}
                     >
-                      {product.images.map((item, i) => (
+                      {galleryImages.map((item, i) => (
                         <div
                           key={i}
                           onClick={() => openLightbox(i)}
@@ -224,7 +262,7 @@ const ProductDetails = () => {
                           <img
                             className="aspect-square w-full object-cover"
                             src={item.url}
-                            alt={`${i} Slide`}
+                            alt={chosenColor ? `${product.name} in ${chosenColor}, photo ${i + 1}` : `${product.name}, photo ${i + 1}`}
                           />
                         </div>
                       ))}
@@ -240,7 +278,7 @@ const ProductDetails = () => {
                 open={lightboxIsOpen}
                 close={() => setLightboxIsOpen(false)}
                 slides={
-                  product.images?.map((item) => ({ src: item.url })) || []
+                  galleryImages.map((item) => ({ src: item.url }))
                 }
                 index={lightboxImageIndex}
               />
@@ -262,7 +300,9 @@ const ProductDetails = () => {
                   </span>
                 </div>
 
-                <p className="mt-6 font-display text-4xl font-medium text-ink">{`₹${product.price}`}</p>
+                <p className="mt-6 font-display text-4xl font-medium text-ink">
+                  {shownPrice != null ? `₹${shownPrice}` : `From ₹${product.priceFrom}`}
+                </p>
 
                 <div className="mt-3 flex items-center gap-2">
                   <span
@@ -271,9 +311,23 @@ const ProductDetails = () => {
                   <span
                     className={`font-sans text-[0.72rem] uppercase tracking-luxe ${inStock ? "text-success" : "text-danger"}`}
                   >
-                    {inStock ? "In Stock" : "Out of Stock"}
+                    {hasOptions && !selectedVariant && product.Stock >= 1
+                      ? "Choose your options"
+                      : inStock
+                        ? unitsLeft <= 3 ? `Only ${unitsLeft} left` : "In Stock"
+                        : selectedVariant ? "This option is sold out" : "Out of Stock"}
                   </span>
                 </div>
+
+                {hasOptions && (
+                  <div className="mt-8">
+                    <VariantPicker
+                      product={product}
+                      selection={selection}
+                      onChange={(next) => { setSelection(next); setQuantity(1); }}
+                    />
+                  </div>
+                )}
 
                 <div className="mt-8 rule-luxe" />
 
@@ -289,7 +343,7 @@ const ProductDetails = () => {
                       disabled={!inStock}
                       className="border border-line bg-transparent px-4 py-2 font-sans text-sm text-ink focus:border-brass focus:outline-none disabled:opacity-50"
                     >
-                      {[...Array(Math.min(10, product.Stock || 1)).keys()].map(
+                      {[...Array(Math.min(10, unitsLeft || 1)).keys()].map(
                         (x) => (
                           <option key={x + 1} value={x + 1}>
                             {x + 1}
@@ -299,12 +353,12 @@ const ProductDetails = () => {
                     </select>
                   </div>
 
-                  {!inStock && backInStockOn && (
+                  {(!inStock || (hasOptions && product.Stock < 1)) && backInStockOn && (hasOptions ? product.Stock < 1 || selectedVariant : true) && (
                     <BackInStockButton productId={product._id} isAuthenticated={Boolean(user)} />
                   )}
 
                   <div className="flex flex-col gap-3 sm:flex-row">
-                    {inStock && (
+                    {(inStock || (hasOptions && !selectedVariant && product.Stock >= 1)) && (
                       <button
                         onClick={addToCartHandler}
                         className="btn-solid flex-1"

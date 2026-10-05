@@ -283,6 +283,7 @@ exports.updateRefundStatus = async (req, res) => {
 async function restoreStock(orderItems = []) {
     await inventory.restoreStock(orderItems.map(item => ({
         product: String(item.product),
+        ...(item.variant && { variant: String(item.variant) }),
         quantity: item.quantity,
     })));
 }

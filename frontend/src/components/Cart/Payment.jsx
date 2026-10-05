@@ -52,6 +52,7 @@ const Payment = () => {
             // quantities and the coupon code are sent.
             const pricedItems = cartItems.map(item => ({
                 product: item.product,
+                ...(item.variant && { variant: item.variant }),
                 quantity: item.quantity,
             }));
             const couponCode = orderInfo.selectedCoupon?.code;

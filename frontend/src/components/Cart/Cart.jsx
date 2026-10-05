@@ -15,7 +15,7 @@ const Cart = () => {
     const dispatch = useDispatch();
     const { cartItems } = useSelector(state => state.cart);
 
-    const deleteCartItems = id => dispatch(removeItemsFromCart(id));
+    const deleteCartItems = (id, variant = null) => dispatch(removeItemsFromCart(id, variant));
     const checkoutOpen = useFeature('checkout');
 
     // Arriving from a reminder email (?restore=1): bring the saved cart onto
@@ -67,7 +67,7 @@ const Cart = () => {
 
                             {cartItems.map(item => (
                                 <div
-                                    key={item.product}
+                                    key={`${item.product}|${item.variant || ''}`}
                                     className='grid grid-cols-1 items-center gap-6 border-b border-line py-8 lg:grid-cols-[1fr_140px_120px]'
                                 >
                                     <CartItemCard item={item} deleteCartItems={deleteCartItems} />
@@ -76,7 +76,7 @@ const Cart = () => {
                                         <select
                                             value={item.quantity}
                                             onChange={e =>
-                                                dispatch(addItemsToCart(item.product, Number(e.target.value)))
+                                                dispatch(addItemsToCart(item.product, Number(e.target.value), item.variant || null))
                                             }
                                             className='border border-line bg-transparent px-4 py-2 font-sans text-sm text-ink focus:border-brass focus:outline-none'
                                         >

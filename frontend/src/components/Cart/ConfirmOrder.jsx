@@ -68,13 +68,16 @@ const ConfirmOrder = () => {
                             <div className='mt-5 divide-y divide-line border border-line bg-surface'>
                                 {cartItems &&
                                     cartItems.map(item => (
-                                        <div key={item.product} className='flex items-center gap-5 p-5'>
+                                        <div key={`${item.product}|${item.variant || ''}`} className='flex items-center gap-5 p-5'>
                                             <img src={item.image} alt='Product' className='h-16 w-14 border border-line object-cover' />
                                             <Link
                                                 to={`/product/${item.product}`}
                                                 className='flex-1 font-display text-lg font-medium text-ink hover:text-brass'
                                             >
                                                 {item.name}
+                                                {item.variantLabel && (
+                                                    <span className='mt-1 block font-sans text-sm font-normal text-ink-soft'>{item.variantLabel}</span>
+                                                )}
                                             </Link>
                                             <span className='font-sans text-sm text-ink-soft'>
                                                 {item.quantity} × ₹{item.price} ={' '}

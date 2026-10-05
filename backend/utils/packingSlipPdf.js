@@ -67,6 +67,10 @@ const renderPackingSlip = async order => {
         for (const item of order.orderItems || []) {
             units += item.quantity;
             doc.font('Helvetica').fontSize(11).fillColor(INK).text(item.name, left + 8, y, { width: width - 150 });
+            if (item.variantLabel || item.sku) {
+                doc.font('Helvetica').fontSize(9).fillColor(SOFT)
+                    .text([item.variantLabel, item.sku && `SKU ${item.sku}`].filter(Boolean).join('  ·  '), left + 8, doc.y + 2, { width: width - 150 });
+            }
             const rowBottom = doc.y;
             doc.font('Helvetica-Bold').fontSize(12).text(String(item.quantity), right - 120, y, { width: 40, align: 'right' });
             doc.rect(right - 22, y, 12, 12).lineWidth(0.75).strokeColor(SOFT).stroke();

@@ -57,6 +57,10 @@ const orderSchema = new mongoose.Schema({
                     }
                 }
             ],
+            // Chosen variant, if the product has options (Size, Colour, …).
+            variant: String,
+            variantLabel: String,
+            sku: String,
             product: {
                 type: String,
                 ref: 'Product',

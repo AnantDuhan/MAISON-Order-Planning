@@ -35,11 +35,21 @@ exports.syncCart = async (req, res) => {
             });
         }
 
+        // Only the known fields; variant and its label identify size/colour.
+        const clean = items.slice(0, 100).map(item => ({
+            product: String(item?.product || ''),
+            name: String(item?.name || ''),
+            price: Number(item?.price) || 0,
+            image: item?.image ? String(item.image) : undefined,
+            quantity: Math.max(1, Math.floor(Number(item?.quantity) || 1)),
+            ...(item?.variant && { variant: String(item.variant), variantLabel: String(item.variantLabel || '').slice(0, 120) }),
+        })).filter(item => item.product && item.name);
+
         const cart = await Cart.findOneAndUpdate(
             { user: req.user._id },
             {
                 $set: {
-                    items,
+                    items: clean,
                     updatedAt: new Date()
                 },
                 $setOnInsert: { _id: generateId(), user: req.user._id }
