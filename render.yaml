@@ -22,7 +22,7 @@ projects:
       - key: NODE_ENV
         value: production            # serves the built frontend (same-origin)
       # ENABLE_IN_PROCESS_CRON stays unset/false; jobs run via the /jobs
-      # endpoints driven by .github/workflows/cron.yml.
+      # endpoints, called on a schedule by cron-job.org.
 
       # --- Database ---
       - key: DB_URI
@@ -49,6 +49,8 @@ projects:
       # --- Scheduled jobs ---
       - key: CRON_SECRET             # required by POST /api/v1/jobs/*
         sync: false
+      - key: EMAIL_JOBS_INLINE       # "true": run newsletter/wishlist in the web process (no worker.js deployed)
+        value: "true"
 
       # --- Inventory ---
       - key: ADMIN_ALERT_EMAILS      # optional, comma-separated; defaults to all admin users
@@ -81,6 +83,8 @@ projects:
       - key: EMAIL_REPLY_TO
         sync: false
       - key: BACKEND_URL             # used for order links in emails
+        sync: false
+      - key: BACKEND_URL_LIVE        # used for order links in emails
         sync: false
       - key: NEWSLETTER_UNSUBSCRIBE_URL
         sync: false

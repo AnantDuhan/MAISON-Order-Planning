@@ -27,9 +27,32 @@ const requireCronSecret = (req, res, next) => {
 // The separate worker (backend/worker.js) runs it, with retries and
 // back-pressure — the web process never blocks on the batch. This also keeps
 // the job from running once per instance under horizontal scaling.
+//
+// EMAIL_JOBS_INLINE=true runs the batch in this process instead, in the
+// background after the 202 is sent. Use it when worker.js is not deployed
+// (e.g. Render free tier, which has no free background workers); without it
+// the job would sit in the queue and never run.
 const emailQueue = require('../queues/email.queue');
+const runWeeklyNewsletter = require('../newsletterJob');
+const runWishlistReminders = require('../wishlistJob');
+
+const inlineHandlers = { newsletter: runWeeklyNewsletter, wishlist: runWishlistReminders };
+const runningInline = new Set();
 
 const enqueue = name => async (req, res, next) => {
+    if (process.env.EMAIL_JOBS_INLINE === 'true') {
+        if (runningInline.has(name)) {
+            return res.status(202).json({ success: true, job: name, message: 'already running' });
+        }
+        runningInline.add(name);
+        res.status(202).json({ success: true, job: name, message: 'started inline' });
+        Promise.resolve()
+            .then(() => inlineHandlers[name]())
+            .then(() => console.log(`Job ${name} completed (inline)`))
+            .catch(err => console.error(`Job ${name} failed (inline):`, err.message))
+            .finally(() => runningInline.delete(name));
+        return;
+    }
     try {
         await emailQueue.add(name, {}, {
             removeOnComplete: true,
