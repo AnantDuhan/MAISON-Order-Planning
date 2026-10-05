@@ -4,13 +4,13 @@ import axios from 'axios';
 import { Provider } from 'react-redux';
 import { BrowserRouter } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
-import { Bounce, ToastContainer } from 'react-toastify';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 
 import App from './App';
 import store from './store';
 import { ThemeProvider } from './context/ThemeContext';
 import { FeatureFlagsProvider } from './context/FeatureFlagsContext';
+import MaisonToaster from './components/layout/Toast/MaisonToaster';
 
 import './styles/theme.css';
 
@@ -20,12 +20,6 @@ axios.defaults.withCredentials = true;
 
 console.log("Google Client ID Status:", GOOGLE_CLIENT_ID ? "Loaded" : "MISSING");
 
-const toastOptions = {
-    autoClose: 3000,
-    // react-toastify 10+ removed toast.POSITION; positions are plain strings.
-    position: 'bottom-center',
-    transition: Bounce,
-};
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 
@@ -43,7 +37,7 @@ root.render(
           </Provider>
         </BrowserRouter>
       </GoogleOAuthProvider>
-      <ToastContainer {...toastOptions} />
+      <MaisonToaster />
     </HelmetProvider>
   </React.StrictMode>
 );
