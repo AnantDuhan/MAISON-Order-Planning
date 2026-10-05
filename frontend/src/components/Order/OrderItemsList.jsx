@@ -56,8 +56,12 @@ const OrderItemsList = ({ items = [] }) => (
                         >
                             {item.name}
                         </Link>
+                        {item.variantLabel && (
+                            <p className='mt-2 font-sans text-sm text-ink'>{item.variantLabel}</p>
+                        )}
                         <p className='mt-2 font-sans text-sm text-ink-soft'>
                             {inr(item.price)} × {item.quantity}
+                            {item.sku ? <span className='text-ink-faint'> · SKU {item.sku}</span> : null}
                         </p>
                     </div>
                     <p className='font-display text-xl text-ink sm:text-right sm:text-2xl'>{inr(item.price * item.quantity)}</p>

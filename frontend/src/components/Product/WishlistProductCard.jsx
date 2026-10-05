@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useDispatch } from 'react-redux';
 import { removeProductFromWishlist } from '../../actions/productAction';
+import { priceLabel } from '../../utils/priceLabel';
 
 const WishlistProductCard = ({ product }) => {
     const dispatch = useDispatch();
@@ -63,7 +64,7 @@ const WishlistProductCard = ({ product }) => {
                         <Rating {...options} />
                         <span className='font-sans text-[0.7rem] text-ink-faint'>({product.numOfReviews})</span>
                     </div>
-                    <p className='mt-3 font-sans text-sm tracking-wide text-ink-soft'>{`₹${product.price}`}</p>
+                    <p className='mt-3 font-sans text-sm tracking-wide text-ink-soft'>{priceLabel(product)}</p>
                 </div>
             </Link>
         </Fragment>

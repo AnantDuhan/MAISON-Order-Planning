@@ -15,6 +15,7 @@ const inventory = require('../services/inventoryService');
 const shipments = require('../services/shipmentService');
 const cartRecovery = require('../services/cartRecoveryService');
 const wallet = require('../services/walletService');
+const { hasVariants, findVariant, variantLabel } = require('../utils/productVariants');
 const { renderPackingSlip } = require('../utils/packingSlipPdf');
 const logger = require('../config/logger');
 
@@ -500,20 +501,25 @@ exports.reorder = async (req, res, next) => {
         }
 
         const ids = originalOrder.orderItems.map(item => String(item.product));
-        const products = await Product.find({ _id: { $in: ids } }).select('name price Stock images');
+        const products = await Product.find({ _id: { $in: ids } }).select('name price Stock images options variants');
         const byId = new Map(products.map(p => [String(p._id), p]));
 
         const items = [];
         const unavailable = [];
         for (const item of originalOrder.orderItems) {
             const product = byId.get(String(item.product));
-            if (!product || product.Stock < 1) {
-                unavailable.push({ product: String(item.product), name: item.name });
+            // Same size/colour as last time, if it still exists and is in stock.
+            const variant = item.variant ? findVariant(product, item.variant) : null;
+            const needsVariant = product && hasVariants(product);
+            const available = needsVariant ? (variant && variant.active !== false ? variant.Stock : 0) : product?.Stock;
+            if (!product || !(available >= 1)) {
+                unavailable.push({ product: String(item.product), name: item.name, ...(item.variantLabel && { variantLabel: item.variantLabel }) });
                 continue;
             }
             items.push({
                 product: String(product._id),
-                quantity: Math.min(item.quantity, product.Stock),
+                ...(variant && { variant: String(variant._id), variantLabel: variantLabel(product, variant) }),
+                quantity: Math.min(item.quantity, available),
             });
         }
 

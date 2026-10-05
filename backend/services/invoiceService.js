@@ -68,7 +68,7 @@ const createOrderInvoice = async (order, user, opts = {}) => {
                 phone: s.phoneNumber != null ? String(s.phoneNumber) : undefined,
             },
             lines: (order.orderItems || []).map(item => ({
-                description: item.name,
+                description: item.variantLabel ? `${item.name} (${item.variantLabel})` : item.name,
                 quantity: item.quantity,
                 unitPrice: round2(item.price),
                 amount: round2(item.price * item.quantity),

@@ -17,6 +17,7 @@ const stockHoldSchema = new mongoose.Schema({
         {
             _id: false,
             product: { type: String, ref: 'Product', required: true },
+            variant: String,
             quantity: { type: Number, required: true, min: 1 },
         },
     ],

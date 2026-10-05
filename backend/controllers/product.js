@@ -12,6 +12,7 @@ const searchService = require("../services/searchService");
 
 // Fields an admin may change through the JSON update endpoint.
 const inventory = require("../services/inventoryService");
+const { buildVariantFields, templateForCategory } = require("../utils/productVariants");
 const { snapshot } = require("../middleware/audit");
 
 const UPDATABLE_PRODUCT_FIELDS = ["name", "description", "price", "category", "Stock", "lowStockThreshold"];
@@ -149,6 +150,27 @@ exports.updateProduct = async (req, res, next) => {
         `${update.name || product.name} ${update.description || product.description}`,
       );
       if (vector) update.embedding = vector;
+    }
+
+    // Options (Size, Colour…) and variants, validated together.
+    if (req.body.options !== undefined) {
+      try {
+        const built = buildVariantFields({
+          options: req.body.options,
+          variants: req.body.variants,
+          price: update.price ?? product.price,
+          existingVariants: product.variants,
+        });
+        Object.assign(update, {
+          options: built.options,
+          variants: built.variants,
+          priceFrom: built.priceFrom,
+          priceTo: built.priceTo,
+        });
+        if (built.variants.length) update.Stock = built.Stock;
+      } catch (error) {
+        return res.status(400).json({ success: false, message: error instanceof SyntaxError ? "Options could not be read" : error.message });
+      }
     }
 
     const updatedProduct = await Product.findByIdAndUpdate(productId, update, {
@@ -670,4 +692,10 @@ exports.getInventoryReport = async (req, res) => {
         .limit(50)
         .lean();
   res.status(200).json({ success: true, ...report, shortfallOrders });
+};
+
+// GET /api/v1/admin/product-options/template?category=Tops
+// Suggested options (Size, Colour…) for a category, to pre-fill the form.
+exports.getOptionTemplate = (req, res) => {
+  res.status(200).json({ success: true, options: templateForCategory(req.query.category) });
 };

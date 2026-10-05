@@ -20,9 +20,12 @@ const CartItemCard = ({ item, deleteCartItems }) => {
                 >
                     {item.name}
                 </Link>
+                {item.variantLabel && (
+                    <span className='mt-1 font-sans text-sm text-ink'>{item.variantLabel}</span>
+                )}
                 <span className='mt-1 font-sans text-sm text-ink-soft'>{`₹${item.price}`}</span>
                 <button
-                    onClick={() => deleteCartItems(item.product)}
+                    onClick={() => deleteCartItems(item.product, item.variant || null)}
                     className='mt-3 self-start font-sans text-[0.68rem] uppercase tracking-luxe text-ink-faint transition-colors hover:text-danger'
                 >
                     Remove

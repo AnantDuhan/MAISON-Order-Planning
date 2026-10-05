@@ -61,7 +61,7 @@ app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 
 const allowedOrigins = [
   "http://localhost:3000",
-  "http://localhost:8080",
+  "http://localhost:4000",
   "https://maisonorderplanning.netlify.app",
   "https://maisonorderplanning.in"
 ];
@@ -183,6 +183,50 @@ const pickProductFields = body => {
   return fields;
 };
 
+// Options (Size, Colour…) and variants arrive as JSON strings in the
+// multipart form. Validates them and sets the derived Stock / price range.
+// Returns an error message for the client, or null.
+const applyVariantInput = (fields, body, existing) => {
+  if (body.options === undefined) return null;
+  try {
+    const built = buildVariantFields({
+      options: body.options,
+      variants: body.variants,
+      price: fields.price ?? existing?.price,
+      existingVariants: existing?.variants,
+    });
+    fields.options = built.options;
+    fields.variants = built.variants;
+    fields.priceFrom = built.priceFrom;
+    fields.priceTo = built.priceTo;
+    if (built.variants.length) fields.Stock = built.Stock;
+    return null;
+  } catch (error) {
+    return error instanceof SyntaxError ? "Options could not be read" : error.message;
+  }
+};
+
+// Colour tags for photos. New uploads: `imageColors` = JSON array in upload
+// order. Existing photos: `imageTags` = JSON { imageId: colour }. Tags that
+// don't match a colour of the product are dropped.
+const tagNewImages = (images, raw) => {
+  const tags = Array.isArray(raw) ? raw : parseTags(raw);
+  if (!Array.isArray(tags)) return images;
+  return images.map((img, i) => (tags[i] ? { ...img, color: String(tags[i]) } : img));
+};
+const tagExistingImages = (images, raw) => {
+  const tags = parseTags(raw);
+  if (!tags || typeof tags !== "object") return images;
+  return images.map(img => {
+    const plain = typeof img.toObject === "function" ? img.toObject() : { ...img };
+    if (Object.prototype.hasOwnProperty.call(tags, plain._id)) {
+      if (tags[plain._id]) plain.color = String(tags[plain._id]);
+      else delete plain.color;
+    }
+    return plain;
+  });
+};
+
 const syncSearchIndex = promise =>
   promise.catch(err => console.error("Search index sync failed:", err.message));
 
@@ -206,6 +250,7 @@ const walletRoute = require("./routes/wallet");
 const featuresRoute = require("./routes/features");
 const inventory = require("./services/inventoryService");
 const { auditAdminWrites, snapshot } = require("./middleware/audit");
+const { buildVariantFields, cleanImageColors, parseTags } = require("./utils/productVariants");
 
 app.get("/api/v1/health", (req, res) => {
   res.status(200).json({
@@ -251,8 +296,22 @@ const adminOnly = [apiLimiter, isAuthUser, authRoles("admin")];
 adminProducts.post("/admin/add-product", adminOnly, upload.array("product", 10), async (req, res) => {
   try {
     const productId = generateId();
-    const images = await uploadProductImages(productId, req.files);
+    // Validate options/variants (and photo tags) before uploading anything,
+    // so a rejected form doesn't leave photos behind in S3.
     const fields = pickProductFields(req.body);
+    const variantError = applyVariantInput(fields, req.body, null);
+    if (variantError) {
+      return res.status(400).json({ success: false, message: variantError });
+    }
+    let imageColors;
+    try {
+      imageColors = parseTags(req.body.imageColors);
+    } catch (error) {
+      return res.status(400).json({ success: false, message: error.message });
+    }
+
+    let images = await uploadProductImages(productId, req.files);
+    images = cleanImageColors(tagNewImages(images, imageColors), fields.options);
 
     const embedding = await generateEmbedding(`${fields.name || ""} ${fields.description || ""}`);
 
@@ -299,6 +358,10 @@ adminProducts.put("/admin/product/:id", adminOnly, upload.array("product", 10), 
 
     // Only whitelisted fields; never ratings, reviews, user, isDemo, ...
     const update = pickProductFields(req.body);
+    const variantError = applyVariantInput(update, req.body, product);
+    if (variantError) {
+      return res.status(400).json({ success: false, message: variantError });
+    }
 
     let oldImages = null;
     if (req.files && req.files.length > 0) {
@@ -306,6 +369,18 @@ adminProducts.put("/admin/product/:id", adminOnly, upload.array("product", 10), 
       // so a failed upload doesn't leave the product with no images.
       update.images = await uploadProductImages(productId, req.files);
       oldImages = product.images;
+    }
+    // Colour tags: on new uploads, or on the existing photos when no new ones
+    // were sent. Re-checked against the (possibly edited) colour values.
+    try {
+      const options = update.options ?? product.options;
+      if (update.images) {
+        update.images = cleanImageColors(tagNewImages(update.images, req.body.imageColors), options);
+      } else if (req.body.imageTags !== undefined || update.options !== undefined) {
+        update.images = cleanImageColors(tagExistingImages(product.images, req.body.imageTags), options);
+      }
+    } catch (error) {
+      return res.status(400).json({ success: false, message: error.message });
     }
 
     if (update.name || update.description) {

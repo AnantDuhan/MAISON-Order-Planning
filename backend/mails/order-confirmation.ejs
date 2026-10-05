@@ -57,6 +57,9 @@
               <p style="margin:0; font-family:Georgia,'Times New Roman',serif; font-size:18px; font-weight:500; color:#1A1816;">
                 <%= item.name %>
               </p>
+              <% if (item.variantLabel) { %>
+              <p style="margin:4px 0 0 0; font-family:Helvetica,Arial,sans-serif; font-size:13px; color:#4A453F;"><%= item.variantLabel %></p>
+              <% } %>
               <p style="margin:6px 0 0 0; font-family:Helvetica,Arial,sans-serif; font-size:13px; color:#8A8278;">
                 Qty <%= item.quantity %> &nbsp;·&nbsp; &#8377;<%= item.price %>
               </p>

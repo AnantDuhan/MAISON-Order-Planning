@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { priceLabel } from '../../utils/priceLabel';
 
 const ProductGridItem = ({ product }) => {
     if (!product) return null;
@@ -25,7 +26,7 @@ const ProductGridItem = ({ product }) => {
                 <span className='eyebrow !text-brass-soft'>New Arrival</span>
                 <h3 className='mt-2 font-display text-2xl font-medium text-white'>{product.name}</h3>
                 <p className='mt-1 line-clamp-2 font-sans text-sm text-white/70'>{product.description}</p>
-                <p className='mt-3 font-sans text-sm tracking-wide text-white'>{`₹${product.price}`}</p>
+                <p className='mt-3 font-sans text-sm tracking-wide text-white'>{priceLabel(product)}</p>
             </div>
         </Link>
     );

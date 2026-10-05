@@ -13,16 +13,14 @@ export const cartReducer = (
         case ADD_TO_CART:
             const item = action.payload;
 
-            const isItemExist = state.cartItems.find(
-                i => i.product === item.product
-            );
+            // Same product in a different size/colour is a separate line.
+            const sameLine = i => i.product === item.product && (i.variant || null) === (item.variant || null);
+            const isItemExist = state.cartItems.find(sameLine);
 
             if (isItemExist) {
                 return {
                     ...state,
-                    cartItems: state.cartItems.map(i =>
-                        i.product === isItemExist.product ? item : i
-                    )
+                    cartItems: state.cartItems.map(i => (sameLine(i) ? item : i))
                 };
             } else {
                 return {
@@ -34,9 +32,11 @@ export const cartReducer = (
         case REMOVE_CART_ITEM:
             return {
                 ...state,
-                cartItems: state.cartItems.filter(
-                    i => i.product !== action.payload
-                )
+                // Payload is { product, variant }; older callers pass just the id.
+                cartItems: state.cartItems.filter(i => {
+                    const target = typeof action.payload === 'object' ? action.payload : { product: action.payload };
+                    return !(i.product === target.product && (i.variant || null) === (target.variant || null));
+                })
             };
 
         case SAVE_SHIPPING_INFO:

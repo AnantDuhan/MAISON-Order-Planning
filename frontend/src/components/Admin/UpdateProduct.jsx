@@ -11,6 +11,8 @@ import { clearErrors, getProductDetails, updateProduct } from '../../actions/pro
 import { UPDATE_PRODUCT_RESET } from '../../constants/productConstants';
 import MetaData from '../layout/MetaData';
 import AdminPage from './shared/AdminPage';
+import VariantEditor, { variantFormFields, variantTotalStock } from './VariantEditor';
+import PhotoColorTags, { colourValues, useFileThumbnails } from './PhotoColorTags';
 import ButtonSpinner from '../layout/ButtonSpinner';
 
 const categories = [
@@ -34,7 +36,13 @@ const UpdateProduct = () => {
     const [isAddingCategory, setIsAddingCategory] = useState(false);
     const [newCategory, setNewCategory] = useState('');
     const [Stock, setStock] = useState(0);
+    const [variantData, setVariantData] = useState({ options: [], variants: [] });
+    const hasOptions = variantData.options.length > 0;
+    const colours = colourValues(variantData.options);
+    const [oldPhotoTags, setOldPhotoTags] = useState({});
+    const [newPhotoTags, setNewPhotoTags] = useState({});
     const [images, setImages] = useState([]);
+    const newPhotos = useFileThumbnails(images);
     const [oldImages, setOldImages] = useState([]);
     const [imagesPreview, setImagesPreview] = useState([]);
 
@@ -49,7 +57,12 @@ const UpdateProduct = () => {
             setPrice(product.price);
             setCategory(product.category);
             setStock(product.Stock);
+            setVariantData({
+                options: product.options || [],
+                variants: (product.variants || []).map(v => ({ ...v, price: v.price ?? '' })),
+            });
             setOldImages(product.images);
+            setOldPhotoTags(Object.fromEntries((product.images || []).filter(img => img.color).map(img => [img._id, img.color])));
         }
         if (error) {
             toast.error(error);
@@ -79,7 +92,17 @@ const UpdateProduct = () => {
         myForm.set('price', price);
         myForm.set('description', description);
         myForm.set('category', productCategory);
-        myForm.set('Stock', Stock);
+        myForm.set('Stock', hasOptions ? variantTotalStock(variantData.variants) : Stock);
+        const variantFields = variantFormFields(variantData);
+        myForm.set('options', variantFields.options);
+        myForm.set('variants', variantFields.variants);
+        // Photo colours: new uploads replace the current photos (in upload
+        // order); otherwise the current photos are re-tagged by id.
+        if (images.length) {
+            myForm.set('imageColors', JSON.stringify(images.map((_, i) => newPhotoTags[String(i)] || '')));
+        } else {
+            myForm.set('imageTags', JSON.stringify(Object.fromEntries((oldImages || []).map(img => [img._id, oldPhotoTags[img._id] || '']))));
+        }
         images.forEach(image => myForm.append('product', image));
         dispatch(updateProduct(productId, myForm));
     };
@@ -88,6 +111,7 @@ const UpdateProduct = () => {
         const files = Array.from(e.target.files);
         setImages(files);
         setImagesPreview([]);
+        setNewPhotoTags({});
         setOldImages([]);
         files.forEach(file => {
             const reader = new FileReader();
@@ -138,7 +162,9 @@ const UpdateProduct = () => {
                                     type='number'
                                     placeholder='Stock'
                                     required
-                                    value={Stock}
+                                    value={hasOptions ? variantTotalStock(variantData.variants) : Stock}
+                                    disabled={hasOptions}
+                                    title={hasOptions ? 'Stock is set per variant below' : undefined}
                                     onChange={e => setStock(e.target.value)}
                                 />
                             </div>
@@ -211,7 +237,20 @@ const UpdateProduct = () => {
                                 />
                             </label>
 
-                            {oldImages && oldImages.length > 0 && (
+                            {colours.length > 0 && images.length === 0 && (
+                                <PhotoColorTags
+                                    title='Current photos — which colour is each?'
+                                    photos={(oldImages || []).map(img => ({ key: img._id, src: img.url }))}
+                                    colours={colours}
+                                    tags={oldPhotoTags}
+                                    onChange={setOldPhotoTags}
+                                />
+                            )}
+                            {colours.length > 0 && images.length > 0 && (
+                                <PhotoColorTags title='New photos (replace the current ones) — which colour is each?' photos={newPhotos} colours={colours} tags={newPhotoTags} onChange={setNewPhotoTags} accent />
+                            )}
+
+                            {colours.length === 0 && oldImages && oldImages.length > 0 && (
                                 <div className='mt-5'>
                                     <p className='font-sans text-[0.68rem] uppercase tracking-luxe text-ink-faint'>
                                         Current
@@ -229,7 +268,7 @@ const UpdateProduct = () => {
                                 </div>
                             )}
 
-                            {imagesPreview.length > 0 && (
+                            {colours.length === 0 && imagesPreview.length > 0 && (
                                 <div className='mt-5'>
                                     <p className='font-sans text-[0.68rem] uppercase tracking-luxe text-brass'>
                                         New
@@ -247,6 +286,8 @@ const UpdateProduct = () => {
                                 </div>
                             )}
                         </div>
+
+                        <VariantEditor category={isAddingCategory ? newCategory : category} value={variantData} onChange={setVariantData} />
 
                         <button type='submit' disabled={loading} className='btn-solid w-full disabled:opacity-40'>
                             {loading ? (

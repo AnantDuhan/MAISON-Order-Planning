@@ -34,7 +34,8 @@ COPY backend/ ./backend/
 COPY --from=frontend /app/frontend/build ./frontend/build
 
 ENV NODE_ENV=production
-EXPOSE 8080
+# Documentation only: Render sets PORT and the app listens on it.
+EXPOSE 4000
 
 USER node
 CMD ["node", "backend/server.js"]

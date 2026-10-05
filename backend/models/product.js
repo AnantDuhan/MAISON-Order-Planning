@@ -28,7 +28,11 @@ const productSchema = mongoose.Schema({
             url: {
                 type: String,
                 required: true
-            }
+            },
+            // Value of the product's colour option this photo shows (e.g.
+            // "Navy"). Empty = shared by every colour (fabric close-up, size
+            // chart). See imagesForSelection in utils/productVariants.js.
+            color: String
         }
     ],
     user: {
@@ -59,6 +63,36 @@ const productSchema = mongoose.Schema({
         type: Date,
         default: null
     },
+    // Options like Size and Colour, and one variant per combination with its
+    // own stock, optional price and SKU (utils/productVariants.js). Empty for
+    // products without options, which work exactly as before.
+    options: {
+        type: [
+            {
+                _id: false,
+                name: { type: String, required: true },
+                kind: { type: String, enum: ['size', 'color', 'text'], default: 'text' },
+                values: [{ _id: false, value: { type: String, required: true }, hex: String }],
+            },
+        ],
+        default: [],
+    },
+    variants: {
+        type: [
+            {
+                _id: String,
+                options: { type: Map, of: String },
+                price: { type: Number, default: null, min: 0 },
+                Stock: { type: Number, default: 0, min: 0 },
+                sku: String,
+                active: { type: Boolean, default: true },
+            },
+        ],
+        default: [],
+    },
+    // Lowest and highest variant price, for "From ₹…" in listings.
+    priceFrom: { type: Number, default: null },
+    priceTo: { type: Number, default: null },
     numOfReviews: {
         type: Number,
         default: 0

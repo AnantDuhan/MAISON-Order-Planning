@@ -18,7 +18,9 @@ const cartItemSchema = new mongoose.Schema(
         },
         image: String,
         size: String,
-        quantity: {
+        variant: String,
+    variantLabel: String,
+    quantity: {
             type: Number,
             required: true,
             min: 1

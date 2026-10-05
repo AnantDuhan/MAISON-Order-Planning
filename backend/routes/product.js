@@ -15,6 +15,7 @@ const {
    requestBackInStock,
    cancelBackInStock,
    getInventoryReport,
+   getOptionTemplate,
 //    searchProducts,
 //    getAutocompleteSuggestions
 } = require('../controllers/product');
@@ -51,6 +52,7 @@ router
     .delete(isAuthUser, cancelBackInStock);
 
 router.route('/admin/inventory').get(isAuthUser, authRoles('admin'), getInventoryReport);
+router.route('/admin/product-options/template').get(isAuthUser, authRoles('admin'), getOptionTemplate);
 
 router.route('/review').post(isAuthUser, requireFeature('reviews'), demoGuard('submit-review'), createProductReview);
 

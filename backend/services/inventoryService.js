@@ -15,6 +15,7 @@ const ejs = require('ejs');
 const path = require('path');
 
 const Product = require('../models/product');
+const { findVariant, variantLabel } = require('../utils/productVariants');
 const StockHold = require('../models/stockHold');
 const StockAlert = require('../models/stockAlert');
 const User = require('../models/user');
@@ -34,16 +35,32 @@ class StockError extends Error {
     }
 }
 
+// Merge lines for the same product and variant. `variant` is only present
+// for products with options (Size, Colour...).
 const normalizeItems = items => {
     const merged = new Map();
     for (const item of items || []) {
         const id = String(item.product);
+        const variant = item.variant ? String(item.variant) : null;
         const quantity = Number(item.quantity);
         if (!id || !(quantity > 0)) continue;
-        merged.set(id, (merged.get(id) || 0) + quantity);
+        const key = `${id}|${variant || ''}`;
+        const line = merged.get(key) || { product: id, ...(variant && { variant }), quantity: 0 };
+        line.quantity += quantity;
+        merged.set(key, line);
     }
-    return [...merged].map(([product, quantity]) => ({ product, quantity }));
+    return [...merged.values()];
 };
+
+// One atomic update per line. For a variant, the variant's stock and the
+// product's total move together, conditional on the variant having enough.
+const takeFilter = item => (item.variant
+    ? { _id: item.product, variants: { $elemMatch: { _id: item.variant, Stock: { $gte: item.quantity } } } }
+    : { _id: item.product, Stock: { $gte: item.quantity } });
+
+const stockDelta = (item, sign) => (item.variant
+    ? { $inc: { 'variants.$.Stock': sign * item.quantity, Stock: sign * item.quantity } }
+    : { $inc: { Stock: sign * item.quantity } });
 
 const invalidateProducts = ids => cache.del(...ids.map(id => `product:${id}`)).catch(() => {});
 
@@ -59,16 +76,16 @@ const takeStock = async rawItems => {
     const items = normalizeItems(rawItems);
     const taken = [];
     for (const item of items) {
-        const result = await Product.updateOne(
-            { _id: item.product, Stock: { $gte: item.quantity } },
-            { $inc: { Stock: -item.quantity } }
-        );
+        const result = await Product.updateOne(takeFilter(item), stockDelta(item, -1));
         if (result.modifiedCount === 0) {
             if (taken.length) await giveBack(taken);
-            const product = await Product.findById(item.product).select('name Stock').lean();
+            const product = await Product.findById(item.product).select('name Stock options variants').lean();
+            const variant = item.variant && product ? findVariant(product, item.variant) : null;
+            const left = item.variant ? (variant?.Stock ?? 0) : product?.Stock;
+            const label = variant ? ` (${variantLabel(product, variant)})` : '';
             throw new StockError(
-                product
-                    ? `Only ${Math.max(0, product.Stock)} left in stock for "${product.name}"`
+                product && (!item.variant || variant)
+                    ? `Only ${Math.max(0, left)} left in stock for "${product.name}"${label}`
                     : `Product ${item.product} is no longer available`,
                 item.product
             );
@@ -83,7 +100,10 @@ const takeStock = async rawItems => {
 
 const giveBack = async items => {
     const ops = items.map(item => ({
-        updateOne: { filter: { _id: item.product }, update: { $inc: { Stock: item.quantity } } },
+        updateOne: {
+            filter: item.variant ? { _id: item.product, 'variants._id': item.variant } : { _id: item.product },
+            update: stockDelta(item, +1),
+        },
     }));
     if (ops.length) await Product.bulkWrite(ops, { ordered: false });
 };

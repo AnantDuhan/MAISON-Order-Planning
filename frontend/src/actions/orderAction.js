@@ -275,7 +275,7 @@ export const clearErrors = () => async dispatch => {
 export const reorder = orderId => async dispatch => {
     const { data } = await axios.post(`/api/v1/order/reorder/${orderId}`);
     for (const item of data.items || []) {
-        await dispatch(addItemsToCart(item.product, item.quantity));
+        await dispatch(addItemsToCart(item.product, item.quantity, item.variant || null));
     }
     return data;
 };

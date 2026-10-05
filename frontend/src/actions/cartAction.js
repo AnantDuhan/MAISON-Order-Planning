@@ -20,6 +20,7 @@ const syncCartToServer = getState => {
             price: item.price,
             image: item.image,
             quantity: item.quantity,
+            ...(item.variant && { variant: item.variant, variantLabel: item.variantLabel }),
         }));
         axios.put('/api/v1/cart', { items }).catch(() => {});
     }, 800);
@@ -34,7 +35,7 @@ export const restoreCartFromServer = () => async (dispatch, getState) => {
     const saved = data.items || [];
     for (const item of saved) {
         try {
-            await dispatch(addItemsToCart(item.product, item.quantity));
+            await dispatch(addItemsToCart(item.product, item.quantity, item.variant || null));
         } catch {
             // Product removed since: skip it.
         }
@@ -43,17 +44,41 @@ export const restoreCartFromServer = () => async (dispatch, getState) => {
 };
 
 // Add to Cart
-export const addItemsToCart = (id, quantity) => async (dispatch, getState) => {
+// A cart line is a product plus, for products with options, the chosen
+// variant (e.g. Size M / Colour Black). The same product in two sizes is two
+// lines.
+export const cartLineKey = item => `${item.product}|${item.variant || ''}`;
+
+const labelFor = (product, variant) =>
+    (product.options || [])
+        .map(o => (variant?.options?.[o.name] ? `${o.name}: ${variant.options[o.name]}` : null))
+        .filter(Boolean)
+        .join(' · ');
+
+const photoForVariant = (product, variant) => {
+    const colour = (product.options || []).find(o => o.kind === 'color');
+    const value = colour && variant.options?.[colour.name];
+    return (product.images || []).find(img => value && img.color === value) || product.images?.[0];
+};
+
+export const addItemsToCart = (id, quantity, variantId = null) => async (dispatch, getState) => {
     const { data } = await axios.get(`/api/v1/product/${id}`);
+    const product = data.product;
+    const variant = variantId ? (product.variants || []).find(v => v._id === variantId) : null;
+    if ((product.variants || []).length && !variant) {
+        throw new Error('Please choose an option for this product');
+    }
 
     dispatch({
         type: ADD_TO_CART,
         payload: {
-            product: data.product._id,
-            name: data.product.name,
-            price: data.product.price,
-            image: data.product.images[0].url,
-            stock: data.product.Stock,
+            product: product._id,
+            ...(variant && { variant: variant._id, variantLabel: labelFor(product, variant) }),
+            name: product.name,
+            price: variant?.price ?? product.price,
+            // The chosen colour's photo, so the bag shows what was picked.
+            image: (variant ? photoForVariant(product, variant) : product.images?.[0])?.url,
+            stock: variant ? variant.Stock : product.Stock,
             quantity
         }
     });
@@ -66,10 +91,10 @@ export const addItemsToCart = (id, quantity) => async (dispatch, getState) => {
 };
 
 // REMOVE FROM CART
-export const removeItemsFromCart = id => async (dispatch, getState) => {
+export const removeItemsFromCart = (id, variant = null) => async (dispatch, getState) => {
     dispatch({
         type: REMOVE_CART_ITEM,
-        payload: id
+        payload: { product: id, variant }
     });
 
     localStorage.setItem(

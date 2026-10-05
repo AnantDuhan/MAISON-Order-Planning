@@ -11,6 +11,8 @@ import { clearErrors, createProduct } from '../../actions/productAction';
 import { NEW_PRODUCT_RESET } from '../../constants/productConstants';
 import MetaData from '../layout/MetaData';
 import AdminPage from './shared/AdminPage';
+import VariantEditor, { variantFormFields, variantTotalStock } from './VariantEditor';
+import PhotoColorTags, { colourValues, useFileThumbnails } from './PhotoColorTags';
 import ButtonSpinner from '../layout/ButtonSpinner';
 
 const categories = [
@@ -29,7 +31,12 @@ const NewProduct = () => {
     const [description, setDescription] = useState('');
     const [category, setCategory] = useState('');
     const [Stock, setStock] = useState(0);
+    const [variantData, setVariantData] = useState({ options: [], variants: [] });
+    const hasOptions = variantData.options.length > 0;
+    const colours = colourValues(variantData.options);
+    const [photoTags, setPhotoTags] = useState({});
     const [images, setImages] = useState([]);
+    const newPhotos = useFileThumbnails(images);
     const [imagesPreview, setImagesPreview] = useState([]);
 
     useEffect(() => {
@@ -51,7 +58,12 @@ const NewProduct = () => {
         myForm.set('price', price);
         myForm.set('description', description);
         myForm.set('category', category);
-        myForm.set('Stock', Stock);
+        myForm.set('Stock', hasOptions ? variantTotalStock(variantData.variants) : Stock);
+        const variantFields = variantFormFields(variantData);
+        myForm.set('options', variantFields.options);
+        myForm.set('variants', variantFields.variants);
+        // Colour each photo shows, in upload order ('' = all colours).
+        myForm.set('imageColors', JSON.stringify(images.map((_, i) => photoTags[String(i)] || '')));
         images.forEach(image => myForm.append('product', image));
         dispatch(createProduct(myForm));
     };
@@ -60,6 +72,7 @@ const NewProduct = () => {
         const files = Array.from(e.target.files);
         setImages(files);
         setImagesPreview([]);
+        setPhotoTags({});
         files.forEach(file => {
             const reader = new FileReader();
             reader.onload = () => {
@@ -107,9 +120,10 @@ const NewProduct = () => {
                                 <StorageIcon />
                                 <input
                                     type='number'
-                                    placeholder='Stock'
-                                    required
-                                    value={Stock || ''}
+                                    placeholder={hasOptions ? 'Stock is set per variant' : 'Stock'}
+                                    required={!hasOptions}
+                                    disabled={hasOptions}
+                                    value={hasOptions ? variantTotalStock(variantData.variants) : (Stock || '')}
                                     onChange={e => setStock(e.target.value)}
                                 />
                             </div>
@@ -150,7 +164,10 @@ const NewProduct = () => {
                                 />
                             </label>
 
-                            {imagesPreview.length > 0 && (
+                            {colours.length > 0 && (
+                                <PhotoColorTags title='Which colour is each photo?' photos={newPhotos} colours={colours} tags={photoTags} onChange={setPhotoTags} />
+                            )}
+                            {colours.length === 0 && imagesPreview.length > 0 && (
                                 <div className='mt-4 flex flex-wrap gap-3'>
                                     {imagesPreview.map((image, index) => (
                                         <img
@@ -163,6 +180,8 @@ const NewProduct = () => {
                                 </div>
                             )}
                         </div>
+
+                        <VariantEditor category={category} value={variantData} onChange={setVariantData} />
 
                         <button type='submit' disabled={loading} className='btn-solid w-full disabled:opacity-40'>
                             {loading ? (
