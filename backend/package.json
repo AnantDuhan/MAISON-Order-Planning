@@ -25,7 +25,7 @@
     "dependencies": {
         "@aws-sdk/client-s3": "^3.609.0",
         "@aws-sdk/credential-provider-env": "^3.972.71",
-        "@elastic/elasticsearch": "^8.19.2",
+        "@elastic/elasticsearch": "^9.5.1",
         "@google/genai": "^2.22.0",
         "@google/generative-ai": "^0.24.1",
         "@simplewebauthn/server": "^13.3.3",
