@@ -17,6 +17,7 @@ const { fromEnv } = require("@aws-sdk/credential-provider-env");
 const swaggerUi = require("swagger-ui-express");
 
 const errorMiddleware = require("./middleware/error");
+const maintenanceGate = require('./middleware/maintenance');
 const securityHeaders = require("./middleware/securityHeaders");
 const enforceHttps = require("./middleware/enforceHttps");
 const { isAuthUser, authRoles } = require("./middleware/auth");
@@ -266,6 +267,9 @@ app.get('/api-docs.json', (req, res) => {
 });
 
 app.use("/api/v1", apiLimiter);
+// Maintenance mode: 503 for customers while the storefront is switched off
+// (admin Features page) or MAINTENANCE_MODE=true. See middleware/maintenance.js.
+app.use("/api/v1", maintenanceGate);
 // Audit trail for every admin write (must run before the routes).
 app.use(["/api/v1/admin", "/admin"], auditAdminWrites);
 app.use("/api/v1", productRoute);

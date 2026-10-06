@@ -1,0 +1,93 @@
+/* Maintenance page: the hanging shop-door sign is the one expressive element. */
+
+.door-sign {
+    position: relative;
+    width: 15rem;
+    transform-origin: 50% 0.4rem; /* swings from the nail */
+    animation: door-sign-swing 2.6s cubic-bezier(0.22, 1, 0.36, 1) 0.15s both;
+}
+
+.door-sign__cord {
+    position: relative;
+    z-index: 1; /* drawn over the card so the cord threads into the eyelets */
+    display: block;
+    width: 100%;
+    height: 4.5rem;
+    overflow: visible;
+}
+
+.door-sign__card {
+    position: relative;
+    margin-top: -0.85rem; /* cord ends at the eyelet centres */
+    padding: 1.75rem 1.5rem 1.6rem;
+    background: rgb(var(--c-surface));
+    border: 1px solid rgb(var(--c-line));
+    box-shadow: 0 22px 40px -26px rgb(var(--c-shadow) / 0.55);
+}
+
+/* Inner brass rule, like an engraved boutique sign. */
+.door-sign__card::before {
+    content: '';
+    position: absolute;
+    inset: 0.45rem;
+    border: 1px solid rgb(var(--c-brass) / 0.55);
+    pointer-events: none;
+}
+
+/* Eyelets where the cord meets the card (x = 40 and 200 of 240 in the cord SVG). */
+.door-sign__eyelet {
+    position: absolute;
+    z-index: 2;
+    top: 0.55rem;
+    width: 0.55rem;
+    height: 0.55rem;
+    border-radius: 9999px;
+    border: 1.5px solid rgb(var(--c-brass));
+    background: rgb(var(--c-canvas));
+    transform: translateX(-50%);
+}
+
+.door-sign__eyelet--left { left: 16.667%; }
+.door-sign__eyelet--right { left: 83.333%; }
+
+.door-sign__rule {
+    width: 2.5rem;
+    height: 1px;
+    margin: 0.85rem auto 0.7rem;
+    background: rgb(var(--c-brass));
+}
+
+@keyframes door-sign-swing {
+    0% { transform: rotate(-7deg); }
+    30% { transform: rotate(4.5deg); }
+    55% { transform: rotate(-2.2deg); }
+    78% { transform: rotate(0.9deg); }
+    100% { transform: rotate(0deg); }
+}
+
+/* Live-check dot: pulses only while the page is checking. */
+.status-dot {
+    display: inline-block;
+    margin-right: 0.6rem;
+    vertical-align: 0.08em;
+    width: 0.45rem;
+    height: 0.45rem;
+    border-radius: 9999px;
+    background: rgb(var(--c-brass));
+}
+
+.status-dot--checking {
+    animation: status-dot-pulse 1s ease-in-out infinite;
+}
+
+@keyframes status-dot-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.25; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .door-sign,
+    .status-dot--checking {
+        animation: none;
+    }
+}

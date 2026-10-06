@@ -13,6 +13,12 @@ const cache = require('../utils/cache');
 const logger = require('../config/logger');
 
 const FEATURES = [
+    // Site
+    {
+        key: 'storefront', group: 'Site', label: 'Storefront', default: true, critical: true,
+        description: 'The shop is open to customers. Turn off to show the maintenance page to everyone except signed-in admins. Payments already in progress still complete, and scheduled jobs keep running.',
+        offMessage: 'Maison is closed for maintenance. Please check back shortly.',
+    },
     // Checkout
     {
         key: 'checkout', group: 'Checkout', label: 'Accept new orders', default: true, critical: true,
@@ -173,9 +179,21 @@ const requireFeature = key => async (req, res, next) => {
 
 const offMessage = key => BY_KEY.get(key)?.offMessage;
 
+/**
+ * Maintenance mode is on when the admin switches the storefront off, or when
+ * MAINTENANCE_MODE=true is set on the server. The env var is the fallback for
+ * work where the database itself may be unavailable (flag reads would then
+ * fall back to defaults and reopen the shop).
+ */
+const maintenanceForced = () => process.env.MAINTENANCE_MODE === 'true';
+const isMaintenanceOn = async () => maintenanceForced() || !(await isEnabled('storefront'));
+
 // Tests reset the in-process cache between cases.
 const _resetCache = () => {
     local = null;
 };
 
-module.exports = { FEATURES, getAll, isEnabled, listForAdmin, setEnabled, requireFeature, offMessage, _resetCache };
+module.exports = {
+    FEATURES, getAll, isEnabled, listForAdmin, setEnabled, requireFeature, offMessage,
+    maintenanceForced, isMaintenanceOn, _resetCache,
+};
