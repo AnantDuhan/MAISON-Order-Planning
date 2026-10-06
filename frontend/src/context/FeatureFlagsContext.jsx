@@ -21,15 +21,43 @@ const FeatureFlagsContext = createContext({ features: {}, refresh: () => {} });
 export const FeatureFlagsProvider = ({ children }) => {
     const [features, setFeatures] = useState(readCached);
 
+    // Returns the fresh values, or null if the server couldn't be reached.
     const refresh = useCallback(async () => {
         try {
             const { data } = await axios.get('/api/v1/features');
-            setFeatures(data.features || {});
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(data.features || {}));
+            const next = data.features || {};
+            setFeatures(next);
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+            return next;
         } catch {
             // Keep the last known values; the server still enforces the switches.
+            return null;
         }
     }, []);
+
+    // Any API call answering 503 MAINTENANCE closes the storefront at once,
+    // without waiting for the next /features check.
+    useEffect(() => {
+        const id = axios.interceptors.response.use(
+            response => response,
+            error => {
+                const { status, data } = error.response || {};
+                if (status === 503 && data?.code === 'MAINTENANCE') {
+                    setFeatures(current => (current.storefront === false ? current : { ...current, storefront: false }));
+                }
+                return Promise.reject(error);
+            }
+        );
+        return () => axios.interceptors.response.eject(id);
+    }, []);
+
+    // While the shop is closed, check every minute so it reopens on its own.
+    const storefrontClosed = features.storefront === false;
+    useEffect(() => {
+        if (!storefrontClosed) return undefined;
+        const timer = setInterval(refresh, 60 * 1000);
+        return () => clearInterval(timer);
+    }, [storefrontClosed, refresh]);
 
     useEffect(() => {
         refresh();

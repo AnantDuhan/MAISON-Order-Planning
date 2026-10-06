@@ -18,8 +18,16 @@ import Loader from "./components/layout/Loader/Loader";
 import ProtectedAdminRoute from "./components/route/ProtectedAdminRoute";
 import TwoFactorLogin from "./components/User/TwoFactorLogin";
 import DemoBanner from "./components/layout/DemoBanner";
+import Maintenance from "./components/layout/Maintenance/Maintenance";
+import MaintenanceBanner from "./components/layout/Maintenance/MaintenanceBanner";
+import { useFeature } from "./context/FeatureFlagsContext";
 import CookieConsent from "./components/layout/CookieConsent";
 import { trackPageView } from "./utils/analytics";
+
+// Pages customers can still reach while the shop is closed for maintenance:
+// sign-in (so the team can get in) and the payment return pages (so payments
+// already in progress complete).
+const MAINTENANCE_EXEMPT = ["/login", "/password/", "/payment", "/success"];
 
 /* Route-level code splitting.
    Home, the headers, the footer and the waker stay eager because they are
@@ -81,7 +89,8 @@ const Inventory = lazy(() => import("./components/Admin/Inventory"));
 const VerifyInvoice = lazy(() => import("./components/Invoice/VerifyInvoice"));
 
 function App() {
-  const { isAuthenticated, authChecked } = useSelector((state) => state.user);
+  const { isAuthenticated, authChecked, user } = useSelector((state) => state.user);
+  const storefrontOpen = useFeature("storefront");
   // const [stripeApiKey, setStripeApiKey] = useState('');
 
   const location = useLocation();
@@ -108,6 +117,21 @@ function App() {
     trackPageView(location.pathname + location.search);
   }, [location.pathname, location.search]);
 
+  // Maintenance mode: customers see the maintenance page; signed-in admins
+  // (not the demo admin) keep the full site so they can work and reopen it.
+  const isStaff = user?.role === "admin" && !user?.isDemo;
+  const isExemptPath = MAINTENANCE_EXEMPT.some((path) =>
+    location.pathname.startsWith(path),
+  );
+  if (!storefrontOpen && !isStaff && !isExemptPath) {
+    return (
+      <BackendWaker>
+        {/* Wait for the session check so admins don't flash the page. */}
+        {authChecked ? <Maintenance /> : <Loader />}
+      </BackendWaker>
+    );
+  }
+
   return (
     <Fragment>
       <BackendWaker>
@@ -119,6 +143,7 @@ function App() {
         )}
 
         <DemoBanner />
+        <MaintenanceBanner />
 
         <ErrorBoundary>
           <Suspense fallback={<Loader />}>

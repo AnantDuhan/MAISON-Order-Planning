@@ -3,7 +3,10 @@ const flags = require('../services/featureFlags');
 // GET /api/v1/features — public: { key: true|false } for the storefront
 exports.getFeatures = async (req, res) => {
     res.set('Cache-Control', 'no-store');
-    res.status(200).json({ success: true, features: await flags.getAll() });
+    const features = { ...(await flags.getAll()) };
+    // MAINTENANCE_MODE=true: the storefront reads as closed regardless of the switch.
+    if (flags.maintenanceForced()) features.storefront = false;
+    res.status(200).json({ success: true, features });
 };
 
 // GET /api/v1/admin/features — every switch with description and last change
