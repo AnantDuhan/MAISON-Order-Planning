@@ -23,13 +23,14 @@ exports.requestReturn = async (req, res) => {
             });
         }
 
-        const reason = typeof req.body.returnReason === 'string' ? req.body.returnReason.trim() : '';
+        const reason = typeof req.body.returnReason === 'string' ? req.body.returnReason.trim().slice(0, 120) : '';
         if (!reason) {
             return res.status(400).json({
                 success: false,
                 message: 'Please choose a reason for the return'
             });
         }
+        const details = typeof req.body.returnDetails === 'string' ? req.body.returnDetails.trim().slice(0, 500) : '';
 
         if (order.orderStatus !== 'Delivered') {
             return res.status(400).json({
@@ -66,6 +67,7 @@ exports.requestReturn = async (req, res) => {
             order: order._id,
             products: productsInOrder,
             reason,
+            ...(details && { details }),
             requestedAt: new Date(),
             status: 'Pending'
         });
@@ -192,9 +194,11 @@ exports.updateReturnStatus = async (req, res) => {
         };
         returnRequest.status = status;
         returnRequest.resolvedAt = ['Rejected', 'Completed'].includes(status) ? new Date() : undefined;
+        // Approval time drives the customer's return tracker.
+        if (status === 'Approved' && !returnRequest.approvedAt) returnRequest.approvedAt = new Date();
         await returnRequest.save();
 
-        await cache.del('returns', 'orders');
+        await cache.del('returns', 'orders', `order:${returnRequest.order}`);
 
         res.status(200).json({
             success: true,

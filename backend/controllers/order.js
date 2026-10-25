@@ -1,4 +1,5 @@
 const Order = require('../models/order');
+const Return = require('../models/return');
 const Product = require('../models/product');
 const { sendEmailInBackground } = require('../utils/sendEmail');
 const User = require('../models/user');
@@ -257,9 +258,16 @@ exports.getSingleOrder = async (req, res, next) => {
         });
     }
 
+    // The latest return request, read fresh (not cached) so the customer's
+    // tracker reflects an admin's decision straight away.
+    const returnId = order.return?.length ? order.return[order.return.length - 1] : null;
+    const returnInfo = returnId
+        ? await Return.findById(returnId).select('status reason details requestedAt approvedAt resolvedAt').lean()
+        : null;
+
     res.status(200).json({
         success: true,
-        order
+        order: returnInfo ? { ...order, returnInfo } : order
     });
 };
 

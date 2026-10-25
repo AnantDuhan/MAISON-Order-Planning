@@ -32,6 +32,11 @@ const returnSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+    // Optional free text from the customer ("the left hinge is cracked").
+    details: {
+        type: String,
+        maxlength: 500
+    },
     requestedAt: {
         type: Date,
         default: Date.now
@@ -41,6 +46,9 @@ const returnSchema = new mongoose.Schema({
         default: 'Pending'
     },
     resolvedAt: {
+        type: Date
+    },
+    approvedAt: {
         type: Date
     }
 });

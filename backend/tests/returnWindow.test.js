@@ -43,3 +43,40 @@ test('requestReturn refuses a return after the window closes', async () => {
     assert.equal(res.body.code, 'RETURN_WINDOW_CLOSED');
     assert.match(res.body.message, /within 7 days of delivery/);
 });
+
+test('requestReturn stores the reason and trimmed details, and marks the order', async () => {
+    const Return = require('../models/return');
+    const cache = require('../utils/cache');
+    let saved;
+    s.set(Return.prototype, 'save', async function () { saved = this.toObject(); return this; });
+    s.set(cache, 'del', async () => {});
+    const order = {
+        _id: 'o2', user: 'u1', orderStatus: 'Delivered', DeliveredAt: deliveredDaysAgo(2),
+        orderItems: [{ product: 'p1', quantity: 1 }], return: [],
+        save: async () => {},
+    };
+    s.set(Order, 'findById', async () => order);
+    const res = mockRes();
+    await requestReturn({
+        params: { id: 'o2' }, user: { _id: 'u1' },
+        body: { returnReason: 'Damaged or defective', returnDetails: '  The left hinge is cracked.  ' },
+    }, res);
+    assert.equal(res.statusCode, 200);
+    assert.equal(saved.reason, 'Damaged or defective');
+    assert.equal(saved.details, 'The left hinge is cracked.');
+    assert.equal(order.isReturned, true);
+    assert.equal(order.refundStatus, 'Initiated');
+});
+
+test('getSingleOrder includes the latest return status for the owner', async () => {
+    const Return = require('../models/return');
+    const cache = require('../utils/cache');
+    const { getSingleOrder } = require('../controllers/order');
+    s.set(cache, 'getJSON', async () => ({ _id: 'o3', user: { _id: 'u1' }, return: ['r1', 'r2'] }));
+    let asked;
+    s.set(Return, 'findById', id => { asked = id; return { select: () => ({ lean: async () => ({ status: 'Approved', reason: 'Wrong item sent' }) }) }; });
+    const res = mockRes();
+    await getSingleOrder({ params: { id: 'o3' }, user: { _id: 'u1' } }, res);
+    assert.equal(asked, 'r2');
+    assert.equal(res.body.order.returnInfo.status, 'Approved');
+});
