@@ -178,7 +178,7 @@ const deleteImages = async (images = []) => {
 
 const pickProductFields = body => {
   const fields = {};
-  for (const key of ["name", "description", "price", "category", "Stock", "lowStockThreshold"]) {
+  for (const key of ["name", "description", "price", "category", "Stock", "lowStockThreshold", "metaTitle", "metaDescription"]) {
     if (body[key] !== undefined && body[key] !== "") fields[key] = body[key];
   }
   return fields;
@@ -249,6 +249,7 @@ const invoiceRoute = require("./routes/invoice");
 const auditRoute = require("./routes/audit");
 const walletRoute = require("./routes/wallet");
 const featuresRoute = require("./routes/features");
+const aiRoute = require("./routes/ai");
 const inventory = require("./services/inventoryService");
 const { auditAdminWrites, snapshot } = require("./middleware/audit");
 const { buildVariantFields, cleanImageColors, parseTags } = require("./utils/productVariants");
@@ -287,6 +288,7 @@ app.use("/api/v1", invoiceRoute);
 app.use("/api/v1", auditRoute);
 app.use("/api/v1", walletRoute);
 app.use("/api/v1", featuresRoute);
+app.use("/api/v1", aiRoute);
 app.use(redirectRoute);
 app.use(seoRoute); // /sitemap.xml
 

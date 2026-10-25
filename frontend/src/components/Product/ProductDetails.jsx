@@ -234,8 +234,8 @@ const ProductDetails = () => {
       ) : (
         <Fragment>
           <MetaData
-            title={`${product?.name} · Maison`}
-            description={product?.description}
+            title={product?.metaTitle || `${product?.name} · Maison`}
+            description={product?.metaDescription || product?.description}
             image={product?.images?.[0]?.url}
             type="product"
           />

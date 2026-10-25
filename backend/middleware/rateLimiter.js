@@ -91,7 +91,20 @@ const invoiceVerifyLimiter = rateLimit({
     store: makeStore('rl:invoice-verify:'),
 });
 
+// AI calls cost money per request, so they get their own budget per signed-in
+// user (must run after isAuthUser). Also caps a stolen admin session's spend.
+const aiLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000,
+    limit: Number(process.env.AI_REQUESTS_PER_HOUR) || 30,
+    standardHeaders: 'draft-7',
+    legacyHeaders: false,
+    keyGenerator: req => `user:${req.user?._id}`,
+    handler: json429('AI drafting limit reached for this hour. Please try again later.'),
+    store: makeStore('rl:ai:'),
+});
+
 module.exports = {
+    aiLimiter,
     apiLimiter,
     authLimiter,
     emailLimiter,

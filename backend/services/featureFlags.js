@@ -84,6 +84,17 @@ const FEATURES = [
         description: 'The newsletter sign-up form. Existing subscribers still receive it.',
         offMessage: 'Newsletter sign-up is closed right now.',
     },
+    // AI (Gemini). Both need GEMINI_API_KEY on the server.
+    {
+        key: 'aiProductDrafts', group: 'AI', label: 'AI product drafts', default: true,
+        description: '“Draft with AI” on the new-product form: writes a name, description, SEO text and colours from the photos for you to review. Nothing is saved until you create the product.',
+        offMessage: 'AI drafting is turned off.',
+    },
+    {
+        key: 'aiCartCopy', group: 'AI', label: 'AI-written cart reminders', default: false,
+        description: 'Abandoned-cart emails get a personal subject and message that mention the items in the bag. Falls back to the standard wording whenever the AI is slow, fails, or writes something not allowed (prices, discounts, deadlines).',
+        offMessage: 'AI cart reminders are turned off.',
+    },
 ];
 
 const BY_KEY = new Map(FEATURES.map(f => [f.key, f]));

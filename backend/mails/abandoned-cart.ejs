@@ -1,12 +1,17 @@
 <%- include('partials/head', { title: 'Your bag', preheader: stage === 1 ? 'Your selection is saved — pick up where you left off.' : 'A last reminder about the pieces in your bag.' }) %>
 
 <p style="margin:0; font-family:Helvetica,Arial,sans-serif; font-size:10px; font-weight:bold; letter-spacing:3px; text-transform:uppercase; color:#A07C4B;">Your bag</p>
+<%
+  var c = typeof copy !== 'undefined' && copy ? copy : {};
+  var headline = c.headline || (stage === 1 ? 'You left something behind' : 'Still thinking it over?');
+%>
 <h1 style="margin:14px 0 0 0; font-family:Georgia,'Times New Roman',serif; font-size:32px; font-weight:500; line-height:1.2; color:#1A1816;">
-  <%= stage === 1 ? 'You left something behind' : 'Still thinking it over?' %>
+  <%= headline %>
 </h1>
 <p style="margin:20px 0 0 0; font-family:Helvetica,Arial,sans-serif; font-size:15px; line-height:1.75; color:#4A453F;">
+  <% if (c.body) { %><%= c.body %> Your selection is saved, and prices below are today's.<% } else { %>
   <%= user.name ? user.name.split(' ')[0] + ', y' : 'Y' %>our selection is saved. Prices below are today's.
-  <% if (items.some(function (i) { return i.lowStock; })) { %> Some pieces are nearly gone.<% } %>
+  <% if (items.some(function (i) { return i.lowStock; })) { %> Some pieces are nearly gone.<% } %><% } %>
 </p>
 
 <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:26px 0 0 0; border-top:1px solid #E0D9CE;">

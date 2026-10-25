@@ -55,6 +55,14 @@ const CartRecovery = () => {
                 <Stat label='Recovery rate' value={pct(stats?.recoveryRate)} />
             </div>
 
+            {stats?.byCopy?.ai && (
+                <p className='mt-4 font-sans text-sm text-ink-soft'>
+                    By wording: AI-written {pct(stats.byCopy.ai.recoveryRate)} recovered of {stats.byCopy.ai.emailed}
+                    {' · '}standard {pct(stats.byCopy.standard?.recoveryRate || 0)} of {stats.byCopy.standard?.emailed || 0}.
+                    {stats.byCopy.ai.emailed + (stats.byCopy.standard?.emailed || 0) < 100 && ' Too few emails yet to tell them apart.'}
+                </p>
+            )}
+
             <div className='mt-10 overflow-x-auto border border-line bg-surface'>
                 <table className='w-full min-w-[720px] font-sans text-sm'>
                     <thead>
