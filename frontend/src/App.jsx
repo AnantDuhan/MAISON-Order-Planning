@@ -59,7 +59,6 @@ const AdminHeader = lazy(
 const NotFound = lazy(() => import("./components/layout/Not-Found/NotFound"));
 const MyOrders = lazy(() => import("./components/Order/MyOrders"));
 const OrderDetails = lazy(() => import("./components/Order/OrderDetails"));
-const ReturnRequest = lazy(() => import("./components/Order/ReturnRequest"));
 const ProductDetails = lazy(
   () => import("./components/Product/ProductDetails"),
 );
@@ -223,7 +222,7 @@ function App() {
               {isAuthenticated && (
                 <Route
                   path="/order/:id/return"
-                  element={<ReturnRequest />}
+                  element={<OrderDetails startReturn />}
                   exact
                 />
               )}

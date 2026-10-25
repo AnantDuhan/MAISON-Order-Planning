@@ -8,21 +8,14 @@ import io from 'socket.io-client';
 import { clearErrors, getOrderDetails, returnRequest, reorder } from '../../actions/orderAction';
 import TrackingTimeline from './TrackingTimeline';
 import OrderItemsList, { inr } from './OrderItemsList';
-import {
-    Button,
-    Dialog,
-    DialogActions,
-    DialogContent,
-    DialogTitle,
-    FormControl,
-    MenuItem,
-    Select,
-} from '@mui/material';
+import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
+import ReplayIcon from '@mui/icons-material/Replay';
+import { RETURN_STATUS_LABEL, ReturnEligibility, ReturnSheet, ReturnTracker, returnStage } from './ReturnFlow';
 import LoadingBar from 'react-top-loading-bar';
 import Loader from '../layout/Loader/Loader';
 import MetaData from '../layout/MetaData';
 import { useFeature } from '../../context/FeatureFlagsContext';
-import { formatDeadline, isWithinReturnWindow, RETURN_WINDOW_DAYS, returnDeadline } from '../../utils/returnWindow';
+import { isWithinReturnWindow, RETURN_WINDOW_DAYS } from '../../utils/returnWindow';
 
 const formatDate = value => (value
     ? new Date(value).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
@@ -30,7 +23,7 @@ const formatDate = value => (value
 
 const formatShortDate = value => new Date(value).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
 
-const OrderDetails = () => {
+const OrderDetails = ({ startReturn = false }) => {
     const { order, error, loading } = useSelector(state => state.orderDetails);
 
     const dispatch = useDispatch();
@@ -38,58 +31,30 @@ const OrderDetails = () => {
     const { id } = useParams();
 
     const [reordering, setReordering] = useState(false);
-    const [openDialog, setOpenDialog] = useState(false);
-    const [selectedOrder, setSelectedOrder] = useState(null);
-    const [selectedReturnReason, setSelectedReturnReason] = useState('');
+    const [returnOpen, setReturnOpen] = useState(false);
     const [progress, setProgress] = useState(0);
     const onLoaderFinished = () => setProgress(0);
 
-    const returnReasons = [
-        'Defective Product',
-        'Wrong Product Shipped',
-        'Received Incomplete Order',
-        "Product Doesn't Match Description",
-        'Size Does Not Fit',
-        "Color Doesn't Match",
-        'Changed My Mind',
-        'Item Arrived Late',
-        'Ordered by Mistake',
-        'Unsatisfactory Quality',
-        'Received Damaged Product',
-        'Ordered Duplicate Product',
-        'Product Expired/Short Expiry Date',
-        'Not Satisfied with Performance',
-        "Item Doesn't Meet Expectations",
-    ];
-
-    const [returnBusy, setReturnBusy] = useState(false);
-
-    // Wait for the server: this used to show success before the request had
-    // finished, so failed return requests looked like they had worked.
-    const submitReturnRequest = async (orders, reason) => {
-        if (!orders || !reason || returnBusy) return;
-        setReturnBusy(true);
+    // Throws on failure so the return sheet can show the error and stay open.
+    // The order is refetched when the sheet closes, so its confirmation step
+    // isn't interrupted by the page reloading underneath it.
+    const [returnSubmitted, setReturnSubmitted] = useState(false);
+    const submitReturn = async (reason, details) => {
         setProgress(60);
         try {
-            await dispatch(returnRequest(order._id, reason));
-            toast.success('Return requested. We’ll email you with the next steps.');
-            handleCloseDialog();
-        } catch (error) {
-            toast.error(error.response?.data?.message || error.message || 'Could not request the return');
+            await dispatch(returnRequest(order._id, reason, details));
+            setReturnSubmitted(true);
         } finally {
-            dispatch(getOrderDetails(id));
-            setReturnBusy(false);
             setProgress(100);
         }
     };
-
-    const handleOpenDialog = () => {
-        setOpenDialog(true);
-        setSelectedOrder(order);
-        setSelectedReturnReason(order.returnReason || returnReasons[0]);
+    const closeReturn = () => {
+        setReturnOpen(false);
+        if (returnSubmitted) {
+            setReturnSubmitted(false);
+            dispatch(getOrderDetails(id));
+        }
     };
-
-    const handleCloseDialog = () => setOpenDialog(false);
 
     const handleReorder = async () => {
         try {
@@ -158,14 +123,15 @@ const OrderDetails = () => {
         { label: 'Delivered', done: isDelivered, date: order?.DeliveredAt },
     ];
 
-    const statusLabel = order?.isRefunded ? 'Refunded'
-        : order?.isReturned ? 'Return requested'
-            : order?.orderStatus || '';
-    const statusTone = isDelivered && !order?.isRefunded
-        ? { badge: 'border-success/40 text-success', dot: 'bg-success' }
-        : order?.isRefunded || order?.isReturned
+    const stage = returnStage(order);
+    const statusLabel = stage ? RETURN_STATUS_LABEL[stage.key] : order?.orderStatus || '';
+    const statusTone = stage?.declined
+        ? { badge: 'border-danger/40 text-danger', dot: 'bg-danger' }
+        : stage
             ? { badge: 'border-line text-ink-soft', dot: 'bg-ink-faint' }
-            : { badge: 'border-brass/40 text-brass', dot: 'bg-brass' };
+            : isDelivered
+                ? { badge: 'border-success/40 text-success', dot: 'bg-success' }
+                : { badge: 'border-brass/40 text-brass', dot: 'bg-brass' };
 
     const lastEvent = order?.shipment?.lastStatus;
     const progressHeadline = order?.isRefunded ? 'This order was refunded'
@@ -173,8 +139,13 @@ const OrderDetails = () => {
             : lastEvent && lastEvent !== 'Shipped' ? lastEvent
                 : isShipped ? 'On its way to you'
                     : 'We’re preparing your order';
+    // An estimate in the past on an undelivered order is a late order: say so.
+    const isLate = !isDelivered && !order?.isRefunded && order?.estimatedDeliveryDate
+        && new Date(order.estimatedDeliveryDate).setHours(23, 59, 59, 999) < Date.now();
     const progressDetail = !isDelivered && !order?.isRefunded && order?.estimatedDeliveryDate
-        ? `Expected by ${formatDate(order.estimatedDeliveryDate)}`
+        ? isLate
+            ? `Running late — it was expected by ${formatDate(order.estimatedDeliveryDate)}. Sorry for the wait.`
+            : `Expected by ${formatDate(order.estimatedDeliveryDate)}`
         : null;
 
     const paymentMethod = order?.paymentInfo?.provider === 'wallet'
@@ -182,19 +153,17 @@ const OrderDetails = () => {
         : order?.storeCreditApplied > 0 ? 'online and with store credit' : 'online';
 
     const returnsOn = useFeature('returns');
-    const deadline = returnDeadline(order);
-    const windowOpen = isWithinReturnWindow(order);
-    const canReturn = returnsOn && isDelivered && windowOpen && !order?.isReturned && !order?.isRefunded;
-    const returnNote = order?.isRefunded ? 'This order has been refunded.'
-        : !returnsOn && !order?.isReturned ? 'Return requests are paused right now. Please contact us about this order.'
-        : order?.isReturned ? 'You’ve requested a return. We’ll email you with the next steps.'
-            : isDelivered && !windowOpen ? `The ${RETURN_WINDOW_DAYS}-day return window closed on ${formatDeadline(deadline)}. If something is wrong with your order, please contact us.`
-            : isDelivered && deadline ? `You can request a return until ${formatDeadline(deadline)}.`
-            : isDelivered ? `Returns are accepted within ${RETURN_WINDOW_DAYS} days of delivery.`
-                : `You can request a return within ${RETURN_WINDOW_DAYS} days of delivery.`;
+    const canReturn = returnsOn && isDelivered && isWithinReturnWindow(order) && !stage && !order?.isRefunded;
+
+    // /order/:id/return opens the return sheet directly when the order qualifies.
+    useEffect(() => {
+        if (startReturn && canReturn) setReturnOpen(true);
+    }, [startReturn, canReturn]);
+
     return (
         <Fragment>
-            {loading ? (
+            {/* Full-page loader only for a different order; refreshes of this one update in place. */}
+            {loading && order?._id !== id ? (
                 <Fragment>
                     <LoadingBar color='#A07C4B' progress={progress} onLoaderFinished={onLoaderFinished} />
                     <Loader label='Finding your order' />
@@ -215,19 +184,32 @@ const OrderDetails = () => {
                                     Placed {formatDate(placedAt)} · {itemCount} {itemCount === 1 ? 'item' : 'items'} · {inr(order.totalPrice)}
                                 </p>
                             </div>
-                            <div className='flex flex-wrap items-center gap-3'>
-                                <span className={`inline-flex items-center gap-2 border px-4 py-2 font-sans text-sm ${statusTone.badge}`}>
-                                    <span className={`h-2 w-2 rounded-full ${statusTone.dot}`} />
+                            {/* Phones: status on its own line, then two equal buttons. */}
+                            <div className='flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3'>
+                                <span className={`inline-flex items-center gap-2 self-start border px-3 py-1.5 font-sans text-xs uppercase tracking-luxe sm:self-auto sm:px-4 sm:py-2.5 ${statusTone.badge}`}>
+                                    <span className={`h-1.5 w-1.5 rounded-full ${statusTone.dot}`} />
                                     {statusLabel}
                                 </span>
-                                {isPaid && (
-                                    <a href={`/api/v1/order/${order._id}/invoice`} download className='btn-outline'>
-                                        Invoice
-                                    </a>
-                                )}
-                                <button onClick={handleReorder} disabled={reordering} className='btn-solid disabled:opacity-60'>
-                                    {reordering ? 'Adding to bag…' : 'Buy again'}
-                                </button>
+                                <div className={`grid gap-3 sm:flex ${isPaid ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                                    {isPaid && (
+                                        <a
+                                            href={`/api/v1/order/${order._id}/invoice`}
+                                            download
+                                            className='btn-outline inline-flex items-center justify-center gap-2 !px-4 !py-3 sm:!px-6'
+                                        >
+                                            <FileDownloadOutlinedIcon sx={{ fontSize: 18 }} />
+                                            Invoice
+                                        </a>
+                                    )}
+                                    <button
+                                        onClick={handleReorder}
+                                        disabled={reordering}
+                                        className='btn-solid inline-flex items-center justify-center gap-2 !px-4 !py-3 disabled:opacity-60 sm:!px-6'
+                                    >
+                                        <ReplayIcon sx={{ fontSize: 18 }} />
+                                        {reordering ? 'Adding…' : 'Buy again'}
+                                    </button>
+                                </div>
                             </div>
                         </header>
 
@@ -238,7 +220,12 @@ const OrderDetails = () => {
                                 <section aria-label='Delivery progress' className='border border-line bg-surface p-6 sm:p-8'>
                                     <p className='font-display text-2xl text-ink'>{progressHeadline}</p>
                                     {progressDetail && (
-                                        <p className='mt-1 font-sans text-sm text-ink-soft'>{progressDetail}</p>
+                                        <p className={`mt-1 font-sans text-sm ${isLate ? 'text-brass' : 'text-ink-soft'}`}>{progressDetail}</p>
+                                    )}
+                                    {isLate && (
+                                        <Link to='/contact-us' className='mt-2 inline-block font-sans text-sm text-ink-soft underline-offset-4 hover:text-brass hover:underline'>
+                                            Ask us about this order
+                                        </Link>
                                     )}
                                     <ol className='mt-8 grid grid-cols-3'>
                                         {steps.map((step, index) => (
@@ -264,6 +251,10 @@ const OrderDetails = () => {
                                         ))}
                                     </ol>
                                 </section>
+
+                                {/* Returns: the way in after delivery, then the return's progress */}
+                                <ReturnEligibility order={order} returnsOn={returnsOn} onStart={() => setReturnOpen(true)} />
+                                <ReturnTracker order={order} />
 
                                 {/* Items */}
                                 <section aria-labelledby='items-heading'>
@@ -360,16 +351,13 @@ const OrderDetails = () => {
                                 </section>
 
                                 <section className='border border-line bg-surface p-6'>
-                                    <h2 className='font-display text-xl text-ink'>Something not right?</h2>
-                                    <button
-                                        onClick={handleOpenDialog}
-                                        disabled={!canReturn}
-                                        className='btn-outline mt-5 w-full disabled:opacity-50'
-                                    >
-                                        Request a return
-                                    </button>
-                                    <p className='mt-3 font-sans text-xs leading-relaxed text-ink-faint'>{returnNote}</p>
-                                    <Link to='/contact-us' className='mt-4 inline-block font-sans text-sm text-ink-soft hover:text-brass'>
+                                    <h2 className='font-display text-xl text-ink'>Need help?</h2>
+                                    <p className='mt-3 font-sans text-sm leading-relaxed text-ink-soft'>
+                                        {isDelivered
+                                            ? 'Questions about an item, your delivery or a return — we read every message.'
+                                            : `Once it’s delivered, you can return this order within ${RETURN_WINDOW_DAYS} days from this page.`}
+                                    </p>
+                                    <Link to='/contact-us' className='mt-4 inline-block font-sans text-sm text-brass underline-offset-4 hover:underline'>
                                         Contact us about this order
                                     </Link>
                                 </section>
@@ -377,59 +365,12 @@ const OrderDetails = () => {
                         </div>
                     </div>
 
-                    {/* Return dialog */}
-                    <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth='sm' fullWidth>
-                        <DialogTitle sx={{ fontFamily: 'Cormorant Garamond, serif', fontSize: '1.6rem' }}>
-                            Request a Return
-                        </DialogTitle>
-                        <DialogContent>
-                            {order && order.orderItems ? (
-                                <div>
-                                    <p style={{ fontSize: '0.72rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: '#A07C4B' }}>
-                                        Order {order._id}
-                                    </p>
-                                    <div className='mt-4 flex gap-4 overflow-x-auto pb-2'>
-                                        {order.orderItems.map(item => (
-                                            <div key={item._id} className='w-32 shrink-0'>
-                                                <img
-                                                    src={item.images?.[0]?.url || item.image}
-                                                    alt={item.name}
-                                                    className='aspect-square w-full border object-cover'
-                                                />
-                                                <p className='mt-2 text-sm'>{item.name}</p>
-                                                <p className='text-xs opacity-70'>Qty: {item.quantity}</p>
-                                            </div>
-                                        ))}
-                                    </div>
-                                    <p className='mt-4 text-sm'>Amount: ₹{order.totalPrice}</p>
-                                </div>
-                            ) : null}
-
-                            <p style={{ marginTop: '1.5rem', fontSize: '0.72rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: '#A07C4B' }}>
-                                Reason for return
-                            </p>
-                            <FormControl fullWidth sx={{ mt: 1.5 }}>
-                                <Select
-                                    value={selectedReturnReason}
-                                    onChange={event => setSelectedReturnReason(event.target.value)}
-                                >
-                                    {returnReasons.map(reason => (
-                                        <MenuItem key={reason} value={reason}>{reason}</MenuItem>
-                                    ))}
-                                </Select>
-                            </FormControl>
-                        </DialogContent>
-                        <DialogActions>
-                            <Button onClick={handleCloseDialog} sx={{ color: '#8A8278' }}>Cancel</Button>
-                            <Button
-                                onClick={() => submitReturnRequest(selectedOrder, selectedReturnReason)}
-                                disabled={returnBusy}
-                                sx={{ color: '#A07C4B' }}
-                            >
-                                {returnBusy ? 'Submitting…' : 'Submit Return'}
-                            </Button>
-                        </DialogActions>
-                    </Dialog>
+                    <ReturnSheet
+                        open={returnOpen}
+                        order={order}
+                        onClose={closeReturn}
+                        onSubmit={submitReturn}
+                    />
                 </Fragment>
             )}
         </Fragment>

@@ -151,7 +151,7 @@ export const getOrderDetails = id => async dispatch => {
     }
 };
 
-export const returnRequest = (id, returnReason) => async dispatch => {
+export const returnRequest = (id, returnReason, returnDetails = '') => async dispatch => {
     try {
         dispatch({ type: REQUEST_RETURN_REQUEST });
 
@@ -163,7 +163,7 @@ export const returnRequest = (id, returnReason) => async dispatch => {
 
         const { data } = await axios.post(
             `/api/v1/order/${id}/return`,
-            { returnReason },
+            { returnReason, returnDetails },
             config
         );
 
