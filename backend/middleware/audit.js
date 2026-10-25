@@ -38,6 +38,7 @@ const ACTIONS = {
     'PUT /api/v1/admin/banner/:id': 'banner.update',
     'DELETE /api/v1/admin/banner/:id': 'banner.delete',
     'POST /api/v1/admin/wallet/:userId/adjust': 'wallet.adjust',
+    'POST /api/v1/admin/ai/product-draft': 'ai.product-draft',
 };
 
 const ENTITY_FROM_PATH = /\/(order|product|user|return|banner|coupon|wallet|refund)s?\/(?::[a-zA-Z]+)/;

@@ -55,7 +55,10 @@ const cartSchema = new mongoose.Schema({
         clickedAt: Date,
         recoveredAt: Date,
         recoveredOrder: String,
-        recoveredValue: Number
+        recoveredValue: Number,
+        // Which wording the last reminder used: 'ai' or 'standard'. Lets the
+        // admin compare recovery rates (recoveryStats().byCopy).
+        copySource: String
     }
 });
 

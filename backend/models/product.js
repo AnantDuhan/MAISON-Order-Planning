@@ -44,6 +44,9 @@ const productSchema = mongoose.Schema({
         type: String,
         required: [true, 'Please Enter product category']
     },
+    // Search-engine title/description. Empty = use name/description.
+    metaTitle: { type: String, trim: true, maxLength: 70, default: '' },
+    metaDescription: { type: String, trim: true, maxLength: 170, default: '' },
     // Units available to sell right now. Checkout holds and placed orders are
     // already subtracted (see services/inventoryService.js).
     Stock: {

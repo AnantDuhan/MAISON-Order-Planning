@@ -176,6 +176,9 @@ const VariantEditor = ({ category, value, onChange }) => {
     );
 };
 
+/** Options plus regenerated variants, for setting options from outside the editor. */
+export const withOptions = (options, existingVariants = []) => ({ options, variants: generate(options, existingVariants) });
+
 /** Values to put in the multipart form. */
 export const variantFormFields = ({ options, variants }) => ({
     options: JSON.stringify(options.filter(o => o.name.trim() && o.values.length)),

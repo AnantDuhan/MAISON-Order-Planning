@@ -20,6 +20,7 @@ const Order = require('../models/order');
 const Product = require('../models/product');
 const logger = require('../config/logger');
 const { sendEmail } = require('../utils/sendEmail');
+const ai = require('./aiService');
 
 const HOUR = 3600 * 1000;
 const FIRST_AFTER = 24 * HOUR;
@@ -73,6 +74,43 @@ const reminderDue = (cart, now = Date.now()) => {
     return 0;
 };
 
+const STANDARD_COPY = {
+    1: { subject: 'You left something in your bag', headline: 'You left something behind', body: null },
+    2: { subject: 'Still thinking it over?', headline: 'Still thinking it over?', body: null },
+};
+
+/**
+ * Share of carts that get AI wording while the switch is on (0-1). The rest
+ * keep the standard wording as a control group, so the recovery rates in
+ * the admin can be compared. Same cart -> same group for both reminders.
+ */
+const aiShare = () => {
+    const n = Number(process.env.AI_CART_COPY_SHARE);
+    return Number.isFinite(n) && n >= 0 && n <= 1 ? n : 0.5;
+};
+const inAiGroup = cartId =>
+    crypto.createHash('sha256').update(String(cartId)).digest()[0] / 256 < aiShare();
+
+/**
+ * Wording for this reminder: AI-written when the aiCartCopy switch is on, the
+ * cart is in the AI group, and the AI answers in time with copy that passes
+ * the rules; otherwise the standard text. Never throws — a reminder must not
+ * fail because of the AI.
+ */
+const reminderCopy = async ({ cartId, user, items, stage }) => {
+    const standard = { ...STANDARD_COPY[stage], source: 'standard' };
+    try {
+        if (!process.env.GEMINI_API_KEY) return standard;
+        if (!inAiGroup(cartId)) return standard;
+        if (!(await require('./featureFlags').isEnabled('aiCartCopy'))) return standard;
+        const copy = await ai.writeCartReminderCopy({ firstName: user.name?.split(' ')[0], items, stage });
+        return { ...copy, source: 'ai' };
+    } catch (error) {
+        logger.warn({ err: error.message, stage }, 'AI cart copy unavailable; using standard wording');
+        return standard;
+    }
+};
+
 const sendReminder = async (cart, stage) => {
     const user = await User.findById(cart.user)
         .select('name email isDemo isEmailVerified cartRemindersOptOut').lean();
@@ -117,16 +155,19 @@ const sendReminder = async (cart, stage) => {
                 'recovery.cycle': cart.updatedAt,
                 'recovery.emailsSent': stage,
                 'recovery.lastEmailAt': new Date(),
+                'recovery.copySource': null,
                 ...(stage === 1 ? { 'recovery.clickedAt': null, 'recovery.recoveredAt': null } : {}),
             },
         }
     );
     if (!claimed.modifiedCount) return 'skipped:claimed';
 
+    const copy = await reminderCopy({ cartId: cart._id, user, items, stage });
     const html = await ejs.renderFile(path.join(__dirname, '../mails/abandoned-cart.ejs'), {
         user,
         items,
         stage,
+        copy,
         total: items.filter(i => i.inStock).reduce((n, i) => n + i.price * i.quantity, 0),
         restoreLink: `${apiBase()}/api/v1/cart/recover/${makeToken('cart', cart._id)}`,
         unsubscribeLink: `${apiBase()}/api/v1/cart/reminders/unsubscribe/${makeToken('optout', cart.user)}`,
@@ -135,9 +176,10 @@ const sendReminder = async (cart, stage) => {
         await sendEmail({
             email: user.email,
             sender: 'noreply',
-            subject: stage === 1 ? 'You left something in your bag' : 'Still thinking it over?',
+            subject: copy.subject,
             html,
         });
+        await Cart.updateOne({ _id: cart._id }, { $set: { 'recovery.copySource': copy.source } }).catch(() => {});
     } catch (error) {
         // Release the claim so the next run can retry.
         await Cart.updateOne({ _id: cart._id }, { $set: { 'recovery.emailsSent': stage - 1 } }).catch(() => {});
@@ -147,7 +189,12 @@ const sendReminder = async (cart, stage) => {
 };
 
 /** Cron entry point: POST /api/v1/jobs/abandoned-carts */
-const runAbandonedCartReminders = async ({ limit = 200, now = Date.now() } = {}) => {
+// The cron request (cron-job.org) gives up after ~30s. Stop starting new
+// reminders after this budget; the rest go out on the next run.
+const RUN_BUDGET_MS = 25_000;
+
+const runAbandonedCartReminders = async ({ limit = 200, now = Date.now(), budgetMs = RUN_BUDGET_MS } = {}) => {
+    const startedAt = Date.now();
     if (!(await require('./featureFlags').isEnabled('cartReminders'))) {
         return { scanned: 0, sent: 0, skipped: 0, failed: 0, disabled: true };
     }
@@ -156,8 +203,12 @@ const runAbandonedCartReminders = async ({ limit = 200, now = Date.now() } = {})
         updatedAt: { $lte: new Date(now - FIRST_AFTER), $gte: new Date(now - GIVE_UP_AFTER) },
     }).limit(limit).lean();
 
-    const result = { scanned: carts.length, sent: 0, skipped: 0, failed: 0 };
-    for (const cart of carts) {
+    const result = { scanned: carts.length, sent: 0, skipped: 0, failed: 0, deferred: 0 };
+    for (const [index, cart] of carts.entries()) {
+        if (Date.now() - startedAt > budgetMs) {
+            result.deferred = carts.length - index;
+            break;
+        }
         const stage = reminderDue(cart, now);
         if (!stage) {
             result.skipped += 1;
@@ -227,6 +278,23 @@ const recoveryStats = async ({ days = 30 } = {}) => {
             updatedAt: { $lte: new Date(Date.now() - FIRST_AFTER), $gte: new Date(Date.now() - GIVE_UP_AFTER) },
         }),
     ]);
+    // Recovery by wording, to judge whether the AI copy is worth keeping.
+    const copyRows = await Cart.aggregate([
+        { $match: { 'recovery.lastEmailAt': { $gte: since } } },
+        { $group: {
+            _id: { $ifNull: ['$recovery.copySource', 'standard'] },
+            emailed: { $sum: 1 },
+            clicked: { $sum: { $cond: [{ $gte: ['$recovery.clickedAt', since] }, 1, 0] } },
+            recovered: { $sum: { $cond: [{ $gte: ['$recovery.recoveredAt', since] }, 1, 0] } },
+        } },
+    ]);
+    const byCopy = Object.fromEntries(copyRows.map(r => [r._id, {
+        emailed: r.emailed,
+        clicked: r.clicked,
+        recovered: r.recovered,
+        recoveryRate: r.emailed ? r.recovered / r.emailed : 0,
+    }]));
+
     const recent = await Cart.find({ 'recovery.lastEmailAt': { $gte: since } })
         .sort({ 'recovery.lastEmailAt': -1 })
         .limit(25)
@@ -243,6 +311,7 @@ const recoveryStats = async ({ days = 30 } = {}) => {
         clickRate: emailed ? clicked / emailed : 0,
         recoveryRate: emailed ? recovered / emailed : 0,
         abandonedNow,
+        byCopy,
         recent: recent.map(c => ({
             _id: c._id,
             customer: c.user?.name,
@@ -254,6 +323,7 @@ const recoveryStats = async ({ days = 30 } = {}) => {
             clickedAt: c.recovery?.clickedAt,
             recoveredAt: c.recovery?.recoveredAt,
             recoveredOrder: c.recovery?.recoveredOrder,
+            copySource: c.recovery?.copySource || 'standard',
         })),
     };
 };
@@ -262,6 +332,8 @@ module.exports = {
     reminderDue,
     runAbandonedCartReminders,
     sendReminder,
+    reminderCopy,
+    inAiGroup,
     recordClick,
     optOut,
     markRecovered,

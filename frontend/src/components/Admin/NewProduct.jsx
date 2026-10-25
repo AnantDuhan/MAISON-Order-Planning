@@ -11,7 +11,8 @@ import { clearErrors, createProduct } from '../../actions/productAction';
 import { NEW_PRODUCT_RESET } from '../../constants/productConstants';
 import MetaData from '../layout/MetaData';
 import AdminPage from './shared/AdminPage';
-import VariantEditor, { variantFormFields, variantTotalStock } from './VariantEditor';
+import VariantEditor, { variantFormFields, variantTotalStock, withOptions } from './VariantEditor';
+import AiDraftPanel from './AiDraftPanel';
 import PhotoColorTags, { colourValues, useFileThumbnails } from './PhotoColorTags';
 import ButtonSpinner from '../layout/ButtonSpinner';
 
@@ -30,6 +31,8 @@ const NewProduct = () => {
     const [price, setPrice] = useState(0);
     const [description, setDescription] = useState('');
     const [category, setCategory] = useState('');
+    const [metaTitle, setMetaTitle] = useState('');
+    const [metaDescription, setMetaDescription] = useState('');
     const [Stock, setStock] = useState(0);
     const [variantData, setVariantData] = useState({ options: [], variants: [] });
     const hasOptions = variantData.options.length > 0;
@@ -58,6 +61,8 @@ const NewProduct = () => {
         myForm.set('price', price);
         myForm.set('description', description);
         myForm.set('category', category);
+        myForm.set('metaTitle', metaTitle);
+        myForm.set('metaDescription', metaDescription);
         myForm.set('Stock', hasOptions ? variantTotalStock(variantData.variants) : Stock);
         const variantFields = variantFormFields(variantData);
         myForm.set('options', variantFields.options);
@@ -66,6 +71,25 @@ const NewProduct = () => {
         myForm.set('imageColors', JSON.stringify(images.map((_, i) => photoTags[String(i)] || '')));
         images.forEach(image => myForm.append('product', image));
         dispatch(createProduct(myForm));
+    };
+
+    const applyAiDraft = draft => {
+        setName(draft.name);
+        setDescription(draft.description);
+        if (draft.category) setCategory(draft.category);
+        setMetaTitle(draft.metaTitle);
+        setMetaDescription(draft.metaDescription);
+    };
+
+    // Replace the values of the Colour option (or add one) with the AI's colours.
+    const applyAiColours = colours => {
+        const values = colours.map(c => ({ value: c.value, hex: c.hex || '#CBB79A' }));
+        const { options, variants } = variantData;
+        const i = options.findIndex(o => o.kind === 'color');
+        const next = i >= 0
+            ? options.map((o, j) => (j === i ? { ...o, values } : o))
+            : [...options, { name: 'Colour', kind: 'color', values }].slice(0, 3);
+        setVariantData(withOptions(next, variants));
     };
 
     const createProductImagesChange = e => {
@@ -179,6 +203,33 @@ const NewProduct = () => {
                                     ))}
                                 </div>
                             )}
+                        </div>
+
+                        <AiDraftPanel
+                            images={images}
+                            category={category}
+                            onApply={applyAiDraft}
+                            onApplyColours={applyAiColours}
+                        />
+
+                        <div className='grid gap-4'>
+                            <label className='eyebrow'>Search listing (optional)</label>
+                            <input
+                                type='text'
+                                placeholder='SEO title — defaults to the product name'
+                                maxLength={70}
+                                value={metaTitle}
+                                onChange={e => setMetaTitle(e.target.value)}
+                                className='border border-line bg-transparent p-3 font-sans text-sm text-ink placeholder:text-ink-faint focus:border-brass focus:outline-none'
+                            />
+                            <textarea
+                                rows='2'
+                                placeholder='SEO description — defaults to the description'
+                                maxLength={170}
+                                value={metaDescription}
+                                onChange={e => setMetaDescription(e.target.value)}
+                                className='resize-none border border-line bg-transparent p-3 font-sans text-sm text-ink placeholder:text-ink-faint focus:border-brass focus:outline-none'
+                            />
                         </div>
 
                         <VariantEditor category={category} value={variantData} onChange={setVariantData} />
