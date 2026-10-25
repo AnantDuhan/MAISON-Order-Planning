@@ -4,6 +4,7 @@ import ShoppingBagOutlinedIcon from '@mui/icons-material/ShoppingBagOutlined';
 import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 
+import { useOverlay } from '../../utils/useOverlay';
 import { formatDeadline, isWithinReturnWindow, RETURN_WINDOW_DAYS, returnDeadline } from '../../utils/returnWindow';
 import { inr } from './OrderItemsList';
 
@@ -217,6 +218,7 @@ export const ReturnSheet = ({ open, order, onClose, onSubmit }) => {
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState('');
     const panelRef = useRef(null);
+    useOverlay(open);
 
     useEffect(() => {
         if (!open) return undefined;

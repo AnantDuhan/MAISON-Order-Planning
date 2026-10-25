@@ -22,11 +22,11 @@ const ProductGridItem = ({ product }) => {
                 />
             </div>
 
-            {/* Overlay */}
-            <div className='absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-ink/85 via-ink/20 to-transparent p-6 opacity-0 transition-opacity duration-500 ease-luxe group-hover:opacity-100'>
+            {/* Overlay: revealed on hover with a mouse, always visible on touch screens */}
+            <div className='absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-ink/85 via-ink/20 to-transparent p-4 transition-opacity duration-500 ease-luxe sm:p-6 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100'>
                 <span className='eyebrow !text-brass-soft'>New Arrival</span>
-                <h3 className='mt-2 font-display text-2xl font-medium text-white'>{product.name}</h3>
-                <p className='mt-1 line-clamp-2 font-sans text-sm text-white/70'>{cleanText(product.description)}</p>
+                <h3 className='mt-2 font-display text-xl font-medium text-white sm:text-2xl'>{product.name}</h3>
+                <p className='mt-1 line-clamp-2 hidden font-sans text-sm text-white/70 sm:block'>{cleanText(product.description)}</p>
                 <p className='mt-3 font-sans text-sm tracking-wide text-white'>{priceLabel(product)}</p>
             </div>
         </Link>

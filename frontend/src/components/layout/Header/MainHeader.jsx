@@ -12,6 +12,7 @@ import axios from 'axios';
 
 import { logout } from '../../../actions/userAction';
 import ThemeToggle from '../ThemeToggle';
+import { useOverlay } from '../../../utils/useOverlay';
 
 const useDebounce = (value, delay) => {
     const [debouncedValue, setDebouncedValue] = useState(value);
@@ -39,6 +40,7 @@ const MainHeader = () => {
     const [suggestions, setSuggestions] = useState([]);
     const [isSuggestionsVisible, setIsSuggestionsVisible] = useState(false);
     const [menuOpen, setMenuOpen] = useState(false);
+    useOverlay(menuOpen);
     const [scrolled, setScrolled] = useState(false);
     const [membership, setMembership] = useState(null);
 
@@ -150,12 +152,9 @@ const MainHeader = () => {
                 </div>
 
                 {/* Center: wordmark */}
-                <Link to='/' className='flex flex-shrink-0 flex-col items-center leading-none'>
-                    <span className='font-display text-2xl font-medium tracking-wide text-ink sm:text-[1.75rem]'>
+                <Link to='/' aria-label='Maison home' className='flex flex-shrink-0 items-center leading-none'>
+                    <span className='font-display text-[1.7rem] font-medium tracking-[0.18em] text-ink sm:text-[2rem]'>
                         MAISON
-                    </span>
-                    <span className='mt-0.5 font-sans text-[0.55rem] uppercase tracking-wide2 text-brass'>
-                        Order Planning
                     </span>
                 </Link>
 

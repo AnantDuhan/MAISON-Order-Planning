@@ -50,6 +50,9 @@ test('requestReturn stores the reason and trimmed details, and marks the order',
     let saved;
     s.set(Return.prototype, 'save', async function () { saved = this.toObject(); return this; });
     s.set(cache, 'del', async () => {});
+    const returnEmails = require('../services/returnEmails');
+    let emailed;
+    s.set(returnEmails, 'sendReturnEmail', async (kind, o, r) => { emailed = { kind, id: o._id, ...r }; });
     const order = {
         _id: 'o2', user: 'u1', orderStatus: 'Delivered', DeliveredAt: deliveredDaysAgo(2),
         orderItems: [{ product: 'p1', quantity: 1 }], return: [],
@@ -66,6 +69,7 @@ test('requestReturn stores the reason and trimmed details, and marks the order',
     assert.equal(saved.details, 'The left hinge is cracked.');
     assert.equal(order.isReturned, true);
     assert.equal(order.refundStatus, 'Initiated');
+    assert.deepEqual(emailed, { kind: 'received', id: 'o2', reason: 'Damaged or defective', details: 'The left hinge is cracked.' });
 });
 
 test('getSingleOrder includes the latest return status for the owner', async () => {
@@ -79,4 +83,43 @@ test('getSingleOrder includes the latest return status for the owner', async () 
     await getSingleOrder({ params: { id: 'o3' }, user: { _id: 'u1' } }, res);
     assert.equal(asked, 'r2');
     assert.equal(res.body.order.returnInfo.status, 'Approved');
+});
+
+test('approving a return emails the customer once; repeating the same status does not', async () => {
+    const Return = require('../models/return');
+    const cache = require('../utils/cache');
+    const returnEmails = require('../services/returnEmails');
+    const { updateReturnStatus } = require('../controllers/return');
+    const sent = [];
+    s.set(returnEmails, 'sendReturnEmail', async kind => { sent.push(kind); });
+    s.set(cache, 'del', async () => {});
+    s.set(Order, 'findById', () => ({ select: () => ({ lean: async () => ({ _id: 'o4', user: 'u1', totalPrice: 2580 }) }) }));
+    const doc = { _id: 'r4', order: 'o4', status: 'Pending', reason: 'Wrong item sent', save: async () => {} };
+    s.set(Return, 'findById', async () => doc);
+    const res = mockRes();
+    await updateReturnStatus({ params: { id: 'r4' }, body: { status: 'Approved' } }, res);
+    assert.equal(res.statusCode, 200);
+    assert.ok(doc.approvedAt instanceof Date);
+    await updateReturnStatus({ params: { id: 'r4' }, body: { status: 'Approved' } }, mockRes());
+    await updateReturnStatus({ params: { id: 'r4' }, body: { status: 'Rejected' } }, mockRes());
+    assert.deepEqual(sent, ['approved', 'declined']);
+});
+
+test('return emails render the template and go out from the support address', async () => {
+    const mailer = require('../utils/sendEmail');
+    const { sendReturnEmail } = require('../services/returnEmails');
+    for (const kind of ['received', 'approved', 'declined']) {
+        let mail;
+        s.set(mailer, 'sendEmailInBackground', m => { mail = m; });
+        const ok = await sendReturnEmail(kind,
+            { _id: 'o5', user: { name: 'Anant Duhan', email: 'a@example.com' }, totalPrice: 31199.22 },
+            { reason: 'Damaged or defective', details: 'Cracked <edge>' });
+        s.restore();
+        assert.equal(ok, true);
+        assert.equal(mail.email, 'a@example.com');
+        assert.equal(mail.sender, 'support');
+        assert.match(mail.html, /Anant/);
+        assert.match(mail.html, /Cracked &lt;edge&gt;/); // escaped
+        if (kind !== 'declined') assert.match(mail.html, /₹31,199.22/);
+    }
 });

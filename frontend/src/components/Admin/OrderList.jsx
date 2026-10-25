@@ -1,6 +1,6 @@
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
-import React, { Fragment, useEffect } from 'react';
+import React, { Fragment, useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
@@ -10,6 +10,7 @@ import { DELETE_ORDER_RESET } from '../../constants/orderConstants';
 import MetaData from '../layout/MetaData';
 import AdminPage from './shared/AdminPage';
 import AdminTable from './shared/AdminTable';
+import { formatINR } from '../../utils/priceLabel';
 
 const refundTone = status =>
     status === 'Approved' || status === 'Refunded'
@@ -18,7 +19,18 @@ const refundTone = status =>
         ? 'text-danger'
         : 'text-ink-soft';
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** Days past its delivery estimate for an undelivered, unrefunded order; 0 if on time. */
+const daysLate = order => {
+    if (!order.estimatedDeliveryDate || ['Delivered', 'Cancelled'].includes(order.orderStatus) || order.isRefunded) return 0;
+    const due = new Date(order.estimatedDeliveryDate);
+    due.setHours(23, 59, 59, 999);
+    return Math.max(0, Math.ceil((Date.now() - due.getTime()) / DAY_MS));
+};
+
 const OrderList = () => {
+    const [lateOnly, setLateOnly] = useState(false);
     const dispatch = useDispatch();
     const navigate = useNavigate();
 
@@ -44,14 +56,20 @@ const OrderList = () => {
         dispatch(getAllOrders());
     }, [dispatch, error, deleteError, navigate, isDeleted]);
 
-    const rows = (orders || []).map(item => ({
+    const allRows = (orders || []).map(item => ({
         id: item._id,
         name: item.orderItems?.[0]?.name || '—',
         itemsQty: item.orderItems?.length || 0,
         amount: item.totalPrice,
         status: item.orderStatus,
         refundStatus: item.refundStatus,
+        late: daysLate(item),
     }));
+    const lateCount = allRows.filter(r => r.late > 0).length;
+    // Late orders first so they can't hide on page 3.
+    const rows = (lateOnly ? allRows.filter(r => r.late > 0) : allRows)
+        .slice()
+        .sort((a, b) => (b.late > 0) - (a.late > 0));
 
     const columns = [
         { key: 'id', label: 'Order ID', width: '1.4fr' },
@@ -60,7 +78,17 @@ const OrderList = () => {
             key: 'status',
             label: 'Status',
             width: '0.8fr',
-            tone: row => (row.status === 'Delivered' ? 'text-success' : 'text-danger'),
+            tone: row => (row.status === 'Delivered' ? 'text-success' : row.late ? 'text-danger' : 'text-ink'),
+            render: row => (
+                <span>
+                    {row.status}
+                    {row.late > 0 && (
+                        <span className='ml-2 inline-block border border-danger/40 bg-danger/10 px-1.5 py-0.5 align-middle font-sans text-[0.6rem] uppercase tracking-luxe text-danger'>
+                            {row.late}d late
+                        </span>
+                    )}
+                </span>
+            ),
         },
         {
             key: 'refundStatus',
@@ -75,7 +103,7 @@ const OrderList = () => {
             label: 'Amount',
             align: 'right',
             width: '0.8fr',
-            render: row => `₹${row.amount}`,
+            render: row => formatINR(row.amount),
         },
         {
             key: 'actions',
@@ -103,7 +131,18 @@ const OrderList = () => {
         <Fragment>
             <MetaData title='All Orders · Admin' />
             <AdminPage title='All Orders'>
-                <AdminTable columns={columns} rows={rows} emptyMessage='No orders yet.' />
+                {lateCount > 0 && (
+                    <div className='mb-6 flex flex-col gap-3 border border-danger/40 bg-danger/5 p-4 sm:flex-row sm:items-center sm:justify-between'>
+                        <p className='font-sans text-sm text-ink'>
+                            <span className='font-medium text-danger'>{lateCount} {lateCount === 1 ? 'order is' : 'orders are'} past the delivery date</span>
+                            {' '}and not delivered. Customers see these as running late — ship them or contact the customer.
+                        </p>
+                        <button type='button' onClick={() => setLateOnly(v => !v)} className='btn-outline shrink-0 !px-4 !py-2.5'>
+                            {lateOnly ? 'Show all orders' : 'Show late only'}
+                        </button>
+                    </div>
+                )}
+                <AdminTable columns={columns} rows={rows} emptyMessage={lateOnly ? 'No late orders.' : 'No orders yet.'} />
             </AdminPage>
         </Fragment>
     );
