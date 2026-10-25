@@ -1,6 +1,7 @@
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
 import CardMembershipIcon from '@mui/icons-material/CardMembership';
+import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
 import React, { useEffect, useRef, useState } from 'react';
 import { FaSearch } from 'react-icons/fa';
 import { useDispatch, useSelector } from 'react-redux';
@@ -124,7 +125,7 @@ const MainHeader = () => {
                 </p>
             </div>
 
-            <nav className='mx-auto flex max-w-editorial items-center justify-between gap-6 px-6 py-5 lg:px-12'>
+            <nav className='mx-auto flex max-w-editorial items-center justify-between gap-3 px-5 py-5 sm:gap-6 sm:px-6 lg:px-12'>
                 {/* Left: mobile toggle + nav */}
                 <div className='flex flex-1 items-center gap-6'>
                     <button
@@ -137,7 +138,7 @@ const MainHeader = () => {
                             {menuOpen ? <path d='M6 6l12 12M18 6L6 18' /> : <path d='M3 7h18M3 12h18M3 17h18' />}
                         </svg>
                     </button>
-                    <ul className='hidden items-center gap-8 lg:flex'>
+                    <ul className='hidden items-center gap-6 lg:flex xl:gap-8'>
                         {navLinks.map(l => (
                             <li key={l.to}>
                                 <Link to={l.to} className='link-reveal font-sans text-[0.82rem] uppercase tracking-luxe'>
@@ -159,15 +160,14 @@ const MainHeader = () => {
                 </Link>
 
                 {/* Right: actions */}
-                <div className='flex min-w-0 flex-1 items-center justify-end gap-2.5 sm:gap-4'>
-                    {/* Admin entry — kept in the always-visible action cluster so it
-                        does not disappear below the lg breakpoint. */}
+                <div className='flex flex-1 items-center justify-end gap-3 sm:gap-4 lg:gap-3 xl:gap-4'>
+                    {/* Admin entry — visible from sm up; on phones it lives in the menu. */}
                     {user?.role === 'admin' && (
                         <Link
                             to='/admin/dashboard'
                             title='Admin Dashboard'
                             aria-label='Admin Dashboard'
-                            className='inline-flex shrink-0 items-center gap-2 border border-brass px-2.5 py-1.5 font-sans text-[0.66rem] uppercase tracking-luxe text-brass transition-all duration-500 ease-luxe hover:bg-brass hover:text-white sm:px-3'
+                            className='hidden shrink-0 items-center gap-2 border border-brass px-2.5 py-1.5 sm:inline-flex font-sans text-[0.66rem] uppercase tracking-luxe text-brass transition-all duration-500 ease-luxe hover:bg-brass hover:text-white sm:px-3'
                         >
                             <svg width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='1.7'>
                                 <rect x='3' y='3' width='7' height='9' />
@@ -206,21 +206,24 @@ const MainHeader = () => {
                         )}
                     </form>
 
-                    <ThemeToggle />
+                    {/* Phones keep only cart and account in the bar; the rest is in the menu. */}
+                    <span className='hidden sm:block'>
+                        <ThemeToggle />
+                    </span>
 
                     {isAuthenticated && (
                         <Link
                             to='/membership'
                             aria-label={membership?.isActive ? 'Active membership' : 'Membership'}
                             title={membership?.isActive ? 'Active membership' : 'Membership'}
-                            className={`relative text-ink transition-colors hover:text-brass ${membership?.isActive ? 'text-brass' : ''}`}
+                            className={`relative hidden text-ink transition-colors hover:text-brass sm:block ${membership?.isActive ? 'text-brass' : ''}`}
                         >
                             <CardMembershipIcon fontSize='small' />
                             {membership?.isActive && <span className='absolute -right-1 -top-1 h-2 w-2 rounded-full bg-brass ring-2 ring-canvas' />}
                         </Link>
                     )}
 
-                    <Link to='/wishlist' aria-label='Wishlist' className='text-ink transition-colors hover:text-brass'>
+                    <Link to='/wishlist' aria-label='Wishlist' className='hidden text-ink transition-colors hover:text-brass sm:block'>
                         <FavoriteBorderIcon fontSize='small' />
                     </Link>
 
@@ -250,9 +253,14 @@ const MainHeader = () => {
                             </button>
                         </div>
                     ) : (
-                        <Link to='/login' className='btn-solid shrink-0 !px-3 !py-2.5 !text-[0.68rem] sm:!px-5'>
-                            Login
-                        </Link>
+                        <>
+                            <Link to='/login' aria-label='Login' className='text-ink transition-colors hover:text-brass sm:hidden'>
+                                <PersonOutlineIcon fontSize='small' />
+                            </Link>
+                            <Link to='/login' className='btn-solid hidden shrink-0 !px-5 !py-2.5 !text-[0.68rem] sm:inline-flex'>
+                                Login
+                            </Link>
+                        </>
                     )}
                 </div>
             </nav>
@@ -294,6 +302,23 @@ const MainHeader = () => {
                                 <Link to='/membership' onClick={() => setMenuOpen(false)} className={`flex items-center gap-2 font-sans text-sm uppercase tracking-luxe ${membership?.isActive ? 'text-brass' : 'text-ink'}`}>
                                     <CardMembershipIcon fontSize='small' />
                                     {membership?.isActive ? 'Active Membership' : 'Membership'}
+                                </Link>
+                            </li>
+                        )}
+                        <li className='sm:hidden'>
+                            <Link to='/wishlist' onClick={() => setMenuOpen(false)} className='flex items-center gap-2 font-sans text-sm uppercase tracking-luxe text-ink'>
+                                <FavoriteBorderIcon fontSize='small' />
+                                Wishlist
+                            </Link>
+                        </li>
+                        <li className='flex items-center gap-3 sm:hidden'>
+                            <ThemeToggle />
+                            <span className='font-sans text-sm uppercase tracking-luxe text-ink'>Theme</span>
+                        </li>
+                        {!isAuthenticated && (
+                            <li className='sm:hidden'>
+                                <Link to='/login' onClick={() => setMenuOpen(false)} className='font-sans text-sm uppercase tracking-luxe text-ink'>
+                                    Login
                                 </Link>
                             </li>
                         )}
