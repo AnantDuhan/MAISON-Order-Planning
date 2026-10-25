@@ -38,6 +38,14 @@ import MetaData from "../layout/MetaData";
 import { formatINR } from "../../utils/priceLabel";
 import { cleanText } from "../../utils/cleanText";
 import ReviewsSection from "./ReviewsSection";
+import {
+  Breadcrumbs,
+  DeliveryLine,
+  ProductJsonLd,
+  RecentlyViewed,
+  RelatedProducts,
+  ShippingReturns,
+} from "./ProductExtras";
 
 import "react-responsive-carousel/lib/styles/carousel.min.css";
 
@@ -241,8 +249,10 @@ const ProductDetails = () => {
             image={product?.images?.[0]?.url}
             type="product"
           />
+          <ProductJsonLd product={product} />
 
           <div className="editorial-shell py-14">
+            <Breadcrumbs product={product} />
             <div className="grid gap-12 lg:grid-cols-2 lg:gap-16">
               {/* Gallery */}
               <div className="lg:sticky lg:top-28 lg:self-start">
@@ -321,6 +331,8 @@ const ProductDetails = () => {
                   </span>
                 </div>
 
+                {(inStock || (hasOptions && !selectedVariant && product.Stock >= 1)) && <DeliveryLine />}
+
                 {hasOptions && (
                   <div className="mt-8">
                     <VariantPicker
@@ -384,6 +396,8 @@ const ProductDetails = () => {
                     {cleanText(product.description)}
                   </p>
                 </div>
+
+                <ShippingReturns />
 
                 {reviewsOn && (
                 <button
@@ -561,6 +575,9 @@ const ProductDetails = () => {
                 <ReviewsSection reviews={product.reviews} />
               </div>
             </div>
+
+            <RelatedProducts productId={product._id} />
+            <RecentlyViewed product={product} />
           </div>
 
           <Dialog

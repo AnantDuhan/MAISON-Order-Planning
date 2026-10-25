@@ -16,6 +16,7 @@ const {
    cancelBackInStock,
    getInventoryReport,
    getOptionTemplate,
+   getRelatedProducts,
 //    searchProducts,
 //    getAutocompleteSuggestions
 } = require('../controllers/product');
@@ -44,6 +45,7 @@ router
     .get(isAuthUser, authRoles('admin'), getAdminProducts);
 
 router.route('/product/:id').get(getProductDetails);
+router.route('/product/:id/related').get(getRelatedProducts);
 
 router
     .route('/product/:id/notify-me')
