@@ -18,3 +18,6 @@ yarn-error.log*
 *.conf
 *.rdb
 .DS_Store
+
+.postman
+postman
