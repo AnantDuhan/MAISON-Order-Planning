@@ -6,18 +6,19 @@
     <meta name="theme-color" content="#F7F4EF" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#0F0E0D" media="(prefers-color-scheme: dark)" />
 
-    <!-- Defaults; each page overrides these through <MetaData /> -->
-    <title>Maison · Curated Furniture & Home Objects</title>
-    <meta name="description" content="Maison is a curated store for furniture and home objects — chosen with intention, made to be kept. Free returns, secure checkout." />
-    <meta property="og:type" content="website" />
+    <!-- Defaults for crawlers that skip JS. data-rh lets react-helmet-async
+         replace them instead of leaving duplicate tags. -->
+    <title>Maison · Curated Objects for Everyday Life</title>
+    <meta name="description" content="Maison is a curated store for everyday objects — tech, accessories and pieces chosen with intention, made to be kept." data-rh="true" />
+    <meta property="og:type" content="website" data-rh="true" />
     <meta property="og:site_name" content="Maison" />
-    <meta property="og:title" content="Maison · Curated Furniture & Home Objects" />
-    <meta property="og:description" content="Furniture and home objects chosen with intention, made to be kept." />
-    <meta property="og:image" content="https://orderplanning.netlify.app/og-image.png" />
+    <meta property="og:title" content="Maison · Curated Objects for Everyday Life" data-rh="true" />
+    <meta property="og:description" content="Tech, accessories and everyday objects chosen with intention, made to be kept." data-rh="true" />
+    <meta property="og:image" content="https://maisonorderplanning.in/og-image.png" data-rh="true" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:image" content="https://orderplanning.netlify.app/og-image.png" />
+    <meta name="twitter:card" content="summary_large_image" data-rh="true" />
+    <meta name="twitter:image" content="https://maisonorderplanning.in/og-image.png" data-rh="true" />
 
     <link rel="icon" href="/favicon.ico" sizes="any" />
     <link rel="icon" type="image/png" sizes="192x192" href="/logo192.png" />

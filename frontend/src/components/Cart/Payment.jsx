@@ -10,6 +10,7 @@ import CheckoutSteps from '../Cart/CheckoutSteps';
 import MetaData from '../layout/MetaData';
 import { createOrder, clearErrors } from '../../actions/orderAction';
 import { useFeature } from '../../context/FeatureFlagsContext';
+import { formatINR } from '../../utils/priceLabel';
 
 const cashfree = window.Cashfree
     ? window.Cashfree({ mode: import.meta.env.REACT_APP_CASHFREE_MODE || 'sandbox' })
@@ -150,11 +151,11 @@ const Payment = () => {
                             Total Due
                         </p>
                         <p className='mt-1 font-display text-4xl font-medium text-ink'>
-                            ₹{dueNow}
+                            {formatINR(dueNow)}
                         </p>
                         {creditToApply > 0 && (
                             <p className='mt-2 font-sans text-xs text-ink-faint'>
-                                ₹{total} total − ₹{creditToApply} store credit
+                                {formatINR(total)} total − {formatINR(creditToApply)} store credit
                             </p>
                         )}
                     </div>
@@ -163,7 +164,7 @@ const Payment = () => {
                         <label className='mt-8 flex cursor-pointer items-center justify-between gap-4 border border-line px-5 py-4 text-left'>
                             <span>
                                 <span className='block font-sans text-sm text-ink'>Use store credit</span>
-                                <span className='block font-sans text-xs text-ink-faint'>₹{storeCredit} available</span>
+                                <span className='block font-sans text-xs text-ink-faint'>{formatINR(storeCredit)} available</span>
                             </span>
                             <input
                                 type='checkbox'
@@ -180,8 +181,8 @@ const Payment = () => {
                         ) : (
                             <button onClick={submitHandler} className='btn-solid w-full'>
                                 {dueNow === 0
-                                    ? `Place order with store credit · ₹${creditToApply}`
-                                    : `Pay securely with Cashfree · ₹${dueNow}`}
+                                    ? `Place order with store credit · ${formatINR(creditToApply)}`
+                                    : `Pay securely with Cashfree · ${formatINR(dueNow)}`}
                             </button>
                         )}
                     </div>

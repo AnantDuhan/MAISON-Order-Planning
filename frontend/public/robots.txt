@@ -4,7 +4,8 @@ Disallow: /admin
 Disallow: /account
 Disallow: /me/
 Disallow: /cart
-Disallow: /shipping
+Disallow: /shipping$
+Allow: /shipping-policy
 Disallow: /payment
 Disallow: /order
 Disallow: /orders
@@ -16,4 +17,4 @@ Disallow: /login/2fa
 Disallow: /login/magic/
 Disallow: /api/
 
-Sitemap: https://orderplanning.netlify.app/sitemap.xml
+Sitemap: https://maisonorderplanning.in/sitemap.xml

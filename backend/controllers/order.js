@@ -29,9 +29,11 @@ const NEXT_STATUS = {
 const invalidateOrderCaches = (orderId, userId) =>
     cache.del(orderId && `order:${orderId}`, 'orders', userId && `orders:${userId}`);
 
-const randomDeliveryDate = () => {
+// A fixed, honest estimate. The old random 0-7 days could promise same-day delivery.
+const DELIVERY_ESTIMATE_DAYS = 5;
+const estimateDeliveryDate = () => {
     const d = new Date();
-    d.setDate(d.getDate() + Math.floor(Math.random() * 8)); // 0-7 days out
+    d.setDate(d.getDate() + DELIVERY_ESTIMATE_DAYS);
     return d;
 };
 
@@ -122,7 +124,7 @@ exports.newOrder = async (req, res, next) => {
             return res.status(200).json({ success: true, order: existingOrder, deduped: true });
         }
 
-        const estimatedDeliveryDate = randomDeliveryDate();
+        const estimatedDeliveryDate = estimateDeliveryDate();
         const orderId = generateId();
 
         // Take the stock that was held when the customer started paying. If the
@@ -376,7 +378,7 @@ exports.updateOrder = async (req, res, next) => {
             order.DeliveredAt = Date.now();
             order.estimatedDeliveryDate = null;
         } else {
-            estimatedDeliveryDate = order.estimatedDeliveryDate || randomDeliveryDate();
+            estimatedDeliveryDate = order.estimatedDeliveryDate || estimateDeliveryDate();
             order.estimatedDeliveryDate = estimatedDeliveryDate;
         }
 

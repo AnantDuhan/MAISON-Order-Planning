@@ -6,6 +6,7 @@ import CheckoutSteps from '../Cart/CheckoutSteps';
 import MetaData from '../layout/MetaData';
 import { getAllCoupons } from '../../actions/couponAction';
 import { useFeature } from '../../context/FeatureFlagsContext';
+import { formatINR } from '../../utils/priceLabel';
 
 const ConfirmOrder = () => {
     const { shippingInfo, cartItems } = useSelector(state => state.cart);
@@ -80,8 +81,8 @@ const ConfirmOrder = () => {
                                                 )}
                                             </Link>
                                             <span className='font-sans text-sm text-ink-soft'>
-                                                {item.quantity} × ₹{item.price} ={' '}
-                                                <b className='text-ink'>₹{item.price * item.quantity}</b>
+                                                {item.quantity} × {formatINR(item.price)} ={' '}
+                                                <b className='text-ink'>{formatINR(item.price * item.quantity)}</b>
                                             </span>
                                         </div>
                                     ))}
@@ -96,11 +97,11 @@ const ConfirmOrder = () => {
                             <div className='mt-6 space-y-3'>
                                 <div className='flex justify-between font-sans text-sm text-ink-soft'>
                                     <span>Subtotal</span>
-                                    <span>₹{subtotal}</span>
+                                    <span>{formatINR(subtotal)}</span>
                                 </div>
                                 <div className='flex justify-between font-sans text-sm text-ink-soft'>
                                     <span>Shipping Charges</span>
-                                    <span>{shippingCharges === 0 ? 'Complimentary' : `₹${shippingCharges}`}</span>
+                                    <span>{shippingCharges === 0 ? 'Complimentary' : formatINR(shippingCharges)}</span>
                                 </div>
                             </div>
 
@@ -127,7 +128,7 @@ const ConfirmOrder = () => {
                             <div className='my-6 rule-luxe' />
                             <div className='flex items-center justify-between'>
                                 <span className='font-sans text-[0.72rem] uppercase tracking-luxe text-ink'>Total</span>
-                                <span className='font-display text-2xl font-medium text-ink'>₹{totalPrice}</span>
+                                <span className='font-display text-2xl font-medium text-ink'>{formatINR(totalPrice)}</span>
                             </div>
                             <button onClick={proceedToPayment} className='btn-solid mt-8 w-full'>
                                 Proceed to Payment

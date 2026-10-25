@@ -69,6 +69,8 @@ const generateJSON = async ({ parts, schema, system, timeoutMs = DEFAULT_TIMEOUT
 const text = (v, max) => String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
 const paragraphs = (v, max) =>
     String(v ?? '')
+        // Models sometimes return escaped newlines ("\\n" as text); treat them as real ones.
+        .replace(/\\r\\n|\\n|\\r/g, '\n')
         .split(/\n{2,}/)
         .map(p => p.replace(/[ \t]+/g, ' ').trim())
         .filter(Boolean)

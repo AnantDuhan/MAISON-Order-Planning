@@ -81,6 +81,8 @@ const VerifyEmail = lazy(() => import("./components/User/VerifyEmail"));
 const MagicLinkLogin = lazy(() => import("./components/User/MagicLinkLogin"));
 const PrivacyPolicy = lazy(() => import("./components/layout/Legal/PrivacyPolicy"));
 const TermsAndConditions = lazy(() => import("./components/layout/Legal/TermsAndConditions"));
+const ShippingPolicy = lazy(() => import("./components/layout/Legal/ShippingPolicy"));
+const RefundPolicy = lazy(() => import("./components/layout/Legal/RefundPolicy"));
 const MembershipAnalytics = lazy(() => import("./components/Admin/MembershipAnalytics"));
 const FeatureFlags = lazy(() => import("./components/Admin/FeatureFlags"));
 const AuditLog = lazy(() => import("./components/Admin/AuditLog"));
@@ -159,6 +161,8 @@ function App() {
               <Route path="/cart" element={<Cart />} exact />
               <Route path="/privacy" element={<PrivacyPolicy />} />
               <Route path="/terms" element={<TermsAndConditions />} />
+              <Route path="/shipping-policy" element={<ShippingPolicy />} />
+              <Route path="/refund-policy" element={<RefundPolicy />} />
 
               {/* Auth Routes */}
               <Route path="/login" element={<LoginAndRegister />} exact />

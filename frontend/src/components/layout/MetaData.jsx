@@ -1,9 +1,14 @@
 import { Helmet } from 'react-helmet-async';
 import { useLocation } from 'react-router-dom';
 
-export const SITE_URL = (import.meta.env.VITE_SITE_URL || 'https://orderplanning.netlify.app').replace(/\/$/, '');
-const DEFAULT_DESCRIPTION =
-    'Maison is a curated store for furniture and home objects — chosen with intention, made to be kept.';
+// An env value without a scheme ("maisonorderplanning.in") made the browser
+// treat every canonical and og:url as a relative path, so add https:// here.
+const withScheme = url => (/^https?:\/\//i.test(url) ? url : `https://${url}`);
+export const SITE_URL = withScheme(
+    (import.meta.env.VITE_SITE_URL || 'https://maisonorderplanning.in').trim().replace(/\/+$/, '')
+);
+export const DEFAULT_DESCRIPTION =
+    'Maison is a curated store for everyday objects — tech, accessories and pieces chosen with intention, made to be kept.';
 const DEFAULT_IMAGE = `${SITE_URL}/og-image.png`;
 
 /**

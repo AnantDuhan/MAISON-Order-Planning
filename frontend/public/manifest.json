@@ -1,7 +1,7 @@
 {
   "short_name": "Maison",
-  "name": "Maison · Curated Furniture & Home Objects",
-  "description": "Furniture and home objects chosen with intention, made to be kept.",
+  "name": "Maison · Curated Objects for Everyday Life",
+  "description": "Tech, accessories and everyday objects chosen with intention, made to be kept.",
   "icons": [
     { "src": "favicon.ico", "sizes": "64x64 32x32 24x24 16x16", "type": "image/x-icon" },
     { "src": "logo192.png", "type": "image/png", "sizes": "192x192" },
