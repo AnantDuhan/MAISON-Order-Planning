@@ -36,11 +36,8 @@ const Maintenance = () => {
             {/* Same wordmark as the storefront header. */}
             <header className='flex justify-center px-6 pt-8'>
                 <div className='flex flex-col items-center leading-none'>
-                    <span className='font-display text-2xl font-medium tracking-wide text-ink sm:text-[1.75rem]'>
+                    <span className='font-display text-[1.7rem] font-medium tracking-[0.18em] text-ink sm:text-[2rem]'>
                         MAISON
-                    </span>
-                    <span className='mt-0.5 font-sans text-[0.55rem] uppercase tracking-wide2 text-brass'>
-                        Order Planning
                     </span>
                 </div>
             </header>

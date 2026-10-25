@@ -2,6 +2,7 @@ const Return = require('../models/return');
 const Order = require('../models/order');
 const generateId = require('../utils/generateId');
 const cache = require('../utils/cache');
+const returnEmails = require('../services/returnEmails');
 const { RETURN_WINDOW_DAYS, returnDeadline, isWithinReturnWindow } = require('../utils/returnWindow');
 
 exports.requestReturn = async (req, res) => {
@@ -84,6 +85,9 @@ exports.requestReturn = async (req, res) => {
         await order.save({ validateBeforeSave: false });
 
         await cache.del('returns', 'orders', `order:${order._id}`, `orders:${order.user}`);
+
+        // Confirm by email; never blocks or fails the request.
+        returnEmails.sendReturnEmail('received', order, { reason, details }).catch(() => {});
 
         res.status(200).json({
             success: true,
@@ -187,6 +191,7 @@ exports.updateReturnStatus = async (req, res) => {
             });
         }
 
+        const previousStatus = returnRequest.status;
         res.locals.audit = {
             before: { status: returnRequest.status },
             after: { status },
@@ -199,6 +204,13 @@ exports.updateReturnStatus = async (req, res) => {
         await returnRequest.save();
 
         await cache.del('returns', 'orders', `order:${returnRequest.order}`);
+
+        // Tell the customer when a decision is made (once per decision).
+        const kind = { Approved: 'approved', Rejected: 'declined' }[status];
+        if (kind && previousStatus !== status) {
+            const order = await Order.findById(returnRequest.order).select('_id user totalPrice refundInfo').lean();
+            returnEmails.sendReturnEmail(kind, order, { reason: returnRequest.reason, details: returnRequest.details }).catch(() => {});
+        }
 
         res.status(200).json({
             success: true,

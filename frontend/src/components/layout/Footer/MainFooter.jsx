@@ -20,7 +20,6 @@ const Footer = () => {
                             />
                         </Link>
                     </div>
-                    <p>Order Planning</p>
                 </div>
             </div>
             <div className='footer-section'>

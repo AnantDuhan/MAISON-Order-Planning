@@ -219,3 +219,18 @@
     font-size: 1.15rem;
   }
 }
+
+/* Swipeable strips (product card photos on touch screens). */
+@layer utilities {
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Floating UI that should hide while a menu or sheet is open (see useOverlay). */
+html[data-overlay] .hide-under-overlay {
+  display: none;
+}

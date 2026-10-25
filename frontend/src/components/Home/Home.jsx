@@ -24,6 +24,14 @@ const Home = () => {
     const onLoaderFinished = () => setProgress(0);
 
     const { loading, error, products } = useSelector(state => state.products);
+
+    // Each product appears once on the page: the newest is featured, the next
+    // three are the New Drop, and up to four more fill the Shop All grid.
+    const list = Array.isArray(products) ? products : [];
+    const featured = list[list.length - 1];
+    const rest = list.slice(0, -1).reverse();
+    const newDrop = rest.slice(0, 3);
+    const more = rest.slice(3, 7);
     const { success: subscribeSuccess, error: subscribeError } = useSelector(state => state.subscribe);
 
     const submitSubscribeHandler = e => {
@@ -80,8 +88,7 @@ const Home = () => {
                     </section>
 
                     {/* ── Featured piece band ────────────────────── */}
-                    {products && products.length > 0 && (() => {
-                        const featured = products[products.length - 1];
+                    {featured && (() => {
                         const featuredImg =
                             featured?.images?.[0]?.url ||
                             'https://ecommerce-bucket-sdk.s3.ap-south-1.amazonaws.com/default.jpg';
@@ -120,37 +127,42 @@ const Home = () => {
                     })()}
 
                     {/* ── New Drop ───────────────────────────────── */}
+                    {newDrop.length > 0 && (
                     <section className='editorial-shell mt-24'>
                         <div className='mb-10 flex items-end justify-between'>
                             <div>
                                 <p className='eyebrow'>Just Landed</p>
                                 <h2 className='heading-display mt-3 text-display'>New Drop</h2>
                             </div>
-                            <Link to='/products' className='link-reveal hidden font-sans text-sm uppercase tracking-luxe sm:block'>
+                            <Link to='/products' className='link-reveal font-sans text-xs uppercase tracking-luxe sm:text-sm'>
                                 View all
                             </Link>
                         </div>
                         <div className='grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3'>
-                            {products &&
-                                products.slice(-3).map(product => (
-                                    <ProductCard key={product._id} product={product} />
-                                ))}
+                            {newDrop.map(product => (
+                                <ProductCard key={product._id} product={product} />
+                            ))}
                         </div>
                     </section>
+                    )}
 
                     {/* ── Shop All (editorial grid) ──────────────── */}
+                    {more.length > 0 && (
                     <section className='editorial-shell mt-24'>
                         <div className='mb-10 text-center'>
                             <p className='eyebrow'>The Full House</p>
                             <h2 className='heading-display mt-3 text-display'>Shop All</h2>
                         </div>
                         <div className='grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-4'>
-                            {products &&
-                                products.slice(-4).map(product => (
-                                    <ProductGridItem key={product._id} product={product} />
-                                ))}
+                            {more.map(product => (
+                                <ProductGridItem key={product._id} product={product} />
+                            ))}
+                        </div>
+                        <div className='mt-10 text-center'>
+                            <Link to='/products' className='btn-outline'>Shop the full collection</Link>
                         </div>
                     </section>
+                    )}
 
                     {/* ── Newsletter ─────────────────────────────── */}
                     {newsletterOn && (

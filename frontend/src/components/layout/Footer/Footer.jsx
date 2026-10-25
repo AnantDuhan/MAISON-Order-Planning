@@ -37,12 +37,9 @@ const Footer = () => {
                 <div className='grid gap-12 md:grid-cols-2 lg:grid-cols-4'>
                     {/* Brand */}
                     <div className='lg:col-span-2'>
-                        <p className='font-display text-3xl font-medium tracking-wide text-ink'>MAISON</p>
-                        <p className='mt-1 font-sans text-[0.6rem] uppercase tracking-wide2 text-brass'>
-                            Order Planning
-                        </p>
+                        <p className='font-display text-3xl font-medium tracking-[0.18em] text-ink'>MAISON</p>
                         <p className='mt-6 max-w-sm font-display text-xl font-light italic leading-relaxed text-ink-soft'>
-                            “High quality is our first priority — objects chosen with intention, made to be kept.”
+                            Everyday objects, chosen with intention and made to be kept.
                         </p>
                     </div>
 
@@ -67,7 +64,7 @@ const Footer = () => {
 
                 <div className='mt-8 flex flex-col items-center justify-between gap-6 sm:flex-row'>
                     <p className='font-sans text-[0.72rem] uppercase tracking-luxe text-ink-faint'>
-                        © {new Date().getFullYear()} Anant Duhan · All rights reserved
+                        © {new Date().getFullYear()} Maison · All rights reserved
                         {' · '}
                         <button
                             type='button'
