@@ -29,6 +29,9 @@ const stockHoldSchema = new mongoose.Schema({
     expiresAt: { type: Date, required: true },
     // Store credit (rupees) taken for this checkout; given back if released.
     walletApplied: { type: Number, default: 0 },
+    // Maison Plus member at checkout: the order is priced with free shipping,
+    // even if the membership changes before the order is placed.
+    memberFreeShipping: { type: Boolean, default: false },
     order: { type: String, ref: 'Order' },
     releaseReason: String,
     createdAt: { type: Date, default: Date.now },

@@ -159,7 +159,7 @@ const MainHeader = () => {
                 </Link>
 
                 {/* Right: actions */}
-                <div className='flex flex-1 items-center justify-end gap-3 sm:gap-4'>
+                <div className='flex min-w-0 flex-1 items-center justify-end gap-2.5 sm:gap-4'>
                     {/* Admin entry — kept in the always-visible action cluster so it
                         does not disappear below the lg breakpoint. */}
                     {user?.role === 'admin' && (
@@ -250,7 +250,7 @@ const MainHeader = () => {
                             </button>
                         </div>
                     ) : (
-                        <Link to='/login' className='btn-solid !px-5 !py-2.5 !text-[0.68rem]'>
+                        <Link to='/login' className='btn-solid shrink-0 !px-3 !py-2.5 !text-[0.68rem] sm:!px-5'>
                             Login
                         </Link>
                     )}

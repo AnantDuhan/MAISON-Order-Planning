@@ -7,6 +7,8 @@ import MetaData from '../layout/MetaData';
 import { getAllCoupons } from '../../actions/couponAction';
 import { useFeature } from '../../context/FeatureFlagsContext';
 import { formatINR } from '../../utils/priceLabel';
+import { shippingFor } from '../../utils/delivery';
+import { useIsMember } from '../../utils/useIsMember';
 
 const ConfirmOrder = () => {
     const { shippingInfo, cartItems } = useSelector(state => state.cart);
@@ -20,7 +22,8 @@ const ConfirmOrder = () => {
     const couponsOn = useFeature('coupons');
 
     const subtotal = cartItems.reduce((acc, item) => acc + item.quantity * item.price, 0);
-    const shippingCharges = subtotal > 1000 ? 0 : 150;
+    const isMember = useIsMember();
+    const shippingCharges = shippingFor(subtotal, isMember);
     const selectedCouponValue = selectedCoupon ? selectedCoupon.discount : 0;
     const couponDiscountAmount = (subtotal * selectedCouponValue) / 100;
     const totalPrice = subtotal + shippingCharges - couponDiscountAmount;
@@ -101,7 +104,7 @@ const ConfirmOrder = () => {
                                 </div>
                                 <div className='flex justify-between font-sans text-sm text-ink-soft'>
                                     <span>Shipping Charges</span>
-                                    <span>{shippingCharges === 0 ? 'Complimentary' : formatINR(shippingCharges)}</span>
+                                    <span>{shippingCharges === 0 ? (isMember && subtotal <= 1000 ? 'Complimentary · Member' : 'Complimentary') : formatINR(shippingCharges)}</span>
                                 </div>
                             </div>
 
@@ -130,8 +133,13 @@ const ConfirmOrder = () => {
                                 <span className='font-sans text-[0.72rem] uppercase tracking-luxe text-ink'>Total</span>
                                 <span className='font-display text-2xl font-medium text-ink'>{formatINR(totalPrice)}</span>
                             </div>
-                            <button onClick={proceedToPayment} className='btn-solid mt-8 w-full'>
-                                Proceed to Payment
+                            {/* Wait for the membership check so the total shown is the total charged. */}
+                            <button
+                                onClick={proceedToPayment}
+                                disabled={isMember === undefined}
+                                className='btn-solid mt-8 w-full disabled:opacity-40'
+                            >
+                                {isMember === undefined ? 'Checking your benefits…' : 'Proceed to Payment'}
                             </button>
                         </div>
                     </div>

@@ -9,6 +9,8 @@ import MetaData from '../layout/MetaData';
 import CartItemCard from './CartItemCard';
 import { useFeature } from '../../context/FeatureFlagsContext';
 import { formatINR } from '../../utils/priceLabel';
+import { FREE_SHIPPING_THRESHOLD, shippingFor } from '../../utils/delivery';
+import { useIsMember } from '../../utils/useIsMember';
 
 const Cart = () => {
     const { isAuthenticated } = useSelector(state => state.user);
@@ -39,6 +41,9 @@ const Cart = () => {
     };
 
     const grossTotal = cartItems.reduce((acc, item) => acc + item.quantity * item.price, 0);
+    const isMember = useIsMember();
+    const shipping = shippingFor(grossTotal, isMember);
+    const amountToFreeShipping = isMember ? 0 : Math.max(0, FREE_SHIPPING_THRESHOLD + 1 - grossTotal);
 
     return (
         <Fragment>
@@ -104,12 +109,19 @@ const Cart = () => {
                                 </div>
                                 <div className='mt-3 flex items-center justify-between font-sans text-sm text-ink-soft'>
                                     <span>Shipping</span>
-                                    <span className='text-success'>Complimentary</span>
+                                    {shipping === 0
+                                        ? <span className='text-success'>{isMember && grossTotal <= FREE_SHIPPING_THRESHOLD ? 'Complimentary · Member' : 'Complimentary'}</span>
+                                        : <span>{formatINR(shipping)}</span>}
                                 </div>
+                                {shipping > 0 && (
+                                    <p className='mt-2 font-sans text-xs text-ink-faint'>
+                                        Add {formatINR(amountToFreeShipping)} more for complimentary shipping.
+                                    </p>
+                                )}
                                 <div className='my-6 rule-luxe' />
                                 <div className='flex items-center justify-between'>
                                     <span className='font-sans text-[0.72rem] uppercase tracking-luxe text-ink'>Total</span>
-                                    <span className='font-display text-2xl font-medium text-ink'>{formatINR(grossTotal)}</span>
+                                    <span className='font-display text-2xl font-medium text-ink'>{formatINR(grossTotal + shipping)}</span>
                                 </div>
                                 <button onClick={checkOutHandler} disabled={!checkoutOpen} className='btn-solid mt-8 w-full disabled:opacity-40'>
                                     Proceed to Checkout

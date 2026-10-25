@@ -28,7 +28,8 @@ const sections = [
                 <Link to='/orders' className={link}>
                     orders page
                 </Link>
-                , choose “Request a return” and tell us the reason. A return request covers the whole order.
+                , choose “Request a return” and tell us the reason. You can request a return within 7 days of
+                delivery; the order page shows the last date for your order. A return request covers the whole order.
             </>,
             'Please send items back unused and in their original packaging, with all accessories included.',
         ],

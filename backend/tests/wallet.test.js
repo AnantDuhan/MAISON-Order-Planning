@@ -1,4 +1,4 @@
-const { test, afterEach } = require('node:test');
+const { test, afterEach, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
 const { stubs, mockRes } = require('./helpers');
 
@@ -16,6 +16,9 @@ const inventory = require('../services/inventoryService');
 const invoiceService = require('../services/invoiceService');
 
 const s = stubs();
+// Checkout now asks whether the shopper is a Maison Plus member; default to no.
+const Subscription = require('../models/plusMembership');
+beforeEach(() => s.set(Subscription, 'exists', async () => null));
 afterEach(() => s.restore());
 
 // In-memory ledger + balances with Mongo-like semantics (unique keys,

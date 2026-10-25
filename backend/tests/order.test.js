@@ -1,4 +1,4 @@
-const { test, afterEach } = require('node:test');
+const { test, afterEach, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
 const { stubs, mockRes } = require('./helpers');
 
@@ -25,6 +25,9 @@ const { newOrder, getSingleOrder, reorder } = require('../controllers/order');
 const inventory = require('../services/inventoryService');
 
 const s = stubs();
+// Checkout now asks whether the shopper is a Maison Plus member; default to no.
+const Subscription = require('../models/plusMembership');
+beforeEach(() => s.set(Subscription, 'exists', async () => null));
 afterEach(() => {
     s.restore();
     cashfreeOrder = null;
@@ -121,6 +124,27 @@ test('creates the order at server prices when the payment matches', async () => 
     assert.equal(committedFor.cashfreeOrderId, 'order_u1_abc');
     assert.ok(created.stockCommittedAt instanceof Date);
     assert.equal(created.stockShortfall, false);
+});
+
+test('a member checkout keeps free shipping even if the membership ended before the order', async () => {
+    setupCatalogue();
+    // Lamp is ₹400: normally ₹550 with shipping, ₹400 for a member.
+    s.set(inventory, 'getHold', async () => ({ user: 'u1', walletApplied: 0, memberFreeShipping: true }));
+    s.set(Subscription, 'exists', async () => null); // membership lapsed after paying
+    cashfreeOrder = { order_status: 'PAID', order_amount: 400, cf_order_id: 'cf2' };
+    let created;
+    s.set(Order, 'findOne', () => ({ select: async () => null }));
+    s.set(Order, 'create', async doc => { created = doc; return doc; });
+    s.set(inventory, 'commitForOrder', async () => ({ committed: true, shortfall: false, source: 'hold' }));
+
+    const res = await place({
+        shippingInfo,
+        orderItems: [{ product: 'lamp', quantity: 1 }],
+        paymentInfo: { provider: 'cashfree', id: 'order_u1_member' },
+    });
+    assert.equal(res.statusCode, 200);
+    assert.equal(created.shippingPrice, 0);
+    assert.equal(created.totalPrice, 400);
 });
 
 test('a paid order is still created, flagged, when stock ran out meanwhile', async () => {

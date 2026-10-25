@@ -58,7 +58,7 @@ export const ShippingReturns = () => (
     <div className='mt-10 border-t border-line'>
         <Panel title='Shipping & Delivery'>
             <p>
-                Complimentary shipping on orders over {formatINR(FREE_SHIPPING_THRESHOLD)}; a flat {formatINR(SHIPPING_CHARGE)} below that.
+                Complimentary shipping on orders over {formatINR(FREE_SHIPPING_THRESHOLD)}, and on every order for Maison Plus members; otherwise a flat {formatINR(SHIPPING_CHARGE)}.
                 Most orders arrive within about five days, and you can follow yours on your{' '}
                 <Link to='/orders' className={link}>orders page</Link>.
             </p>
@@ -66,7 +66,7 @@ export const ShippingReturns = () => (
         </Panel>
         <Panel title='Returns & Refunds'>
             <p>
-                Once your order is delivered, request a return from the order page. Approved returns are refunded in full to
+                Request a return from the order page within 7 days of delivery. Approved returns are refunded in full to
                 your original payment method.
             </p>
             <p><Link to='/refund-policy' className={link}>Refunds &amp; cancellations policy</Link></p>
