@@ -99,3 +99,10 @@ test('priced order items carry image URLs only, and pass Order validation', asyn
     });
     assert.equal(order.validateSync(), undefined);
 });
+
+test('Maison Plus members get complimentary shipping below the threshold', async () => {
+    useCatalogue();
+    const result = await priceOrder([{ product: 'lamp', quantity: 2 }], null, { freeShipping: true });
+    assert.equal(result.shippingPrice, 0);
+    assert.equal(result.totalPrice, 800);
+});

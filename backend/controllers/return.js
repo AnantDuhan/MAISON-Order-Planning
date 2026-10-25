@@ -2,6 +2,7 @@ const Return = require('../models/return');
 const Order = require('../models/order');
 const generateId = require('../utils/generateId');
 const cache = require('../utils/cache');
+const { RETURN_WINDOW_DAYS, returnDeadline, isWithinReturnWindow } = require('../utils/returnWindow');
 
 exports.requestReturn = async (req, res) => {
     try {
@@ -34,6 +35,15 @@ exports.requestReturn = async (req, res) => {
             return res.status(400).json({
                 success: false,
                 message: 'Order has not been delivered yet'
+            });
+        }
+
+        if (!isWithinReturnWindow(order)) {
+            const closed = returnDeadline(order).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
+            return res.status(400).json({
+                success: false,
+                code: 'RETURN_WINDOW_CLOSED',
+                message: `Returns are accepted within ${RETURN_WINDOW_DAYS} days of delivery. The window for this order closed on ${closed}.`
             });
         }
 

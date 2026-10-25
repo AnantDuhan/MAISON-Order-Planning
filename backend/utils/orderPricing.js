@@ -7,7 +7,7 @@ const Coupon = require('../models/coupon');
 //
 // Rules mirror frontend/src/components/Cart/ConfirmOrder.js:
 //   subtotal = Σ product.price × quantity   (price read from the DB)
-//   shipping = subtotal > 1000 ? 0 : 150
+//   shipping = subtotal > 1000 || active member ? 0 : 150
 //   discount = subtotal × coupon.discount / 100   (active, unexpired coupon)
 //   total    = subtotal + shipping − discount
 
@@ -39,11 +39,12 @@ async function findActiveCoupon(couponCode) {
 /**
  * @param {Array<{product: string, quantity: number}>} requestedItems
  * @param {string} [couponCode]
- * @param {{checkStock?: boolean}} [options] checkStock=false when the stock for
+ * @param {{checkStock?: boolean, freeShipping?: boolean}} [options] checkStock=false when the stock for
  *   these items is already held for this customer (placing a paid order).
+ *   freeShipping=true for Maison Plus members (complimentary shipping on every order).
  * @returns {Promise<{orderItems, itemsPrice, shippingPrice, taxPrice, discount, totalPrice, coupon}>}
  */
-async function priceOrder(requestedItems, couponCode, { checkStock = true } = {}) {
+async function priceOrder(requestedItems, couponCode, { checkStock = true, freeShipping = false } = {}) {
     if (!Array.isArray(requestedItems) || requestedItems.length === 0) {
         throw new PricingError('Order must contain at least one item');
     }
@@ -109,7 +110,7 @@ async function priceOrder(requestedItems, couponCode, { checkStock = true } = {}
     }
 
     itemsPrice = round2(itemsPrice);
-    const shippingPrice = itemsPrice > FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_CHARGE;
+    const shippingPrice = freeShipping || itemsPrice > FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_CHARGE;
     const taxPrice = 0;
 
     const coupon = await findActiveCoupon(couponCode);
@@ -119,4 +120,4 @@ async function priceOrder(requestedItems, couponCode, { checkStock = true } = {}
     return { orderItems, itemsPrice, shippingPrice, taxPrice, discount, totalPrice, coupon };
 }
 
-module.exports = { priceOrder, PricingError };
+module.exports = { priceOrder, PricingError, FREE_SHIPPING_THRESHOLD, SHIPPING_CHARGE };

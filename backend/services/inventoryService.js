@@ -175,6 +175,9 @@ const getHold = cashfreeOrderId => StockHold.findOne({ cashfreeOrderId }).lean()
 const setHoldWallet = (cashfreeOrderId, walletApplied) =>
     StockHold.updateOne({ cashfreeOrderId }, { walletApplied });
 
+const setHoldMemberShipping = cashfreeOrderId =>
+    StockHold.updateOne({ cashfreeOrderId }, { memberFreeShipping: true });
+
 const releaseHoldForPayment = (cashfreeOrderId, reason) =>
     releaseHold({ cashfreeOrderId }, reason);
 
@@ -440,6 +443,7 @@ module.exports = {
     commitForOrder,
     getHold,
     setHoldWallet,
+    setHoldMemberShipping,
     checkLowStock,
     notifyBackInStock,
     afterStockIncrease,

@@ -10,3 +10,7 @@ export const estimatedDeliveryLabel = (from = new Date()) => {
     d.setDate(d.getDate() + DELIVERY_ESTIMATE_DAYS);
     return d.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
 };
+
+/** Mirrors priceOrder in backend/utils/orderPricing.js. */
+export const shippingFor = (subtotal, isMember = false) =>
+    isMember || subtotal > FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_CHARGE;

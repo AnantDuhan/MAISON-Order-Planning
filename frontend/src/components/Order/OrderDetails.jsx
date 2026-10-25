@@ -22,6 +22,7 @@ import LoadingBar from 'react-top-loading-bar';
 import Loader from '../layout/Loader/Loader';
 import MetaData from '../layout/MetaData';
 import { useFeature } from '../../context/FeatureFlagsContext';
+import { formatDeadline, isWithinReturnWindow, RETURN_WINDOW_DAYS, returnDeadline } from '../../utils/returnWindow';
 
 const formatDate = value => (value
     ? new Date(value).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
@@ -181,12 +182,16 @@ const OrderDetails = () => {
         : order?.storeCreditApplied > 0 ? 'online and with store credit' : 'online';
 
     const returnsOn = useFeature('returns');
-    const canReturn = returnsOn && isDelivered && !order?.isReturned && !order?.isRefunded;
+    const deadline = returnDeadline(order);
+    const windowOpen = isWithinReturnWindow(order);
+    const canReturn = returnsOn && isDelivered && windowOpen && !order?.isReturned && !order?.isRefunded;
     const returnNote = order?.isRefunded ? 'This order has been refunded.'
         : !returnsOn && !order?.isReturned ? 'Return requests are paused right now. Please contact us about this order.'
         : order?.isReturned ? 'You’ve requested a return. We’ll email you with the next steps.'
-            : isDelivered ? 'Returns are accepted for delivered orders.'
-                : 'You can request a return once the order has been delivered.';
+            : isDelivered && !windowOpen ? `The ${RETURN_WINDOW_DAYS}-day return window closed on ${formatDeadline(deadline)}. If something is wrong with your order, please contact us.`
+            : isDelivered && deadline ? `You can request a return until ${formatDeadline(deadline)}.`
+            : isDelivered ? `Returns are accepted within ${RETURN_WINDOW_DAYS} days of delivery.`
+                : `You can request a return within ${RETURN_WINDOW_DAYS} days of delivery.`;
     return (
         <Fragment>
             {loading ? (

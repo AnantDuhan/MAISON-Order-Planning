@@ -13,7 +13,7 @@ const sections = [
     {
         heading: 'Shipping charges',
         body: [
-            'Shipping is complimentary on orders over ₹1,000. Orders of ₹1,000 or less carry a flat shipping charge of ₹150, shown in your cart and at checkout before you pay.',
+            'Shipping is complimentary on orders over ₹1,000, and on every order for Maison Plus members. Other orders of ₹1,000 or less carry a flat shipping charge of ₹150, shown in your cart and at checkout before you pay.',
         ],
     },
     {
