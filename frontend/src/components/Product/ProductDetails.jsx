@@ -35,6 +35,8 @@ import {
   SUMMARIZE_REVIEWS_RESET,
 } from "../../constants/productConstants";
 import MetaData from "../layout/MetaData";
+import { formatINR } from "../../utils/priceLabel";
+import { cleanText } from "../../utils/cleanText";
 import ReviewsSection from "./ReviewsSection";
 
 import "react-responsive-carousel/lib/styles/carousel.min.css";
@@ -235,7 +237,7 @@ const ProductDetails = () => {
         <Fragment>
           <MetaData
             title={product?.metaTitle || `${product?.name} · Maison`}
-            description={product?.metaDescription || product?.description}
+            description={product?.metaDescription || cleanText(product?.description)}
             image={product?.images?.[0]?.url}
             type="product"
           />
@@ -285,7 +287,7 @@ const ProductDetails = () => {
 
               {/* Details */}
               <div className="flex flex-col">
-                <p className="eyebrow">Maison Collection</p>
+                <p className="eyebrow">{product.category || "Maison"}</p>
                 <h1 className="heading-display mt-3 text-4xl sm:text-5xl">
                   {product.name}
                 </h1>
@@ -301,7 +303,7 @@ const ProductDetails = () => {
                 </div>
 
                 <p className="mt-6 font-display text-4xl font-medium text-ink">
-                  {shownPrice != null ? `₹${shownPrice}` : `From ₹${product.priceFrom}`}
+                  {shownPrice != null ? formatINR(shownPrice) : `From ${formatINR(product.priceFrom)}`}
                 </p>
 
                 <div className="mt-3 flex items-center gap-2">
@@ -378,8 +380,8 @@ const ProductDetails = () => {
                 {/* Description */}
                 <div className="mt-10">
                   <p className="eyebrow">Description</p>
-                  <p className="mt-4 font-sans text-[0.95rem] leading-relaxed text-ink-soft">
-                    {product.description}
+                  <p className="mt-4 whitespace-pre-line font-sans text-[0.95rem] leading-relaxed text-ink-soft">
+                    {cleanText(product.description)}
                   </p>
                 </div>
 

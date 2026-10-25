@@ -6,7 +6,6 @@ const columns = [
         title: 'Explore',
         links: [
             { label: 'Shop All', to: '/products' },
-            { label: 'New Arrivals', to: '/products' },
             { label: 'Wishlist', to: '/wishlist' },
             { label: 'My Orders', to: '/orders' },
             { label: 'Membership', to: '/membership' },
@@ -19,6 +18,8 @@ const columns = [
             { label: 'Contact', to: '/contact-us' },
             { label: 'My Account', to: '/account' },
             { label: 'Privacy Policy', to: '/privacy' },
+            { label: 'Shipping Policy', to: '/shipping-policy' },
+            { label: 'Refunds & Cancellations', to: '/refund-policy' },
             { label: 'Terms & Conditions', to: '/terms' },
         ],
     },
@@ -26,9 +27,7 @@ const columns = [
 
 const socials = [
     { label: 'LinkedIn', href: 'https://linkedin.com/in/anantduhan' },
-    { label: 'Instagram', href: 'https://instagram.com/anantduhan_' },
-    { label: 'Facebook', href: 'https://facebook.com/AnantDuhan12' },
-    { label: 'Snapchat', href: 'https://snapchat.com/add/anant_duhan' },
+    { label: 'GitHub', href: 'https://github.com/AnantDuhan' },
 ];
 
 const Footer = () => {

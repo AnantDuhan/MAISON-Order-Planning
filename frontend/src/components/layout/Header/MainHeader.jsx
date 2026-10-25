@@ -120,7 +120,7 @@ const MainHeader = () => {
             {/* Announcement strip */}
             <div className='hidden bg-ink text-canvas md:block'>
                 <p className='mx-auto max-w-editorial px-6 py-2 text-center font-sans text-[0.68rem] uppercase tracking-luxe lg:px-12'>
-                    Complimentary shipping on every order · Crafted for the considered life
+                    Complimentary shipping on orders over ₹1,000 · Crafted for the considered life
                 </p>
             </div>
 

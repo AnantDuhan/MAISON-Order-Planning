@@ -5,7 +5,9 @@ const cache = require('../utils/cache');
 
 const router = express.Router();
 
-const SITE_URL = (process.env.SITE_URL || 'https://orderplanning.netlify.app').replace(/\/$/, '');
+const rawSiteUrl = (process.env.SITE_URL || 'https://maisonorderplanning.in').trim().replace(/\/+$/, '');
+// Sitemap <loc> values must be absolute URLs, so add the scheme if the env value lacks one.
+const SITE_URL = /^https?:\/\//i.test(rawSiteUrl) ? rawSiteUrl : `https://${rawSiteUrl}`;
 
 // Public, indexable pages. Account/checkout/admin pages are excluded here and
 // disallowed in robots.txt.
@@ -15,6 +17,8 @@ const STATIC_PAGES = [
     { path: '/about', changefreq: 'monthly', priority: '0.5' },
     { path: '/contact-us', changefreq: 'yearly', priority: '0.4' },
     { path: '/privacy', changefreq: 'yearly', priority: '0.2' },
+    { path: '/shipping-policy', changefreq: 'yearly', priority: '0.2' },
+    { path: '/refund-policy', changefreq: 'yearly', priority: '0.2' },
     { path: '/terms', changefreq: 'yearly', priority: '0.2' },
 ];
 

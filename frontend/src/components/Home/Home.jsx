@@ -11,6 +11,8 @@ import MetaData from '../layout/MetaData';
 import ProductCard from './ProductCard';
 import ProductGridItem from './ProductGridItem';
 import { useFeature } from '../../context/FeatureFlagsContext';
+import { priceLabel } from '../../utils/priceLabel';
+import { cleanText } from '../../utils/cleanText';
 
 const Home = () => {
     const newsletterOn = useFeature('newsletter');
@@ -57,7 +59,7 @@ const Home = () => {
                 </Fragment>
             ) : (
                 <Fragment>
-                    <MetaData title='Maison · Order Planning' />
+                    <MetaData title='Maison · Curated Objects for Everyday Life' />
 
                     {/* ── Editorial hero ─────────────────────────── */}
                     <section className='editorial-shell pt-16 pb-10 text-center'>
@@ -100,11 +102,11 @@ const Home = () => {
                                         <h2 className='heading-display mt-4 text-display'>
                                             {featured?.name}
                                         </h2>
-                                        <p className='mt-5 max-w-md font-sans text-base leading-relaxed text-ink-soft line-clamp-4'>
-                                            {featured?.description}
+                                        <p className='mt-5 max-w-md whitespace-pre-line font-sans text-base leading-relaxed text-ink-soft line-clamp-4'>
+                                            {cleanText(featured?.description)}
                                         </p>
                                         <p className='mt-6 font-display text-3xl font-medium text-ink'>
-                                            {`₹${featured?.price}`}
+                                            {priceLabel(featured)}
                                         </p>
                                         <div className='mt-8'>
                                             <Link to={`/product/${featured?._id}`} className='btn-outline'>

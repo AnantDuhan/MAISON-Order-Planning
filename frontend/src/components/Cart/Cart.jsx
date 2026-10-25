@@ -8,6 +8,7 @@ import { addItemsToCart, pushCartToServer, removeItemsFromCart, restoreCartFromS
 import MetaData from '../layout/MetaData';
 import CartItemCard from './CartItemCard';
 import { useFeature } from '../../context/FeatureFlagsContext';
+import { formatINR } from '../../utils/priceLabel';
 
 const Cart = () => {
     const { isAuthenticated } = useSelector(state => state.user);
@@ -87,7 +88,7 @@ const Cart = () => {
                                     </div>
 
                                     <p className='text-left font-sans text-lg text-ink lg:text-right'>
-                                        {`₹${item.price * item.quantity}`}
+                                        {formatINR(item.price * item.quantity)}
                                     </p>
                                 </div>
                             ))}
@@ -99,7 +100,7 @@ const Cart = () => {
                                 <h3 className='eyebrow'>Order Summary</h3>
                                 <div className='mt-6 flex items-center justify-between font-sans text-sm text-ink-soft'>
                                     <span>Subtotal</span>
-                                    <span>{`₹${grossTotal}`}</span>
+                                    <span>{formatINR(grossTotal)}</span>
                                 </div>
                                 <div className='mt-3 flex items-center justify-between font-sans text-sm text-ink-soft'>
                                     <span>Shipping</span>
@@ -108,7 +109,7 @@ const Cart = () => {
                                 <div className='my-6 rule-luxe' />
                                 <div className='flex items-center justify-between'>
                                     <span className='font-sans text-[0.72rem] uppercase tracking-luxe text-ink'>Total</span>
-                                    <span className='font-display text-2xl font-medium text-ink'>{`₹${grossTotal}`}</span>
+                                    <span className='font-display text-2xl font-medium text-ink'>{formatINR(grossTotal)}</span>
                                 </div>
                                 <button onClick={checkOutHandler} disabled={!checkoutOpen} className='btn-solid mt-8 w-full disabled:opacity-40'>
                                     Proceed to Checkout

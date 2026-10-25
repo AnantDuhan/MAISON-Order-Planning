@@ -8,6 +8,7 @@ import { toast } from 'react-toastify';
 import { clearErrors, submitContactForm } from '../../../actions/contactAction';
 import { CLEAR_CONTACT } from '../../../constants/contactConstants';
 
+import { LEGAL_EMAIL } from '../Legal/LegalPage';
 import MetaData from '../MetaData';
 import ButtonSpinner from '../ButtonSpinner';
 
@@ -73,6 +74,13 @@ const ContactForm = () => {
                         <div className='mt-10 rule-luxe' />
                         <p className='mt-10 font-display text-2xl font-light italic text-ink-soft'>
                             “Every message is read by a person, not a queue.”
+                        </p>
+                        <p className='mt-10 font-sans text-sm text-ink-soft'>
+                            Prefer email? Write to{' '}
+                            <a href={`mailto:${LEGAL_EMAIL}`} className='text-ink underline underline-offset-4 hover:text-brass'>
+                                {LEGAL_EMAIL}
+                            </a>
+                            .
                         </p>
                     </div>
 

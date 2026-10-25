@@ -3,17 +3,17 @@ import { Link } from 'react-router-dom';
 
 import MetaData from '../MetaData';
 
-export const LEGAL_EMAIL = import.meta.env.VITE_LEGAL_EMAIL || 'duhananant@gmail.com';
+export const LEGAL_EMAIL = import.meta.env.VITE_LEGAL_EMAIL || 'support@maisonorderplanning.in';
 export const LAST_UPDATED = '30 September 2026';
 
-/** Shared editorial layout for Privacy / Terms. `sections` = [{ heading, body: [node] }]. */
-const LegalPage = ({ title, metaTitle, description, intro, sections }) => (
+/** Shared editorial layout for Privacy / Terms / Shipping / Refunds. `sections` = [{ heading, body: [node] }]. */
+const LegalPage = ({ title, metaTitle, description, intro, sections, lastUpdated = LAST_UPDATED }) => (
     <div className='editorial-shell py-16'>
         <MetaData title={metaTitle} description={description} />
         <article className='mx-auto max-w-3xl'>
             <p className='eyebrow'>Legal</p>
             <h1 className='heading-display mt-4 text-display-lg'>{title}</h1>
-            <p className='mt-4 font-sans text-sm text-ink-faint'>Last updated: {LAST_UPDATED}</p>
+            <p className='mt-4 font-sans text-sm text-ink-faint'>Last updated: {lastUpdated}</p>
             <p className='mt-8 font-sans text-base leading-relaxed text-ink-soft'>{intro}</p>
 
             {sections.map((s, i) => (
