@@ -130,6 +130,53 @@ exports.getProductDetails = async (req, res, next) => {
   }
 };
 
+const RELATED_LIMIT = 4;
+const RELATED_CACHE_TTL = 600;
+const RELATED_FIELDS = "name images price priceFrom priceTo ratings numOfReviews category";
+
+// GET /product/:id/related — up to four products for "You may also like":
+// same category first, then the newest products to fill the row.
+exports.getRelatedProducts = async (req, res) => {
+  const productId = req.params.id;
+  const cacheKey = `product:related:${productId}`;
+
+  try {
+    const cached = await cache.getJSON(cacheKey);
+    if (cached) return res.status(200).json({ success: true, products: cached });
+
+    const product = await Product.findOne({ _id: productId }, "category isDemo").lean();
+    if (!product) {
+      return res.status(404).json({ success: false, message: "Product not found" });
+    }
+
+    // Shoppers browsing the real catalogue never see demo-account products.
+    const base = product.isDemo ? {} : { isDemo: { $ne: true } };
+
+    const sameCategory = await Product.find({ ...base, _id: { $ne: productId }, category: product.category })
+      .select(RELATED_FIELDS)
+      .sort({ ratings: -1, createdAt: -1 })
+      .limit(RELATED_LIMIT)
+      .lean();
+
+    let products = sameCategory;
+    if (products.length < RELATED_LIMIT) {
+      const exclude = [productId, ...products.map(p => p._id)];
+      const newest = await Product.find({ ...base, _id: { $nin: exclude } })
+        .select(RELATED_FIELDS)
+        .sort({ createdAt: -1 })
+        .limit(RELATED_LIMIT - products.length)
+        .lean();
+      products = [...products, ...newest];
+    }
+
+    await cache.setJSON(cacheKey, products, RELATED_CACHE_TTL);
+    res.status(200).json({ success: true, products });
+  } catch (error) {
+    console.error("Get related products error:", error);
+    res.status(500).json({ success: false, message: "Internal Server Error" });
+  }
+};
+
 // JSON-only admin update (images are handled by PUT /admin/product/:id in app.js).
 exports.updateProduct = async (req, res, next) => {
   try {
