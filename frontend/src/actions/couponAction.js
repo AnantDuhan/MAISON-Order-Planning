@@ -12,7 +12,7 @@ import axios from 'axios';
 
 // Create a coupon. `expiresAt` is optional — omit it to let the API default
 // to a 7-day window.
-export const generateCoupon = (code, discount, expiresAt) => async dispatch => {
+export const generateCoupon = (code, discount, expiresAt, membersOnly = false) => async dispatch => {
     try {
         dispatch({ type: GENERATE_COUPON_REQUEST });
 
@@ -20,6 +20,7 @@ export const generateCoupon = (code, discount, expiresAt) => async dispatch => {
 
         const body = { code, discount };
         if (expiresAt) body.expiresAt = expiresAt;
+        if (membersOnly) body.membersOnly = true;
 
         const { data } = await axios.post(`/api/v1/coupon`, body, config);
 

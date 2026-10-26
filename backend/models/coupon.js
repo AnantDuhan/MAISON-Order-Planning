@@ -26,6 +26,11 @@ const couponSchema = new mongoose.Schema({
         default: false,
         index: true
     },
+    // Only Maison members (Essential or Plus) can use it.
+    membersOnly: {
+        type: Boolean,
+        default: false
+    },
 });
 
 module.exports = mongoose.model('Coupon', couponSchema);

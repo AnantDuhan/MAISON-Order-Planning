@@ -30,6 +30,9 @@ const UpdateProduct = () => {
     const [price, setPrice] = useState(0);
     const [description, setDescription] = useState('');
     const [category, setCategory] = useState('');
+    const [earlyAccess, setEarlyAccess] = useState(''); // '' unchanged · 'start' · 'end'
+    const earlyAccessUntil = product?.earlyAccessUntil ? new Date(product.earlyAccessUntil) : null;
+    const earlyAccessLive = earlyAccessUntil && earlyAccessUntil > new Date();
     const { categories: categoryTree } = useCategories({ admin: true });
     const groups = categoryGroups(categoryTree.filter(d => d.isActive !== false));
     // Keep a product's current category selectable even if it was hidden or renamed elsewhere.
@@ -92,6 +95,7 @@ const UpdateProduct = () => {
         myForm.set('price', price);
         myForm.set('description', description);
         myForm.set('category', productCategory);
+        if (earlyAccess) myForm.set('earlyAccess', earlyAccess);
         myForm.set('Stock', hasOptions ? variantTotalStock(variantData.variants) : Stock);
         const variantFields = variantFormFields(variantData);
         myForm.set('options', variantFields.options);
@@ -195,6 +199,26 @@ const UpdateProduct = () => {
                         <p className='-mt-2 font-sans text-xs text-ink-faint'>
                             Missing one? <Link to='/admin/categories' className='text-brass underline-offset-4 hover:underline'>Manage categories</Link>
                         </p>
+
+                        <div className='border border-line p-4'>
+                            <p className='font-sans text-sm text-ink'>Plus early access</p>
+                            <p className='mt-1 font-sans text-xs text-ink-faint'>
+                                {earlyAccessLive
+                                    ? `Only Plus members can buy this until ${earlyAccessUntil.toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}.`
+                                    : 'Open to everyone.'}
+                            </p>
+                            <label className='mt-3 flex items-center gap-3'>
+                                <input
+                                    type='checkbox'
+                                    checked={Boolean(earlyAccess)}
+                                    onChange={e => setEarlyAccess(e.target.checked ? (earlyAccessLive ? 'end' : 'start') : '')}
+                                    className='h-4 w-4 accent-[#A07C4B]'
+                                />
+                                <span className='font-sans text-sm text-ink'>
+                                    {earlyAccessLive ? 'End early access now (open to everyone)' : 'Start 48 hours of Plus early access from now'}
+                                </span>
+                            </label>
+                        </div>
 
                         <div>
                             <label className='eyebrow'>Description</label>

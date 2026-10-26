@@ -117,6 +117,16 @@ const orderSchema = new mongoose.Schema({
         type: Date,
         default: null
     },
+    // Membership tier when the order was placed: its benefits (return
+    // window, dispatch priority, Plus store credit) follow the order.
+    memberTier: {
+        type: String,
+        enum: ['essential', 'plus', null],
+        default: null
+    },
+    // Plus store credit for this order, once credited (after the return window).
+    memberRewardAt: { type: Date, default: null },
+    memberRewardAmount: { type: Number, default: 0 },
     DeliveredAt: Date,
     createdAt: {
         type: Date,

@@ -6,6 +6,8 @@ const path = require('path');
 const accountSid = process.env.ACCOUNT_SID;
 const authToken = process.env.AUTH_TOKEN;
 const generateId = require('../utils/generateId');
+const User = require('../models/user');
+const { getMembershipTier } = require('../utils/membership');
 
 const timestamp = Date.now();
 const timestampInSeconds = Math.floor(timestamp / 1000);
@@ -50,10 +52,20 @@ exports.contactUs = async (req, res) => {
                 { name, email, subject, message }
         );
 
+        // Members get priority support: their messages are flagged in the subject.
+        let tier = null;
+        try {
+            const account = await User.findOne({ email }).select('_id').lean();
+            tier = account ? await getMembershipTier(account._id) : null;
+        } catch {
+            tier = null;
+        }
+        const tierLabel = { essential: 'Essential', plus: 'Plus' }[tier];
+
         sendEmailInBackground({
             email: 'duhananant@gmail.com',
             replyTo: email,
-            subject: `New Contact Form Submission`,
+            subject: tierLabel ? `[Priority · ${tierLabel} member] ${subject}` : `New Contact Form Submission: ${subject}`,
             html: emailMessage,
             sender: "support"
         });

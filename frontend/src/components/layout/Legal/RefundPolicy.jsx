@@ -29,7 +29,8 @@ const sections = [
                     orders page
                 </Link>
                 , choose “Request a return” and tell us the reason. You can request a return within 7 days of
-                delivery; the order page shows the last date for your order. A return request covers the whole order.
+                delivery, or 14 days for orders placed as a Maison Essential or Plus member; the order page shows the
+                last date for your order. A return request covers the whole order.
             </>,
             'Please send items back unused and in their original packaging, with all accessories included.',
         ],
@@ -51,7 +52,7 @@ const sections = [
         heading: 'Membership',
         body: [
             <>
-                Maison Plus is billed through Cashfree and can be cancelled from the{' '}
+                Maison Essential and Plus are billed through Cashfree and can be cancelled from the{' '}
                 <Link to='/membership' className={link}>
                     membership page
                 </Link>
@@ -68,7 +69,7 @@ const RefundPolicy = () => (
         description='How to cancel a Maison order, request a return and get your refund.'
         intro='How cancellations, returns and refunds work at Maison.'
         sections={sections}
-        lastUpdated='25 October 2026'
+        lastUpdated='26 October 2026'
     />
 );
 

@@ -3,7 +3,7 @@ const inventory = require('../services/inventoryService');
 const wallet = require('../services/walletService');
 const featureFlags = require('../services/featureFlags');
 const { priceOrder } = require('../utils/orderPricing');
-const { hasActiveMembership } = require('../utils/membership');
+const { getMembershipTier } = require('../utils/membership');
 const {
     cashfreeRequest,
     getCashfreeOrder,
@@ -37,9 +37,10 @@ exports.createCashfreeOrder = async (req, res) => {
         // A retry must not compete with this user's own earlier attempt.
         await inventory.releaseUserHolds(req.user._id, 'superseded by a new checkout');
 
-        // Maison Plus members get complimentary shipping on every order.
-        const memberFreeShipping = await hasActiveMembership(req.user._id);
-        const { totalPrice: orderAmount, orderItems: pricedItems } = await priceOrder(orderItems, couponCode, { freeShipping: memberFreeShipping });
+        // Members (Essential or Plus) get complimentary shipping on every order;
+        // the tier also decides members-only coupons and Plus early access.
+        const tier = await getMembershipTier(req.user._id);
+        const { totalPrice: orderAmount, orderItems: pricedItems } = await priceOrder(orderItems, couponCode, { freeShipping: Boolean(tier), tier });
         if (!(orderAmount > 0)) {
             return res.status(400).json({ success: false, message: 'Order total must be greater than zero' });
         }
@@ -55,7 +56,7 @@ exports.createCashfreeOrder = async (req, res) => {
         });
         // Remember the member price on the hold, so placing the order later
         // charges the same amount even if the membership changes meanwhile.
-        if (memberFreeShipping) await inventory.setHoldMemberShipping(cashfreeOrderId);
+        if (tier) await inventory.setHoldMember(cashfreeOrderId, tier);
 
         // Store credit first; the remainder (if any) is paid online.
         let storeCreditApplied = 0;

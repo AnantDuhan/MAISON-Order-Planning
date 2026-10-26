@@ -198,8 +198,13 @@ const pickProductFields = body => {
   for (const key of ["name", "description", "price", "category", "Stock", "lowStockThreshold", "metaTitle", "metaDescription"]) {
     if (body[key] !== undefined && body[key] !== "") fields[key] = body[key];
   }
+  // Maison Plus early access: "start" opens a 48-hour Plus-only window from
+  // now; "end" opens the product to everyone.
+  if (body.earlyAccess === "start") fields.earlyAccessUntil = new Date(Date.now() + EARLY_ACCESS_HOURS * 60 * 60 * 1000);
+  if (body.earlyAccess === "end") fields.earlyAccessUntil = null;
   return fields;
 };
+const EARLY_ACCESS_HOURS = 48;
 
 // Options (Size, Colour…) and variants arrive as JSON strings in the
 // multipart form. Validates them and sets the derived Stock / price range.

@@ -4,6 +4,20 @@ import axios from 'axios';
 
 import MetaData from '../layout/MetaData';
 import { useFeature } from '../../context/FeatureFlagsContext';
+import { formatINR } from '../../utils/priceLabel';
+import { TIERS, tierName } from '../../utils/membershipTiers';
+
+const planKeyOf = membership => {
+    const id = String(membership?.planId || '');
+    if (/essential/i.test(id)) return 'essential-yearly';
+    return /monthly/i.test(id) ? 'plus-monthly' : 'plus-yearly';
+};
+
+const Check = () => (
+    <svg width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2' aria-hidden='true' className='mt-0.5 shrink-0 text-brass'>
+        <path d='M5 12l4 4 10-10' />
+    </svg>
+);
 
 const cashfree = window.Cashfree
     ? window.Cashfree({ mode: import.meta.env.REACT_APP_CASHFREE_MODE || 'sandbox' })
@@ -42,11 +56,11 @@ const Membership = () => {
 
     const membershipsOn = useFeature('memberships');
 
-    const startMembership = async interval => {
+    const startMembership = async plan => {
         setLoading(true);
         try {
             if (!cashfree) throw new Error('Cashfree checkout is unavailable. Please refresh and try again.');
-            const { data } = await axios.post('/api/v1/membership', { interval });
+            const { data } = await axios.post('/api/v1/membership', { plan });
             await cashfree.subscriptionsCheckout({
                 subsSessionId: data.subscriptionSessionId,
                 redirectTarget: '_self',
@@ -62,8 +76,7 @@ const Membership = () => {
         setLoading(true);
         try {
             if (!membership?.subscriptionSessionId) {
-                const interval = membership?.planId === 'maison-yearly' ? 'yearly' : 'monthly';
-                await startMembership(interval);
+                await startMembership(planKeyOf(membership));
                 return;
             }
             if (!cashfree) {
@@ -107,6 +120,39 @@ const Membership = () => {
     }[membership?.status] || 'Cashfree is processing your membership status.';
     const isAuthorizationPending = ['INITIALIZED', 'BANK_APPROVAL_PENDING'].includes(membership?.status);
 
+    const planBy = key => plans.find(p => p.key === key);
+    const essential = planBy('essential-yearly');
+    const plusMonthly = planBy('plus-monthly');
+    const plusYearly = planBy('plus-yearly');
+    const yearlySaving = plusMonthly && plusYearly
+        ? Math.round((1 - plusYearly.amount / (plusMonthly.amount * 12)) * 100)
+        : 0;
+    const currentTier = isMember ? (membership.tier || 'plus') : null;
+    const canJoin = !membership || (!isMember && !isAuthorizationPending);
+
+    const TierCard = ({ tier, children, highlight }) => (
+        <div className={`flex flex-col border bg-surface p-6 sm:p-8 ${highlight ? 'border-brass' : 'border-line'}`}>
+            <div className='flex items-baseline justify-between gap-3'>
+                <h2 className='font-display text-3xl text-ink'>{TIERS[tier].name}</h2>
+                {currentTier === tier && <span className='border border-brass px-2 py-1 font-sans text-[0.62rem] uppercase tracking-luxe text-brass'>Your plan</span>}
+                {highlight && currentTier !== tier && <span className='bg-brass px-2 py-1 font-sans text-[0.62rem] uppercase tracking-luxe text-white'>Best value</span>}
+            </div>
+            <p className='mt-2 font-sans text-sm text-ink-soft'>{TIERS[tier].pitch}</p>
+            <ul className='mt-6 flex-1 space-y-3'>
+                {TIERS[tier].benefits.map(b => (
+                    <li key={b.title} className='flex gap-3'>
+                        <Check />
+                        <span>
+                            <span className='block font-sans text-sm text-ink'>{b.title}</span>
+                            <span className='block font-sans text-xs leading-relaxed text-ink-faint'>{b.detail}</span>
+                        </span>
+                    </li>
+                ))}
+            </ul>
+            <div className='mt-8'>{children}</div>
+        </div>
+    );
+
     return (
         <Fragment>
             <MetaData title='Membership · Maison' />
@@ -114,17 +160,13 @@ const Membership = () => {
                 <p className='eyebrow'>Maison Membership</p>
                 <h1 className='mt-4 max-w-2xl font-display text-5xl font-medium text-ink'>A quieter way to shop well.</h1>
                 <p className='mt-5 max-w-xl font-sans text-sm leading-relaxed text-ink-soft'>
-                    Choose a recurring membership and authorize secure automatic billing through Cashfree.
+                    Two memberships, both billed automatically through Cashfree. Cancel any time from this page.
                 </p>
-                <div className='mt-8 grid gap-3 font-sans text-sm text-ink-soft sm:grid-cols-3'>
-                    <span className='border-l-2 border-brass pl-3'>Complimentary shipping</span>
-                    <span className='border-l-2 border-brass pl-3'>Early access to new drops</span>
-                    <span className='border-l-2 border-brass pl-3'>Member-only offers</span>
-                </div>
+
                 {membership && (
                     <div className='mt-12 border border-line bg-surface p-8'>
                         <p className='eyebrow'>{isMember ? 'You are a Maison member' : 'Membership status'}</p>
-                        <p className='mt-3 font-display text-3xl text-ink'>{membership.name}</p>
+                        <p className='mt-3 font-display text-3xl text-ink'>{tierName(membership.tier || 'plus') || membership.name}</p>
                         <p className='mt-3 font-sans text-sm text-ink-soft'>{statusMessage}</p>
                         {isAuthorizationPending && membership.status === 'INITIALIZED' && (
                             <button
@@ -138,11 +180,55 @@ const Membership = () => {
                         {isMember && (
                             <p className='mt-2 font-sans text-sm text-ink-soft'>Next payment date: <strong className='text-ink'>{nextPaymentDate}</strong></p>
                         )}
+                        {isMember && currentTier === 'essential' && (
+                            <p className='mt-2 font-sans text-sm text-ink-soft'>
+                                To move to Plus, cancel Essential below and join Plus — your benefits switch over straight away.
+                            </p>
+                        )}
                         {membership && !['CANCELLED', 'COMPLETED', 'EXPIRED', 'CUSTOMER_CANCELLED'].includes(membership.status) && (
                             <button onClick={cancelMembership} className='mt-6 font-sans text-xs uppercase tracking-luxe text-brass'>Cancel membership</button>
                         )}
                     </div>
                 )}
+
+                <div className='mt-12 grid gap-6 lg:grid-cols-2'>
+                    <TierCard tier='essential'>
+                        <p className='font-display text-4xl text-ink'>{essential ? formatINR(essential.amount) : '—'}<span className='font-sans text-sm text-ink-soft'> / year</span></p>
+                        <p className='mt-1 font-sans text-xs text-ink-faint'>About {essential ? formatINR(Math.round(essential.amount / 12)) : '—'} a month</p>
+                        {canJoin && (
+                            <button disabled={loading || !membershipsOn || !essential} onClick={() => startMembership('essential-yearly')} className='btn-outline mt-6 w-full disabled:opacity-40'>
+                                Join Essential
+                            </button>
+                        )}
+                    </TierCard>
+
+                    <TierCard tier='plus' highlight>
+                        <div className='grid gap-3 sm:grid-cols-2'>
+                            <div className='border border-line p-4'>
+                                <p className='font-sans text-xs uppercase tracking-luxe text-ink-faint'>Monthly</p>
+                                <p className='mt-2 font-display text-3xl text-ink'>{plusMonthly ? formatINR(plusMonthly.amount) : '—'}<span className='font-sans text-sm text-ink-soft'> / month</span></p>
+                                {canJoin && (
+                                    <button disabled={loading || !membershipsOn || !plusMonthly} onClick={() => startMembership('plus-monthly')} className='btn-outline mt-4 w-full !px-4 disabled:opacity-40'>
+                                        Join monthly
+                                    </button>
+                                )}
+                            </div>
+                            <div className='border border-brass p-4'>
+                                <p className='font-sans text-xs uppercase tracking-luxe text-brass'>Yearly{yearlySaving > 0 ? ` · save ${yearlySaving}%` : ''}</p>
+                                <p className='mt-2 font-display text-3xl text-ink'>{plusYearly ? formatINR(plusYearly.amount) : '—'}<span className='font-sans text-sm text-ink-soft'> / year</span></p>
+                                {canJoin && (
+                                    <button disabled={loading || !membershipsOn || !plusYearly} onClick={() => startMembership('plus-yearly')} className='btn-solid mt-4 w-full !px-4 disabled:opacity-40'>
+                                        Join yearly
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    </TierCard>
+                </div>
+                {!membershipsOn && canJoin && (
+                    <p className='mt-4 font-sans text-sm text-ink-faint'>New memberships are paused right now.</p>
+                )}
+
                 {invoices.length > 0 && (
                     <div className='mt-12 border border-line bg-surface p-8'>
                         <p className='eyebrow'>Billing history</p>
@@ -160,7 +246,7 @@ const Membership = () => {
                                         </p>
                                     </div>
                                     <div className='flex items-center gap-6'>
-                                        <span className='font-display text-lg text-ink'>₹{invoice.total}</span>
+                                        <span className='font-display text-lg text-ink'>{formatINR(invoice.total)}</span>
                                         <a
                                             href={`/api/v1/invoice/${invoice._id}/download`}
                                             download
@@ -172,21 +258,6 @@ const Membership = () => {
                                 </li>
                             ))}
                         </ul>
-                    </div>
-                )}
-                {(!membership || (!isMember && !isAuthorizationPending)) && (
-                    <div className='mt-12 grid gap-6 md:grid-cols-2'>
-                        {plans.map(plan => (
-                            <div key={plan.interval} className='border border-line bg-surface p-8'>
-                                <p className='eyebrow'>{plan.interval}</p>
-                                <h2 className='mt-4 font-display text-3xl text-ink'>{plan.name}</h2>
-                                <p className='mt-6 font-display text-4xl text-ink'>₹{plan.amount}</p>
-                                <p className='mt-2 font-sans text-sm text-ink-soft'>Billed {plan.interval}ly</p>
-                                <button disabled={loading || !membershipsOn} onClick={() => startMembership(plan.interval)} className='btn-solid mt-8 w-full disabled:opacity-40'>
-                                    Authorize Membership
-                                </button>
-                            </div>
-                        ))}
                     </div>
                 )}
             </div>

@@ -76,6 +76,27 @@ const inventory = require('../services/inventoryService');
 const cartRecovery = require('../services/cartRecoveryService');
 
 // Abandoned-cart reminders (24h and 72h after the cart was last touched).
+// Membership: restock emails for non-members once the members' 6-hour head
+// start is over (run hourly), and Plus store credit for orders whose return
+// window has closed (run daily).
+const memberRewards = require('../services/memberRewards');
+router.post('/jobs/back-in-stock', requireCronSecret, async (req, res, next) => {
+    try {
+        const sent = await inventory.sendDueRestockAlerts();
+        res.status(200).json({ success: true, job: 'back-in-stock', sent });
+    } catch (err) {
+        next(err);
+    }
+});
+router.post('/jobs/member-rewards', requireCronSecret, async (req, res, next) => {
+    try {
+        const result = await memberRewards.creditDueRewards({ limit: 200 });
+        res.status(200).json({ success: true, job: 'member-rewards', ...result });
+    } catch (err) {
+        next(err);
+    }
+});
+
 router.post('/jobs/abandoned-carts', requireCronSecret, async (req, res, next) => {
     try {
         const result = await cartRecovery.runAbandonedCartReminders({ limit: 200 });

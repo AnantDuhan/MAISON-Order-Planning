@@ -3,7 +3,6 @@ const path = require('path');
 
 const User = require('../models/user');
 const mailer = require('../utils/sendEmail');
-const { RETURN_WINDOW_DAYS } = require('../utils/returnWindow');
 
 // Customer emails for a return: received, approved, declined. Sent from the
 // support address so a reply reaches a person. Never throws: an email problem
@@ -46,7 +45,7 @@ const COPY = {
         headline: 'We couldn’t accept this return',
         preheader: 'Reply to this email if you think this is a mistake.',
         paragraphs: [
-            `We’ve reviewed your request and aren’t able to accept this return. Returns need to be requested within ${RETURN_WINDOW_DAYS} days of delivery, with the items unused and complete.`,
+            'We’ve reviewed your request and aren’t able to accept this return. Returns need to be requested within the return window shown on your order, with the items unused and complete.',
             'If you think this is a mistake, or something is wrong with your order, reply to this email and we’ll take another look.',
         ],
         steps: [],

@@ -17,6 +17,7 @@ const CreateCoupon = () => {
     const [code, setCode] = useState('');
     const [discount, setDiscount] = useState('');
     const [expiresAt, setExpiresAt] = useState('');
+    const [membersOnly, setMembersOnly] = useState(false);
 
     useEffect(() => {
         if (error) {
@@ -43,7 +44,7 @@ const CreateCoupon = () => {
             return;
         }
         // expiresAt is optional; the API defaults to a 7-day window when omitted.
-        dispatch(generateCoupon(code.trim(), Number(discount), expiresAt || undefined));
+        dispatch(generateCoupon(code.trim(), Number(discount), expiresAt || undefined, membersOnly));
     };
 
     return (
@@ -92,6 +93,14 @@ const CreateCoupon = () => {
                                 Leave blank to expire 7 days from now.
                             </p>
                         </div>
+
+                        <label className='flex items-start gap-3'>
+                            <input type='checkbox' checked={membersOnly} onChange={e => setMembersOnly(e.target.checked)} className='mt-1 h-4 w-4 accent-[#A07C4B]' />
+                            <span>
+                                <span className='block font-sans text-sm text-ink'>Members only</span>
+                                <span className='block font-sans text-xs text-ink-faint'>Only Essential and Plus members can use this coupon.</span>
+                            </span>
+                        </label>
 
                         <button
                             type='submit'

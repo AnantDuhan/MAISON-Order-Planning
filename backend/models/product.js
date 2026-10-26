@@ -149,6 +149,11 @@ const productSchema = mongoose.Schema({
         default: false,
         index: true
     },
+    // Until this time only Maison Plus members can buy it (48-hour early access).
+    earlyAccessUntil: {
+        type: Date,
+        default: null
+    },
 });
 
 // Indexes for listing/filter/sort/search hot paths. The text index backs

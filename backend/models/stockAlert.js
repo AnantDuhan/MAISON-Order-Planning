@@ -11,6 +11,8 @@ const stockAlertSchema = new mongoose.Schema({
     email: { type: String, required: true },
     createdAt: { type: Date, default: Date.now },
     notifiedAt: { type: Date, default: null },
+    // Members hear about a restock first; everyone else is emailed from this time.
+    notifyAfter: { type: Date, default: null },
 });
 
 // At most one *pending* request per user per product.

@@ -5,7 +5,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { useOverlay } from '../../utils/useOverlay';
-import { formatDeadline, isWithinReturnWindow, RETURN_WINDOW_DAYS, returnDeadline } from '../../utils/returnWindow';
+import { formatDeadline, isWithinReturnWindow, returnDeadline, windowDaysFor } from '../../utils/returnWindow';
 import { inr } from './OrderItemsList';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -81,7 +81,7 @@ export const ReturnEligibility = ({ order, returnsOn, onStart }) => {
     }
 
     const daysLeft = deadline ? Math.max(0, Math.ceil((deadline - Date.now()) / DAY_MS)) : null;
-    const share = daysLeft != null ? Math.min(1, daysLeft / RETURN_WINDOW_DAYS) : 1;
+    const share = daysLeft != null ? Math.min(1, daysLeft / windowDaysFor(order)) : 1;
 
     return (
         <section className='border border-brass/40 bg-surface p-5 sm:p-6'>
@@ -91,7 +91,7 @@ export const ReturnEligibility = ({ order, returnsOn, onStart }) => {
                     <p className='mt-1 font-sans text-sm text-ink-soft'>
                         {deadline
                             ? <>You can return this order until <span className='text-ink'>{formatDeadline(deadline)}</span>.</>
-                            : `Returns are accepted within ${RETURN_WINDOW_DAYS} days of delivery.`}
+                            : `Returns are accepted within ${windowDaysFor(order)} days of delivery.`}
                     </p>
                     {daysLeft != null && (
                         <div className='mt-3 flex items-center gap-3'>

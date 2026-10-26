@@ -9,7 +9,7 @@ import { Rating } from "@mui/material";
 import React, { Fragment, useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Carousel } from "react-responsive-carousel";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import LoadingBar from "react-top-loading-bar";
 import Loader from "../layout/Loader/Loader";
@@ -51,6 +51,7 @@ import "react-responsive-carousel/lib/styles/carousel.min.css";
 
 import io from "socket.io-client";
 import { useFeature } from '../../context/FeatureFlagsContext';
+import { useMembershipTier } from "../../utils/useIsMember";
 
 const ProductDetails = () => {
   const dispatch = useDispatch();
@@ -139,6 +140,13 @@ const ProductDetails = () => {
   };
 
   const reviewsOn = useFeature('reviews');
+  const tier = useMembershipTier();
+  const earlyAccessUntil = product?.earlyAccessUntil ? new Date(product.earlyAccessUntil) : null;
+  const earlyAccessLive = Boolean(earlyAccessUntil && earlyAccessUntil > new Date());
+  const lockedForMe = earlyAccessLive && tier !== 'plus';
+  const opensLabel = earlyAccessUntil
+    ? earlyAccessUntil.toLocaleString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })
+    : '';
   const backInStockOn = useFeature('backInStock');
 
   const submitReviewToggle = () => {
@@ -316,6 +324,17 @@ const ProductDetails = () => {
                   {shownPrice != null ? formatINR(shownPrice) : `From ${formatINR(product.priceFrom)}`}
                 </p>
 
+                {earlyAccessLive && (
+                  <div className="mt-4 border border-brass/50 bg-brass/5 px-4 py-3">
+                    <p className="font-sans text-[0.68rem] uppercase tracking-luxe text-brass">Maison Plus early access</p>
+                    <p className="mt-1 font-sans text-sm text-ink-soft">
+                      {tier === 'plus'
+                        ? `You're in early: Plus members can buy this before everyone else, until ${opensLabel}.`
+                        : `Plus members can buy this now. It opens to everyone on ${opensLabel}.`}
+                    </p>
+                  </div>
+                )}
+
                 <div className="mt-3 flex items-center gap-2">
                   <span
                     className={`h-2 w-2 rounded-full ${inStock ? "bg-success" : "bg-danger"}`}
@@ -373,12 +392,18 @@ const ProductDetails = () => {
 
                   <div className="flex flex-col gap-3 sm:flex-row">
                     {(inStock || (hasOptions && !selectedVariant && product.Stock >= 1)) && (
-                      <button
-                        onClick={addToCartHandler}
-                        className="btn-solid flex-1"
-                      >
-                        Add to Cart
-                      </button>
+                      lockedForMe ? (
+                        <Link to="/membership" className="btn-solid flex-1 text-center">
+                          Join Plus to buy now
+                        </Link>
+                      ) : (
+                        <button
+                          onClick={addToCartHandler}
+                          className="btn-solid flex-1"
+                        >
+                          Add to Cart
+                        </button>
+                      )
                     )}
                     <button
                       onClick={wishlistHandler}

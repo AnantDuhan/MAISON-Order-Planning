@@ -11,6 +11,8 @@ const subscription = new mongoose.Schema({
     cashfreeSubscriptionId: String,
     subscriptionSessionId: String,
     planId: String,
+    // 'essential' | 'plus'. Missing on memberships from before tiers: those are Plus.
+    tier: { type: String, enum: ['essential', 'plus'] },
     name: {
         type: String,
         required: true
