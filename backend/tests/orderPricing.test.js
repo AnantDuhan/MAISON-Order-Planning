@@ -106,3 +106,21 @@ test('Maison Plus members get complimentary shipping below the threshold', async
     assert.equal(result.shippingPrice, 0);
     assert.equal(result.totalPrice, 800);
 });
+
+test('members-only coupons need a membership', async () => {
+    s.set(Product, 'find', async () => catalogue);
+    s.set(Coupon, 'findOne', async () => ({ code: 'MEMBERS10', discount: 10, membersOnly: true }));
+    await assert.rejects(priceOrder([{ product: 'lamp', quantity: 1 }], 'members10'), /for Maison members/);
+    const result = await priceOrder([{ product: 'lamp', quantity: 1 }], 'members10', { tier: 'essential', freeShipping: true });
+    assert.equal(result.discount, 40);
+});
+
+test('Plus early access: only Plus members can buy until it opens', async () => {
+    const until = new Date(Date.now() + 60 * 60 * 1000);
+    s.set(Product, 'find', async () => [{ _id: 'lamp', name: 'Lamp', price: 400, Stock: 5, images: [], earlyAccessUntil: until }]);
+    s.set(Coupon, 'findOne', async () => null);
+    await assert.rejects(priceOrder([{ product: 'lamp', quantity: 1 }]), /Maison Plus early access/);
+    await assert.rejects(priceOrder([{ product: 'lamp', quantity: 1 }], null, { tier: 'essential' }), /early access/);
+    const ok = await priceOrder([{ product: 'lamp', quantity: 1 }], null, { tier: 'plus', freeShipping: true });
+    assert.equal(ok.totalPrice, 400);
+});

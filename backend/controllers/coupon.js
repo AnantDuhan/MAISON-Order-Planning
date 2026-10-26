@@ -4,7 +4,7 @@ const generateId = require('../utils/generateId');
 // Generate a new coupon code
 exports.generateCoupon = async (req, res, next) => {
     try {
-        const { code, discount, expiresAt } = req.body;
+        const { code, discount, expiresAt, membersOnly } = req.body;
 
         if (!code || discount === undefined || discount === null || discount === '') {
             return res.status(400).json({
@@ -44,7 +44,8 @@ exports.generateCoupon = async (req, res, next) => {
             _id: generateId(),
             code: code.trim().toUpperCase(),
             discount: discountValue,
-            expiresAt: expiry
+            expiresAt: expiry,
+            membersOnly: membersOnly === true || membersOnly === 'true'
         });
 
         res.status(201).json({
@@ -75,7 +76,7 @@ exports.getAllCoupons = async (req, res, next) => {
         const coupons = isAdmin
             ? await Coupon.find(req.user.isDemo ? { isDemo: true } : {}).sort({ createdAt: -1 })
             : await Coupon.find({ expiresAt: { $gt: new Date() }, isDemo: { $ne: true } })
-                .select('code discount expiresAt')
+                .select('code discount expiresAt membersOnly')
                 .sort({ discount: -1 });
 
         res.status(200).json({

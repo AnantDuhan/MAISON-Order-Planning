@@ -175,8 +175,8 @@ const getHold = cashfreeOrderId => StockHold.findOne({ cashfreeOrderId }).lean()
 const setHoldWallet = (cashfreeOrderId, walletApplied) =>
     StockHold.updateOne({ cashfreeOrderId }, { walletApplied });
 
-const setHoldMemberShipping = cashfreeOrderId =>
-    StockHold.updateOne({ cashfreeOrderId }, { memberFreeShipping: true });
+const setHoldMember = (cashfreeOrderId, tier) =>
+    StockHold.updateOne({ cashfreeOrderId }, { memberFreeShipping: true, memberTier: tier });
 
 const releaseHoldForPayment = (cashfreeOrderId, reason) =>
     releaseHold({ cashfreeOrderId }, reason);
@@ -287,15 +287,38 @@ const checkLowStock = async productIds => {
  * claimed (notifiedAt set) before its email goes out, so concurrent runs can't
  * email the same person twice.
  */
-const notifyBackInStock = async productIds => {
+// Members get restock emails this long before everyone else.
+const MEMBER_HEAD_START_MS = 6 * 60 * 60 * 1000;
+
+/**
+ * Email people waiting for these products, now that they're in stock.
+ * Members (Essential or Plus) are emailed straight away; everyone else is
+ * scheduled MEMBER_HEAD_START_MS later and emailed by a later call (the
+ * /jobs/back-in-stock job, or the next restock), if it's still in stock.
+ */
+const notifyBackInStock = async (productIds, { now = new Date() } = {}) => {
     // Switched off in admin Features: keep requests until it's turned back on.
     if (!(await require('./featureFlags').isEnabled('backInStock'))) return 0;
+    const Subscription = require('../models/plusMembership');
     const products = await Product.find({ _id: { $in: productIds }, Stock: { $gt: 0 } })
         .select('name price images Stock').lean();
     let sent = 0;
     for (const product of products) {
         const pending = await StockAlert.find({ product: product._id, notifiedAt: null }).limit(500);
+        if (!pending.length) continue;
+        const members = new Set((await Subscription.distinct('user', {
+            user: { $in: pending.map(a => String(a.user)) }, isActive: true, status: 'ACTIVE',
+        })).map(String));
+
         for (const alert of pending) {
+            const isMember = members.has(String(alert.user));
+            if (!isMember) {
+                if (!alert.notifyAfter) {
+                    await StockAlert.updateOne({ _id: alert._id, notifyAfter: null }, { notifyAfter: new Date(now.getTime() + MEMBER_HEAD_START_MS) });
+                    continue;
+                }
+                if (new Date(alert.notifyAfter) > now) continue;
+            }
             const claimed = await StockAlert.updateOne(
                 { _id: alert._id, notifiedAt: null },
                 { notifiedAt: new Date() }
@@ -321,6 +344,12 @@ const notifyBackInStock = async productIds => {
         }
     }
     return sent;
+};
+
+/** Send restock emails whose member head start is over (scheduled job). */
+const sendDueRestockAlerts = async ({ now = new Date() } = {}) => {
+    const productIds = await StockAlert.distinct('product', { notifiedAt: null, notifyAfter: { $ne: null, $lte: now } });
+    return productIds.length ? module.exports.notifyBackInStock(productIds, { now }) : 0;
 };
 
 /**
@@ -443,9 +472,11 @@ module.exports = {
     commitForOrder,
     getHold,
     setHoldWallet,
-    setHoldMemberShipping,
+    setHoldMember,
     checkLowStock,
     notifyBackInStock,
+    sendDueRestockAlerts,
+    MEMBER_HEAD_START_MS,
     afterStockIncrease,
     onStockEdited,
     requestBackInStock,

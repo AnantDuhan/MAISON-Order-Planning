@@ -1,7 +1,12 @@
-// Customers can request a return for this many days after delivery.
+// Customers can request a return for this many days after delivery; members
+// (Essential or Plus at the time of the order) get longer.
 // Mirrored in frontend/src/utils/returnWindow.js and stated in the Refunds policy.
 const RETURN_WINDOW_DAYS = 7;
+const MEMBER_RETURN_WINDOW_DAYS = 14;
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** Return window for this order, in days. */
+const windowDaysFor = order => (order?.memberTier ? MEMBER_RETURN_WINDOW_DAYS : RETURN_WINDOW_DAYS);
 
 /** When the order was delivered: DeliveredAt, else the courier's Delivered event. */
 const deliveredAt = order => {
@@ -13,7 +18,7 @@ const deliveredAt = order => {
 /** Last moment a return can be requested, or null when the delivery time is unknown. */
 const returnDeadline = order => {
     const delivered = deliveredAt(order);
-    return delivered ? new Date(delivered.getTime() + RETURN_WINDOW_DAYS * DAY_MS) : null;
+    return delivered ? new Date(delivered.getTime() + windowDaysFor(order) * DAY_MS) : null;
 };
 
 /**
@@ -25,4 +30,4 @@ const isWithinReturnWindow = (order, now = new Date()) => {
     return !deadline || now <= deadline;
 };
 
-module.exports = { RETURN_WINDOW_DAYS, deliveredAt, returnDeadline, isWithinReturnWindow };
+module.exports = { RETURN_WINDOW_DAYS, MEMBER_RETURN_WINDOW_DAYS, windowDaysFor, deliveredAt, returnDeadline, isWithinReturnWindow };

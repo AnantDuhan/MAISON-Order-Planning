@@ -12,10 +12,10 @@ import ProductCard from './ProductCard';
 import { useFeature } from '../../context/FeatureFlagsContext';
 import { formatINR, priceLabel } from '../../utils/priceLabel';
 import { FREE_SHIPPING_THRESHOLD } from '../../utils/delivery';
-import { RETURN_WINDOW_DAYS } from '../../utils/returnWindow';
+import { MEMBER_RETURN_WINDOW_DAYS, RETURN_WINDOW_DAYS } from '../../utils/returnWindow';
 import { useCategories } from '../../utils/useCategories';
 
-const FALLBACK_PLUS_PRICE = 299;
+const FALLBACK_ESSENTIAL_PRICE = 600; // per year
 
 const firstImage = product => (product?.images || []).find(img => img?.url)?.url || null;
 
@@ -25,15 +25,15 @@ const Icon = ({ children }) => (
     </svg>
 );
 
-/** Monthly Maison Plus price from the plans API, with a sensible fallback. */
-const usePlusPrice = () => {
-    const [price, setPrice] = useState(FALLBACK_PLUS_PRICE);
+/** Cheapest membership (Essential, yearly) from the plans API, with a fallback. */
+const useEntryPrice = () => {
+    const [price, setPrice] = useState(FALLBACK_ESSENTIAL_PRICE);
     useEffect(() => {
         let alive = true;
         axios.get('/api/v1/membership/plans')
             .then(({ data }) => {
-                const monthly = (data.plans || []).find(p => p.interval === 'monthly');
-                if (alive && monthly?.amount) setPrice(monthly.amount);
+                const essential = (data.plans || []).find(p => p.key === 'essential-yearly');
+                if (alive && essential?.amount) setPrice(essential.amount);
             })
             .catch(() => {});
         return () => { alive = false; };
@@ -88,7 +88,7 @@ const CategoryTile = ({ dept }) => {
 const Home = () => {
     const newsletterOn = useFeature('newsletter');
     const dispatch = useDispatch();
-    const plusPrice = usePlusPrice();
+    const entryPrice = useEntryPrice();
     const { categories } = useCategories();
 
     const [email, setEmail] = useState('');
@@ -189,7 +189,7 @@ const Home = () => {
                     </li>
                     <li className='flex items-center gap-3 py-5 pr-4'>
                         <Icon><path d='M4 12a8 8 0 1 0 3-6.2' /><path d='M4 4v4h4' /></Icon>
-                        <span className='font-sans text-sm text-ink'>{RETURN_WINDOW_DAYS}-day returns from your order page</span>
+                        <span className='font-sans text-sm text-ink'>{RETURN_WINDOW_DAYS}-day returns · {MEMBER_RETURN_WINDOW_DAYS} for members</span>
                     </li>
                     <li className='flex items-center gap-3 py-5 pr-4'>
                         <Icon><rect x='5' y='10' width='14' height='10' /><path d='M8 10V7a4 4 0 0 1 8 0v3' /></Icon>
@@ -197,7 +197,7 @@ const Home = () => {
                     </li>
                     <li className='flex items-center gap-3 py-5 pr-4'>
                         <Icon><path d='M12 3l2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.4 6.7 19.4l1.2-6L3.4 9.3l6-.7z' /></Icon>
-                        <span className='font-sans text-sm text-ink'>Maison Plus: free shipping, always</span>
+                        <span className='font-sans text-sm text-ink'>Members: free shipping, always</span>
                     </li>
                 </ul>
             </section>
@@ -243,17 +243,17 @@ const Home = () => {
                 </div>
             </section>
 
-            {/* Maison Plus */}
+            {/* Membership */}
             <section className='editorial-shell mt-24 sm:mt-28'>
                 <div className='flex flex-wrap items-center justify-between gap-8 bg-ink px-6 py-12 sm:px-12 sm:py-14'>
                     <div className='min-w-0 flex-[1_1_420px]'>
-                        <p className='font-sans text-xs uppercase tracking-luxe text-brass-soft'>Maison Plus</p>
+                        <p className='font-sans text-xs uppercase tracking-luxe text-brass-soft'>Maison Membership</p>
                         <h2 className='mt-3 font-display text-3xl font-normal leading-tight text-canvas sm:text-4xl'>
-                            Free shipping on every order, and first access to new pieces.
+                            Free shipping, 14-day returns and members-only offers. Plus adds 2% back and first access.
                         </h2>
                     </div>
                     <Link to='/membership' className='btn-luxe shrink-0 bg-canvas px-7 py-4 text-ink hover:bg-brass hover:text-white'>
-                        Join for {formatINR(plusPrice)}/month
+                        Join from {formatINR(entryPrice)}/year
                     </Link>
                 </div>
             </section>

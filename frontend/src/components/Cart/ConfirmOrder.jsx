@@ -120,11 +120,16 @@ const ConfirmOrder = () => {
                                 >
                                     <option value=''>No Coupon</option>
                                     {coupons.map(coupon => (
-                                        <option key={coupon._id} value={coupon._id}>
-                                            {`${coupon.code} — ${coupon.discount}%`}
+                                        <option key={coupon._id} value={coupon._id} disabled={coupon.membersOnly && !isMember}>
+                                            {`${coupon.code} — ${coupon.discount}%${coupon.membersOnly ? (isMember ? ' · members' : ' · members only') : ''}`}
                                         </option>
                                     ))}
                                 </select>
+                                {!isMember && coupons.some(c => c.membersOnly) && (
+                                    <p className='mt-2 font-sans text-xs text-ink-faint'>
+                                        Some offers are for members. <Link to='/membership' className='text-brass underline-offset-4 hover:underline'>See membership</Link>
+                                    </p>
+                                )}
                             </div>
                             )}
 

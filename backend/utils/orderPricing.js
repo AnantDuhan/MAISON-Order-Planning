@@ -23,7 +23,7 @@ class PricingError extends Error {
 
 const round2 = n => Math.round(n * 100) / 100;
 
-async function findActiveCoupon(couponCode) {
+async function findActiveCoupon(couponCode, tier = null) {
     if (typeof couponCode !== 'string' || !couponCode.trim()) return null;
 
     const coupon = await Coupon.findOne({
@@ -33,6 +33,9 @@ async function findActiveCoupon(couponCode) {
     if (!coupon) {
         throw new PricingError('Coupon is invalid or has expired');
     }
+    if (coupon.membersOnly && !tier) {
+        throw new PricingError('This coupon is for Maison members. Join Essential or Plus to use it.', 403);
+    }
     return coupon;
 }
 
@@ -41,10 +44,12 @@ async function findActiveCoupon(couponCode) {
  * @param {string} [couponCode]
  * @param {{checkStock?: boolean, freeShipping?: boolean}} [options] checkStock=false when the stock for
  *   these items is already held for this customer (placing a paid order).
- *   freeShipping=true for Maison Plus members (complimentary shipping on every order).
+ *   freeShipping=true for Maison members (complimentary shipping on every order).
+ *   tier: the shopper's membership ('essential' | 'plus' | null), for
+ *   members-only coupons and Plus early access.
  * @returns {Promise<{orderItems, itemsPrice, shippingPrice, taxPrice, discount, totalPrice, coupon}>}
  */
-async function priceOrder(requestedItems, couponCode, { checkStock = true, freeShipping = false } = {}) {
+async function priceOrder(requestedItems, couponCode, { checkStock = true, freeShipping = false, tier = null } = {}) {
     if (!Array.isArray(requestedItems) || requestedItems.length === 0) {
         throw new PricingError('Order must contain at least one item');
     }
@@ -74,6 +79,10 @@ async function priceOrder(requestedItems, couponCode, { checkStock = true, freeS
         const product = byId.get(id);
         if (!product) {
             throw new PricingError(`Product ${id} is no longer available`, 404);
+        }
+        if (product.earlyAccessUntil && new Date(product.earlyAccessUntil) > new Date() && tier !== 'plus') {
+            const opens = new Date(product.earlyAccessUntil).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kolkata' });
+            throw new PricingError(`"${product.name}" is in Maison Plus early access until ${opens}.`, 403);
         }
 
         // Products with options (Size, Colour...) are bought as a specific variant.
@@ -113,7 +122,7 @@ async function priceOrder(requestedItems, couponCode, { checkStock = true, freeS
     const shippingPrice = freeShipping || itemsPrice > FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_CHARGE;
     const taxPrice = 0;
 
-    const coupon = await findActiveCoupon(couponCode);
+    const coupon = await findActiveCoupon(couponCode, tier);
     const discount = coupon ? round2((itemsPrice * coupon.discount) / 100) : 0;
     const totalPrice = round2(Math.max(0, itemsPrice + shippingPrice + taxPrice - discount));
 

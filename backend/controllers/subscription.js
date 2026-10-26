@@ -12,24 +12,10 @@ const {
 const logger = require('../config/logger');
 const { createMembershipInvoice, emailInvoice } = require('../services/invoiceService');
 
-const planConfig = {
-    monthly: {
-        planId: 'maison-monthly',
-        name: 'Maison Monthly',
-        amount: Number(process.env.CASHFREE_MONTHLY_AMOUNT || 299),
-        duration: 1,
-        intervalType: 'MONTH',
-    },
-    yearly: {
-        planId: 'maison-yearly',
-        name: 'Maison Yearly',
-        amount: Number(process.env.CASHFREE_YEARLY_AMOUNT || 1599),
-        duration: 12,
-        intervalType: 'YEAR',
-    },
-};
+const { PLANS, planFor, tierOf } = require('../utils/membershipPlans');
 
-const getPlan = interval => planConfig[interval];
+// Membership as sent to the browser, with its tier spelled out.
+const withTier = membership => ({ ...(membership.toObject ? membership.toObject() : membership), tier: tierOf(membership) });
 
 const getSubscriptionDetails = cashfreeSubscription =>
     cashfreeSubscription.subscription_details || cashfreeSubscription;
@@ -130,19 +116,13 @@ const ensurePlan = async plan => {
     }
 };
 
+// Public: the plans and prices. Plans are created in Cashfree when someone
+// first joins one (ensurePlan), so this never waits on Cashfree.
 exports.getMembershipPlans = (req, res) => {
-    Promise.all(Object.entries(planConfig).map(async ([interval, plan]) => {
-        let existsInCashfree = false;
-        try {
-            await getCashfreePlan(plan.planId);
-            existsInCashfree = true;
-        } catch (error) {
-            if (error.statusCode !== 404) throw error;
-        }
-        return { interval, planId: plan.planId, name: plan.name, amount: plan.amount, duration: plan.duration, existsInCashfree };
-    }))
-        .then(plans => res.status(200).json({ success: true, plans }))
-        .catch(error => res.status(error.statusCode || 500).json({ success: false, message: error.message }));
+    const plans = Object.values(PLANS).map(({ key, tier, interval, planId, name, amount, duration }) => ({
+        key, tier, interval, planId, name, amount, duration,
+    }));
+    res.status(200).json({ success: true, plans });
 };
 
 exports.membershipReturn = (req, res) => {
@@ -164,7 +144,7 @@ exports.getCurrentMembership = async (req, res) => {
             await syncMembership(membership);
         }
 
-        res.status(200).json({ success: true, membership: membership || null });
+        res.status(200).json({ success: true, membership: membership ? withTier(membership) : null });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
@@ -177,9 +157,9 @@ exports.createMembershipSubscription = async (req, res) => {
             return res.status(409).json({ success: false, message: 'You already have an active membership' });
         }
 
-        const plan = getPlan(req.body.interval);
+        const plan = planFor(req.body || {});
         if (!plan) {
-            return res.status(400).json({ success: false, message: 'Choose a monthly or yearly plan' });
+            return res.status(400).json({ success: false, message: 'Choose Essential (yearly) or Plus (monthly or yearly)' });
         }
 
         await ensurePlan(plan);
@@ -210,8 +190,9 @@ exports.createMembershipSubscription = async (req, res) => {
             cashfreeSubscriptionId: subscriptionId,
             subscriptionSessionId: cashfreeSubscription.subscription_session_id,
             planId: plan.planId,
+            tier: plan.tier,
             name: plan.name,
-            description: `${plan.name} recurring membership`,
+            description: `${plan.name} (${plan.interval}) recurring membership`,
             amount: plan.amount,
             duration: plan.duration,
             user: req.user._id,
@@ -242,7 +223,7 @@ exports.getMembershipStatus = async (req, res) => {
 
         await syncMembership(membership);
 
-        res.status(200).json({ success: true, membership });
+        res.status(200).json({ success: true, membership: withTier(membership) });
     } catch (error) {
         res.status(error.statusCode || 500).json({ success: false, message: error.message });
     }

@@ -3,20 +3,38 @@ const assert = require('node:assert/strict');
 const { stubs } = require('./helpers');
 
 const Subscription = require('../models/plusMembership');
-const { hasActiveMembership } = require('../utils/membership');
+const { getMembershipTier, hasActiveMembership } = require('../utils/membership');
+const { planFor, tierOf, PLANS } = require('../utils/membershipPlans');
 
 const s = stubs();
 afterEach(() => s.restore());
 
-test('only an ACTIVE, isActive membership counts', async () => {
-    let query;
-    s.set(Subscription, 'exists', async q => { query = q; return { _id: 'm1' }; });
-    assert.equal(await hasActiveMembership('u1'), true);
-    assert.deepEqual(query, { user: 'u1', isActive: true, status: 'ACTIVE' });
+const found = doc => ({ sort() { return this; }, select() { return this; }, lean: async () => doc });
+
+test('plans: Essential ₹600/year, Plus ₹199/month or ₹1,799/year, ids carry the price', () => {
+    assert.equal(PLANS['essential-yearly'].amount, 600);
+    assert.equal(PLANS['plus-monthly'].amount, 199);
+    assert.equal(PLANS['plus-yearly'].amount, 1799);
+    assert.equal(PLANS['plus-yearly'].planId, 'maison-plus-yearly-1799');
+    assert.equal(planFor({ interval: 'yearly' }).key, 'plus-yearly'); // older clients
+    assert.equal(planFor({ plan: 'essential-yearly' }).tier, 'essential');
+    assert.equal(planFor({ plan: 'nope' }), null);
 });
 
-test('no membership, or no user, means no member shipping', async () => {
-    s.set(Subscription, 'exists', async () => null);
-    assert.equal(await hasActiveMembership('u1'), false);
-    assert.equal(await hasActiveMembership(undefined), false);
+test('memberships from before tiers count as Plus', () => {
+    assert.equal(tierOf({ planId: 'maison-yearly' }), 'plus');
+    assert.equal(tierOf({ planId: 'maison-essential-yearly-600' }), 'essential');
+    assert.equal(tierOf({ tier: 'essential', planId: 'maison-yearly' }), 'essential');
+});
+
+test('only an ACTIVE membership gives a tier', async () => {
+    let query;
+    s.set(Subscription, 'findOne', q => { query = q; return found({ planId: 'maison-essential-yearly-600', tier: 'essential' }); });
+    assert.equal(await getMembershipTier('u1'), 'essential');
+    assert.deepEqual(query, { user: 'u1', isActive: true, status: 'ACTIVE' });
+    assert.equal(await hasActiveMembership('u1'), true);
+
+    s.set(Subscription, 'findOne', () => found(null));
+    assert.equal(await getMembershipTier('u1'), null);
+    assert.equal(await getMembershipTier(undefined), null);
 });

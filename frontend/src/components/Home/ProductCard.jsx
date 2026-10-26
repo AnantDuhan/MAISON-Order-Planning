@@ -116,9 +116,14 @@ const ProductCard = ({ product }) => {
 
                 {/* Meta: category, name, real options, price and stock */}
                 <div className='px-5 py-5'>
-                    {product.category && (
-                        <p className='truncate font-sans text-[0.68rem] uppercase tracking-luxe text-ink-faint'>{product.category}</p>
-                    )}
+                    <div className='flex items-baseline justify-between gap-2'>
+                        {product.category && (
+                            <p className='truncate font-sans text-[0.68rem] uppercase tracking-luxe text-ink-faint'>{product.category}</p>
+                        )}
+                        {product.earlyAccessUntil && new Date(product.earlyAccessUntil) > new Date() && (
+                            <p className='shrink-0 font-sans text-[0.62rem] uppercase tracking-luxe text-brass'>Plus early access</p>
+                        )}
+                    </div>
                     <h3 className='mt-1 truncate font-display text-xl font-medium text-ink'>{product.name}</h3>
                     {summary && <p className='mt-1 truncate font-sans text-xs text-ink-soft'>{summary}</p>}
                     {product.numOfReviews > 0 && (

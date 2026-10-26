@@ -18,7 +18,11 @@ const invoiceService = require('../services/invoiceService');
 const s = stubs();
 // Checkout now asks whether the shopper is a Maison Plus member; default to no.
 const Subscription = require('../models/plusMembership');
-beforeEach(() => s.set(Subscription, 'exists', async () => null));
+const noMembership = () => ({ sort() { return this; }, select() { return this; }, lean: async () => null });
+beforeEach(() => {
+    s.set(Subscription, 'findOne', noMembership);
+    s.set(Subscription, 'distinct', async () => []);
+});
 afterEach(() => s.restore());
 
 // In-memory ledger + balances with Mongo-like semantics (unique keys,

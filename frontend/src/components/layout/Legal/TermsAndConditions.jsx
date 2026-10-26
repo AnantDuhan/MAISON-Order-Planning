@@ -33,13 +33,13 @@ const sections = [
     {
         heading: 'Returns and refunds',
         body: [
-            'Orders can be returned by requesting a return from the order page in your account within 7 days of delivery. Approved refunds go back to the original payment method; your bank may take a few working days to credit it.',
+            'Orders can be returned by requesting a return from the order page in your account within 7 days of delivery (14 days for orders placed as a member). Approved refunds go back to the original payment method; your bank may take a few working days to credit it.',
         ],
     },
     {
         heading: 'Membership',
         body: [
-            'Maison Plus membership benefits, price and duration are shown on the membership page at the time you join. Membership is personal to your account and is not transferable.',
+            'Maison Essential and Plus benefits, prices and billing periods are shown on the membership page at the time you join. Plus store credit is added after an order’s return window closes and is not added for returned or refunded orders; store credit has no cash value. Membership is personal to your account and is not transferable.',
         ],
     },
     {
@@ -83,7 +83,7 @@ const TermsAndConditions = () => (
         description='The terms that apply when you shop at Maison — orders, payment, delivery, returns and membership.'
         intro='These terms apply to your use of the Maison website and any order you place with us. Please read them carefully.'
         sections={sections}
-        lastUpdated='25 October 2026'
+        lastUpdated='26 October 2026'
     />
 );
 

@@ -12,6 +12,7 @@ const LABEL = {
     checkout: 'Used at checkout',
     'checkout-reversal': 'Returned from an unfinished checkout',
     adjustment: 'Adjustment by MAISON',
+    reward: 'Maison Plus reward',
 };
 
 const StoreCredit = () => {

@@ -11,7 +11,7 @@ const walletEntrySchema = new mongoose.Schema({
     amount: { type: Number, required: true },
     type: {
         type: String,
-        enum: ['refund', 'checkout', 'checkout-reversal', 'adjustment'],
+        enum: ['refund', 'checkout', 'checkout-reversal', 'adjustment', 'reward'],
         required: true,
     },
     reference: {

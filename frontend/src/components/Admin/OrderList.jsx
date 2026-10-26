@@ -64,12 +64,15 @@ const OrderList = () => {
         status: item.orderStatus,
         refundStatus: item.refundStatus,
         late: daysLate(item),
+        memberTier: item.memberTier || null,
     }));
     const lateCount = allRows.filter(r => r.late > 0).length;
-    // Late orders first so they can't hide on page 3.
+    // Late orders first so they can't hide on page 3, then members' orders
+    // still to ship (priority dispatch), then everything else.
+    const rank = r => (r.late > 0 ? 2 : r.memberTier && r.status === 'Processing' ? 1 : 0);
     const rows = (lateOnly ? allRows.filter(r => r.late > 0) : allRows)
         .slice()
-        .sort((a, b) => (b.late > 0) - (a.late > 0));
+        .sort((a, b) => rank(b) - rank(a));
 
     const columns = [
         { key: 'id', label: 'Order ID', width: '1.4fr' },
@@ -85,6 +88,11 @@ const OrderList = () => {
                     {row.late > 0 && (
                         <span className='ml-2 inline-block border border-danger/40 bg-danger/10 px-1.5 py-0.5 align-middle font-sans text-[0.6rem] uppercase tracking-luxe text-danger'>
                             {row.late}d late
+                        </span>
+                    )}
+                    {row.memberTier && (
+                        <span title='Member order: dispatch first' className='ml-2 inline-block border border-brass/50 bg-brass/10 px-1.5 py-0.5 align-middle font-sans text-[0.6rem] uppercase tracking-luxe text-brass'>
+                            {row.memberTier === 'plus' ? 'Plus' : 'Essential'}
                         </span>
                     )}
                 </span>

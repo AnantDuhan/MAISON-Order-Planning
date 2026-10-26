@@ -15,7 +15,9 @@ import LoadingBar from 'react-top-loading-bar';
 import Loader from '../layout/Loader/Loader';
 import MetaData from '../layout/MetaData';
 import { useFeature } from '../../context/FeatureFlagsContext';
-import { isWithinReturnWindow, RETURN_WINDOW_DAYS } from '../../utils/returnWindow';
+import { isWithinReturnWindow, returnDeadline, windowDaysFor } from '../../utils/returnWindow';
+import { rewardFor, tierName } from '../../utils/membershipTiers';
+import { formatINR } from '../../utils/priceLabel';
 
 const formatDate = value => (value
     ? new Date(value).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
@@ -334,6 +336,20 @@ const OrderDetails = ({ startReturn = false }) => {
                                     {order.paidAt && (
                                         <p className='mt-1 font-sans text-xs text-ink-faint'>{formatDate(order.paidAt)}</p>
                                     )}
+                                    {order.memberTier && (
+                                        <p className='mt-4 font-sans text-xs text-ink-soft'>
+                                            Placed as a {tierName(order.memberTier)} member: free shipping, {windowDaysFor(order)}-day returns, priority dispatch.
+                                        </p>
+                                    )}
+                                    {order.memberTier === 'plus' && !order.isReturned && !order.isRefunded && (
+                                        <p className='mt-2 font-sans text-sm text-ink'>
+                                            {order.memberRewardAt
+                                                ? `${formatINR(order.memberRewardAmount || 0)} Plus store credit added on ${formatDate(order.memberRewardAt)}.`
+                                                : returnDeadline(order)
+                                                    ? `${formatINR(rewardFor(order))} Plus store credit will be added after ${formatDate(returnDeadline(order))}.`
+                                                    : `${formatINR(rewardFor(order))} Plus store credit will be added once the return window closes.`}
+                                        </p>
+                                    )}
                                     {(isPaid || order.isRefunded) && (
                                         <div className='mt-5 flex flex-wrap gap-x-6 gap-y-2'>
                                             {isPaid && (
@@ -355,7 +371,7 @@ const OrderDetails = ({ startReturn = false }) => {
                                     <p className='mt-3 font-sans text-sm leading-relaxed text-ink-soft'>
                                         {isDelivered
                                             ? 'Questions about an item, your delivery or a return — we read every message.'
-                                            : `Once it’s delivered, you can return this order within ${RETURN_WINDOW_DAYS} days from this page.`}
+                                            : `Once it’s delivered, you can return this order within ${windowDaysFor(order)} days from this page.`}
                                     </p>
                                     <Link to='/contact-us' className='mt-4 inline-block font-sans text-sm text-brass underline-offset-4 hover:underline'>
                                         Contact us about this order

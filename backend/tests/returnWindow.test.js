@@ -42,6 +42,7 @@ test('requestReturn refuses a return after the window closes', async () => {
     assert.equal(res.statusCode, 400);
     assert.equal(res.body.code, 'RETURN_WINDOW_CLOSED');
     assert.match(res.body.message, /within 7 days of delivery/);
+    assert.equal(require('../utils/returnWindow').windowDaysFor({ memberTier: 'essential' }), 14);
 });
 
 test('requestReturn stores the reason and trimmed details, and marks the order', async () => {

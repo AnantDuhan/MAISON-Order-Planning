@@ -33,6 +33,7 @@ const NewProduct = () => {
     const categoryOptions = { groups: categoryGroups(categoryTree.filter(d => d.isActive !== false)), extra: null };
     const [metaTitle, setMetaTitle] = useState('');
     const [metaDescription, setMetaDescription] = useState('');
+    const [earlyAccess, setEarlyAccess] = useState(false);
     const [Stock, setStock] = useState(0);
     const [variantData, setVariantData] = useState({ options: [], variants: [] });
     const hasOptions = variantData.options.length > 0;
@@ -63,6 +64,7 @@ const NewProduct = () => {
         myForm.set('category', category);
         myForm.set('metaTitle', metaTitle);
         myForm.set('metaDescription', metaDescription);
+        if (earlyAccess) myForm.set('earlyAccess', 'start');
         myForm.set('Stock', hasOptions ? variantTotalStock(variantData.variants) : Stock);
         const variantFields = variantFormFields(variantData);
         myForm.set('options', variantFields.options);
@@ -176,6 +178,14 @@ const NewProduct = () => {
                         <p className='-mt-2 font-sans text-xs text-ink-faint'>
                             Missing one? <Link to='/admin/categories' className='text-brass underline-offset-4 hover:underline'>Manage categories</Link>
                         </p>
+
+                        <label className='flex items-start gap-3 border border-line p-4'>
+                            <input type='checkbox' checked={earlyAccess} onChange={e => setEarlyAccess(e.target.checked)} className='mt-1 h-4 w-4 accent-[#A07C4B]' />
+                            <span>
+                                <span className='block font-sans text-sm text-ink'>Launch with 48-hour Plus early access</span>
+                                <span className='block font-sans text-xs text-ink-faint'>Everyone can see it, but only Maison Plus members can buy it for the first 48 hours.</span>
+                            </span>
+                        </label>
 
                         <div>
                             <label className='eyebrow'>Description</label>

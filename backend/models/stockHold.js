@@ -32,6 +32,7 @@ const stockHoldSchema = new mongoose.Schema({
     // Maison Plus member at checkout: the order is priced with free shipping,
     // even if the membership changes before the order is placed.
     memberFreeShipping: { type: Boolean, default: false },
+    memberTier: { type: String, default: null },
     order: { type: String, ref: 'Order' },
     releaseReason: String,
     createdAt: { type: Date, default: Date.now },

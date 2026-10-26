@@ -12,7 +12,11 @@ const inventory = require('../services/inventoryService');
 const s = stubs();
 // Checkout now asks whether the shopper is a Maison Plus member; default to no.
 const Subscription = require('../models/plusMembership');
-beforeEach(() => s.set(Subscription, 'exists', async () => null));
+const noMembership = () => ({ sort() { return this; }, select() { return this; }, lean: async () => null });
+beforeEach(() => {
+    s.set(Subscription, 'findOne', noMembership);
+    s.set(Subscription, 'distinct', async () => []);
+});
 afterEach(() => s.restore());
 
 const lean = value => ({ select: () => ({ lean: async () => value }), lean: async () => value });
@@ -204,8 +208,9 @@ test('back-in-stock: subscribe only while out of stock, duplicates are fine', as
 
 test('back-in-stock: each waiting customer is emailed once', async t => {
     s.set(Product, 'find', () => lean([{ _id: 'lamp', name: 'Lamp', price: 10, images: [], Stock: 3 }]));
-    const alerts = [{ _id: 'a1', email: 'a@x.com' }, { _id: 'a2', email: 'b@x.com' }];
+    const alerts = [{ _id: 'a1', user: 'u1', email: 'a@x.com' }, { _id: 'a2', user: 'u2', email: 'b@x.com' }];
     s.set(StockAlert, 'find', () => ({ limit: async () => alerts }));
+    s.set(Subscription, 'distinct', async () => ['u1', 'u2']); // members: emailed straight away
     const claimed = new Set();
     s.set(StockAlert, 'updateOne', async filter => {
         if (claimed.has(filter._id)) return { modifiedCount: 0 };
@@ -227,4 +232,37 @@ test('back-in-stock: each waiting customer is emailed once', async t => {
     ]);
     assert.equal(first + second, 2);
     assert.deepEqual(sentTo.sort(), ['a@x.com', 'b@x.com']);
+});
+
+test('back-in-stock: members are emailed at once, everyone else 6 hours later', async t => {
+    s.set(Product, 'find', () => lean([{ _id: 'lamp', name: 'Lamp', price: 10, images: [], Stock: 3 }]));
+    const alerts = [
+        { _id: 'm1', user: 'member', email: 'member@x.com', notifyAfter: null },
+        { _id: 'n1', user: 'guest', email: 'guest@x.com', notifyAfter: null },
+    ];
+    s.set(StockAlert, 'find', () => ({ limit: async () => alerts.filter(a => !a.notifiedAt) }));
+    s.set(Subscription, 'distinct', async () => ['member']);
+    s.set(StockAlert, 'updateOne', async (filter, change) => {
+        const alert = alerts.find(a => a._id === filter._id);
+        if ('notifiedAt' in filter && alert.notifiedAt) return { modifiedCount: 0 };
+        Object.assign(alert, change);
+        return { modifiedCount: 1 };
+    });
+    process.env.RESEND_API_KEY = 'k';
+    process.env.EMAIL_FROM_NOREPLY = 'n@x.com';
+    process.env.EMAIL_FROM_SUPPORT = 's@x.com';
+    const sentTo = [];
+    t.mock.method(global, 'fetch', async (url, init) => {
+        sentTo.push(JSON.parse(init.body).to[0]);
+        return { ok: true, json: async () => ({ id: 'e' }) };
+    });
+
+    const restock = new Date('2026-10-26T10:00:00Z');
+    assert.equal(await inventory.notifyBackInStock(['lamp'], { now: restock }), 1);
+    assert.deepEqual(sentTo, ['member@x.com']);
+    assert.equal(alerts[1].notifyAfter.toISOString(), '2026-10-26T16:00:00.000Z');
+
+    assert.equal(await inventory.notifyBackInStock(['lamp'], { now: new Date('2026-10-26T15:00:00Z') }), 0);
+    assert.equal(await inventory.notifyBackInStock(['lamp'], { now: new Date('2026-10-26T16:00:00Z') }), 1);
+    assert.deepEqual(sentTo, ['member@x.com', 'guest@x.com']);
 });

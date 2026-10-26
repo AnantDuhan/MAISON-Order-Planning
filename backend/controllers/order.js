@@ -11,7 +11,7 @@ const path = require('path');
 const { getCashfreeOrder } = require('../utils/cashfree');
 const { sendPushNotification } = require('../utils/pushNotifications');
 const { priceOrder } = require('../utils/orderPricing');
-const { hasActiveMembership } = require('../utils/membership');
+const { getMembershipTier } = require('../utils/membership');
 const { sendOrderConfirmationWithInvoice } = require('../services/invoiceService');
 const inventory = require('../services/inventoryService');
 const shipments = require('../services/shipmentService');
@@ -82,11 +82,15 @@ exports.newOrder = async (req, res, next) => {
         if (hold && String(hold.user) !== String(req.user._id)) {
             return res.status(403).json({ success: false, message: 'You cannot use this payment for the order' });
         }
-        const freeShipping = hold ? Boolean(hold.memberFreeShipping) : await hasActiveMembership(req.user._id);
+        // The tier at checkout is kept on the hold, so the order matches what was paid.
+        const tier = hold
+            ? (hold.memberTier || (hold.memberFreeShipping ? 'plus' : null))
+            : await getMembershipTier(req.user._id);
+        const freeShipping = Boolean(tier);
 
         // Stock isn't checked here: it was held for this payment at checkout
         // (and may now read 0 because this customer holds the last unit).
-        const pricing = await priceOrder(orderItems, couponCode, { checkStock: false, freeShipping });
+        const pricing = await priceOrder(orderItems, couponCode, { checkStock: false, freeShipping, tier });
         const walletApplied = hold?.walletApplied || 0;
 
         let paymentId;
@@ -181,6 +185,7 @@ exports.newOrder = async (req, res, next) => {
                 couponUsed: Boolean(pricing.coupon),
                 couponCode: pricing.coupon ? pricing.coupon.code : undefined,
                 estimatedDeliveryDate,
+                memberTier: tier || null,
                 stockCommittedAt: stock.committed ? new Date() : null,
                 stockShortfall: stock.shortfall,
             });
