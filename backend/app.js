@@ -250,6 +250,7 @@ const auditRoute = require("./routes/audit");
 const walletRoute = require("./routes/wallet");
 const featuresRoute = require("./routes/features");
 const aiRoute = require("./routes/ai");
+const categoryRoute = require("./routes/category");
 const inventory = require("./services/inventoryService");
 const { auditAdminWrites, snapshot } = require("./middleware/audit");
 const { buildVariantFields, cleanImageColors, parseTags } = require("./utils/productVariants");
@@ -289,6 +290,7 @@ app.use("/api/v1", auditRoute);
 app.use("/api/v1", walletRoute);
 app.use("/api/v1", featuresRoute);
 app.use("/api/v1", aiRoute);
+app.use("/api/v1", categoryRoute);
 app.use(redirectRoute);
 app.use(seoRoute); // /sitemap.xml
 
@@ -453,6 +455,56 @@ adminProducts.delete("/admin/product/:id", adminOnly, async (req, res) => {
   } catch (error) {
     console.error("⚠️ Error deleting product:", error);
     return res.status(500).json({ success: false, message: "Could not delete product" });
+  }
+});
+
+// Category photo (Admin > Categories). Optional: without one, the store
+// shows the newest product photo in that category.
+adminProducts.put("/admin/categories/:id/image", adminOnly, upload.single("image"), async (req, res) => {
+  try {
+    const Category = require("./models/category");
+    const categoryService = require("./services/categoryService");
+    const category = await Category.findById(req.params.id);
+    if (!category) return res.status(404).json({ success: false, message: "Category not found" });
+    if (!req.file) return res.status(400).json({ success: false, message: "Choose an image" });
+
+    const { buffer, mimetype, ext } = await compressImage(req.file);
+    const key = `categories/${category._id}/${Date.now()}.${ext || "img"}`;
+    await s3.send(new PutObjectCommand({
+      Bucket: process.env.AWS_BUCKET_NAME,
+      Key: key,
+      Body: buffer,
+      ContentType: mimetype,
+      CacheControl: "public, max-age=31536000, immutable",
+    }));
+    const previous = category.image?.url;
+    category.image = { url: `https://${bucketHost()}/${key}` };
+    await category.save();
+    if (previous) await deleteImages([{ url: previous }]);
+    await categoryService.clearCache();
+    res.locals.audit = { summary: `Category "${category.name}" photo updated` };
+    res.status(200).json({ success: true, category });
+  } catch (error) {
+    console.error("Category image upload failed:", error);
+    res.status(500).json({ success: false, message: "Could not upload the image" });
+  }
+});
+
+adminProducts.delete("/admin/categories/:id/image", adminOnly, async (req, res) => {
+  try {
+    const Category = require("./models/category");
+    const categoryService = require("./services/categoryService");
+    const category = await Category.findById(req.params.id);
+    if (!category) return res.status(404).json({ success: false, message: "Category not found" });
+    const previous = category.image?.url;
+    category.image = { url: null };
+    await category.save();
+    if (previous) await deleteImages([{ url: previous }]);
+    await categoryService.clearCache();
+    res.status(200).json({ success: true, category });
+  } catch (error) {
+    console.error("Category image removal failed:", error);
+    res.status(500).json({ success: false, message: "Could not remove the image" });
   }
 });
 
