@@ -12,6 +12,7 @@ const links = [
     { to: '/admin/dashboard', label: 'Dashboard' },
     { to: '/admin/products', label: 'Products' },
     { to: '/admin/add-product', label: 'Add Product' },
+    { to: '/admin/categories', label: 'Categories' },
     { to: '/admin/orders', label: 'Orders' },
     { to: '/admin/reviews', label: 'Reviews' },
     { to: '/admin/users', label: 'Users' },
@@ -25,8 +26,9 @@ const links = [
     { to: '/admin/features', label: 'Features' },
 ];
 
-const primaryLinks = links.slice(0, 4);
-const secondaryLinks = links.slice(4);
+const PRIMARY = ['/admin/dashboard', '/admin/products', '/admin/add-product', '/admin/orders'];
+const primaryLinks = links.filter(l => PRIMARY.includes(l.to));
+const secondaryLinks = links.filter(l => !PRIMARY.includes(l.to));
 
 const AdminHeader = () => {
     const { isAuthenticated, user } = useSelector(state => state.user);

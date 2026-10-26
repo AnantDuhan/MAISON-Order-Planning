@@ -4,7 +4,7 @@ import SpellcheckIcon from '@mui/icons-material/Spellcheck';
 import StorageIcon from '@mui/icons-material/Storage';
 import React, { Fragment, useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 
 import { clearErrors, getProductDetails, updateProduct } from '../../actions/productAction';
@@ -14,12 +14,8 @@ import AdminPage from './shared/AdminPage';
 import VariantEditor, { variantFormFields, variantTotalStock } from './VariantEditor';
 import PhotoColorTags, { colourValues, useFileThumbnails } from './PhotoColorTags';
 import ButtonSpinner from '../layout/ButtonSpinner';
+import { categoryGroups, useCategories } from '../../utils/useCategories';
 
-const categories = [
-    'Laptop', 'Footwear', 'Bottom', 'Tops', 'Attire',
-    'Camera', 'SmartPhones', 'Jeans',
-];
-const ADD_CATEGORY_OPTION = '__add_new_category__';
 
 const UpdateProduct = () => {
     const dispatch = useDispatch();
@@ -33,8 +29,11 @@ const UpdateProduct = () => {
     const [price, setPrice] = useState(0);
     const [description, setDescription] = useState('');
     const [category, setCategory] = useState('');
-    const [isAddingCategory, setIsAddingCategory] = useState(false);
-    const [newCategory, setNewCategory] = useState('');
+    const { categories: categoryTree } = useCategories({ admin: true });
+    const groups = categoryGroups(categoryTree.filter(d => d.isActive !== false));
+    // Keep a product's current category selectable even if it was hidden or renamed elsewhere.
+    const known = groups.some(g => g.options.some(n => n.toLowerCase() === String(category).toLowerCase()));
+    const categoryOptions = { groups, extra: category && !known ? category : null };
     const [Stock, setStock] = useState(0);
     const [variantData, setVariantData] = useState({ options: [], variants: [] });
     const hasOptions = variantData.options.length > 0;
@@ -81,7 +80,7 @@ const UpdateProduct = () => {
 
     const updateProductSubmitHandler = e => {
         e.preventDefault();
-        const productCategory = isAddingCategory ? newCategory.trim() : category;
+        const productCategory = category;
         if (!productCategory) {
             toast.error('Please choose or enter a category');
             return;
@@ -172,45 +171,21 @@ const UpdateProduct = () => {
 
                         <div className='field-row'>
                             <AccountTreeIcon />
-                            <select
-                                value={isAddingCategory ? ADD_CATEGORY_OPTION : category}
-                                required={!isAddingCategory}
-                                onChange={e => {
-                                    const selectedCategory = e.target.value;
-                                    if (selectedCategory === ADD_CATEGORY_OPTION) {
-                                        setIsAddingCategory(true);
-                                        setNewCategory('');
-                                        return;
-                                    }
-                                    setCategory(selectedCategory);
-                                    setIsAddingCategory(false);
-                                    setNewCategory('');
-                                }}
-                            >
+                            <select value={category} onChange={e => setCategory(e.target.value)} required>
                                 <option value=''>Choose Category</option>
-                                {category && !categories.includes(category) && !isAddingCategory && (
-                                    <option value={category}>{category}</option>
-                                )}
-                                {categories.map(cate => (
-                                    <option key={cate} value={cate}>{cate}</option>
+                                {categoryOptions.extra && <option value={categoryOptions.extra}>{categoryOptions.extra}</option>}
+                                {categoryOptions.groups.map(group => (
+                                    <optgroup key={group.label} label={group.label}>
+                                        {group.options.map(name => (
+                                            <option key={name} value={name}>{name === group.label ? `${name} (whole department)` : name}</option>
+                                        ))}
+                                    </optgroup>
                                 ))}
-                                <option value={ADD_CATEGORY_OPTION}>Add new category…</option>
                             </select>
                         </div>
-                        {isAddingCategory && (
-                            <div className='field-row'>
-                                <AccountTreeIcon />
-                                <input
-                                    type='text'
-                                    placeholder='New category name'
-                                    aria-label='New category name'
-                                    maxLength={80}
-                                    required
-                                    value={newCategory}
-                                    onChange={e => setNewCategory(e.target.value)}
-                                />
-                            </div>
-                        )}
+                        <p className='-mt-2 font-sans text-xs text-ink-faint'>
+                            Missing one? <Link to='/admin/categories' className='text-brass underline-offset-4 hover:underline'>Manage categories</Link>
+                        </p>
 
                         <div>
                             <label className='eyebrow'>Description</label>
@@ -287,7 +262,7 @@ const UpdateProduct = () => {
                             )}
                         </div>
 
-                        <VariantEditor category={isAddingCategory ? newCategory : category} value={variantData} onChange={setVariantData} />
+                        <VariantEditor category={category} value={variantData} onChange={setVariantData} />
 
                         <button type='submit' disabled={loading} className='btn-solid w-full disabled:opacity-40'>
                             {loading ? (

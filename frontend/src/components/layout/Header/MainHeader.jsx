@@ -160,23 +160,6 @@ const MainHeader = () => {
 
                 {/* Right: actions */}
                 <div className='flex flex-1 items-center justify-end gap-3 sm:gap-4 lg:gap-3 xl:gap-4'>
-                    {/* Admin entry — visible from sm up; on phones it lives in the menu. */}
-                    {user?.role === 'admin' && (
-                        <Link
-                            to='/admin/dashboard'
-                            title='Admin Dashboard'
-                            aria-label='Admin Dashboard'
-                            className='hidden shrink-0 items-center gap-2 border border-brass px-2.5 py-1.5 sm:inline-flex font-sans text-[0.66rem] uppercase tracking-luxe text-brass transition-all duration-500 ease-luxe hover:bg-brass hover:text-white sm:px-3'
-                        >
-                            <svg width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='1.7'>
-                                <rect x='3' y='3' width='7' height='9' />
-                                <rect x='14' y='3' width='7' height='5' />
-                                <rect x='14' y='12' width='7' height='9' />
-                                <rect x='3' y='16' width='7' height='5' />
-                            </svg>
-                            <span className='hidden sm:inline'>Admin</span>
-                        </Link>
-                    )}
                     <form ref={searchRef} className='relative hidden md:block' onSubmit={searchSubmitHandler}>
                         <div className='flex items-center gap-2 border-b border-line focus-within:border-brass'>
                             <FaSearch className='text-ink-faint' size={13} />
@@ -234,6 +217,23 @@ const MainHeader = () => {
                             </span>
                         )}
                     </Link>
+
+                    {/* Admin: a quiet icon at the end, so it doesn't crowd the wordmark. In the menu on phones. */}
+                    {user?.role === 'admin' && (
+                        <Link
+                            to='/admin/dashboard'
+                            title='Admin dashboard'
+                            aria-label='Admin dashboard'
+                            className='hidden text-ink transition-colors hover:text-brass sm:block'
+                        >
+                            <svg width='19' height='19' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='1.6' aria-hidden='true'>
+                                <rect x='3' y='3' width='7' height='9' />
+                                <rect x='14' y='3' width='7' height='5' />
+                                <rect x='14' y='12' width='7' height='9' />
+                                <rect x='3' y='16' width='7' height='5' />
+                            </svg>
+                        </Link>
+                    )}
 
                     {isAuthenticated ? (
                         <div className='flex items-center gap-3'>

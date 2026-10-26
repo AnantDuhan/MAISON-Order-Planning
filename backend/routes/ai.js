@@ -9,7 +9,7 @@ const { isAuthUser, authRoles } = require('../middleware/auth');
 const { aiLimiter } = require('../middleware/rateLimiter');
 const { requireFeature } = require('../services/featureFlags');
 const ai = require('../services/aiService');
-const { PRODUCT_CATEGORIES } = require('../utils/productCategories');
+const categoryService = require('../services/categoryService');
 
 const router = express.Router();
 
@@ -48,7 +48,7 @@ router.post(
         try {
             const draft = await ai.draftProductListing({
                 images: req.files,
-                categories: PRODUCT_CATEGORIES,
+                categories: await categoryService.assignableNames(),
                 category: req.body.category,
                 notes: req.body.notes,
             });

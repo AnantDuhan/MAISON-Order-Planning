@@ -6,6 +6,7 @@ import { addProductToWishlist } from '../../actions/productAction';
 import { toast } from 'react-toastify';
 import { priceLabel } from '../../utils/priceLabel';
 import { useCanHover } from '../../utils/useCanHover';
+import { optionsSummary, stockStatus } from '../../utils/productFacts';
 
 const DEFAULT_IMAGE = 'https://ecommerce-bucket-sdk.s3.ap-south-1.amazonaws.com/default.jpg';
 
@@ -76,6 +77,9 @@ const ProductCard = ({ product }) => {
 
     if (!product) return null;
 
+    const summary = optionsSummary(product);
+    const stock = stockStatus(product);
+
     const options = {
         size: 'small',
         value: product?.ratings,
@@ -110,16 +114,23 @@ const ProductCard = ({ product }) => {
                     </span>
                 </div>
 
-                {/* Meta */}
+                {/* Meta: category, name, real options, price and stock */}
                 <div className='px-5 py-5'>
-                    <h3 className='truncate font-display text-xl font-medium text-ink'>{product.name}</h3>
-                    <div className='mt-2 flex items-center gap-2'>
-                        <Rating {...options} />
-                        <span className='font-sans text-[0.7rem] text-ink-faint'>
-                            ({product.numOfReviews})
-                        </span>
+                    {product.category && (
+                        <p className='truncate font-sans text-[0.68rem] uppercase tracking-luxe text-ink-faint'>{product.category}</p>
+                    )}
+                    <h3 className='mt-1 truncate font-display text-xl font-medium text-ink'>{product.name}</h3>
+                    {summary && <p className='mt-1 truncate font-sans text-xs text-ink-soft'>{summary}</p>}
+                    {product.numOfReviews > 0 && (
+                        <div className='mt-2 flex items-center gap-2'>
+                            <Rating {...options} />
+                            <span className='font-sans text-[0.7rem] text-ink-faint'>({product.numOfReviews})</span>
+                        </div>
+                    )}
+                    <div className='mt-3 flex items-baseline justify-between gap-3'>
+                        <p className='font-sans text-sm tracking-wide text-ink'>{priceLabel(product)}</p>
+                        <p className={`shrink-0 font-sans text-[0.68rem] uppercase tracking-luxe ${stock.tone === 'out' ? 'text-danger' : stock.tone === 'low' ? 'text-brass' : 'text-ink-faint'}`}>{stock.label}</p>
                     </div>
-                    <p className='mt-3 font-sans text-sm tracking-wide text-ink-soft'>{priceLabel(product)}</p>
                 </div>
             </Link>
         </Fragment>

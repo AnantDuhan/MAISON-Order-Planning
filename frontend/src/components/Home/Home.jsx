@@ -1,3 +1,4 @@
+import axios from 'axios';
 import React, { Fragment, useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
@@ -5,197 +6,277 @@ import { toast } from 'react-toastify';
 
 import { clearErrors, getProduct } from '../../actions/productAction';
 import { clearNewsletter, newsletter } from '../../actions/subscribeAction';
-import LoadingBar from 'react-top-loading-bar';
 import Loader from '../layout/Loader/Loader';
 import MetaData from '../layout/MetaData';
 import ProductCard from './ProductCard';
-import ProductGridItem from './ProductGridItem';
 import { useFeature } from '../../context/FeatureFlagsContext';
-import { priceLabel } from '../../utils/priceLabel';
-import { cleanText } from '../../utils/cleanText';
+import { formatINR, priceLabel } from '../../utils/priceLabel';
+import { FREE_SHIPPING_THRESHOLD } from '../../utils/delivery';
+import { RETURN_WINDOW_DAYS } from '../../utils/returnWindow';
+import { useCategories } from '../../utils/useCategories';
 
+const FALLBACK_PLUS_PRICE = 299;
+
+const firstImage = product => (product?.images || []).find(img => img?.url)?.url || null;
+
+const Icon = ({ children }) => (
+    <svg width='22' height='22' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='1.5' aria-hidden='true' className='shrink-0 text-brass'>
+        {children}
+    </svg>
+);
+
+/** Monthly Maison Plus price from the plans API, with a sensible fallback. */
+const usePlusPrice = () => {
+    const [price, setPrice] = useState(FALLBACK_PLUS_PRICE);
+    useEffect(() => {
+        let alive = true;
+        axios.get('/api/v1/membership/plans')
+            .then(({ data }) => {
+                const monthly = (data.plans || []).find(p => p.interval === 'monthly');
+                if (alive && monthly?.amount) setPrice(monthly.amount);
+            })
+            .catch(() => {});
+        return () => { alive = false; };
+    }, []);
+    return price;
+};
+
+const SectionHead = ({ title, link, linkLabel }) => (
+    <div className='flex flex-wrap items-end justify-between gap-3'>
+        <h2 className='heading-display text-4xl sm:text-5xl'>{title}</h2>
+        {link && (
+            <Link to={link} className='link-reveal font-sans text-xs uppercase tracking-luxe sm:text-sm'>{linkLabel}</Link>
+        )}
+    </div>
+);
+
+const CategoryTile = ({ dept }) => {
+    const hasProducts = dept.productCount > 0;
+    const body = (
+        <>
+            <div className={`relative aspect-[4/5] overflow-hidden ${dept.displayImage ? 'bg-[#F1EEE9]' : 'bg-surface-2'}`}>
+                {dept.displayImage ? (
+                    <img
+                        src={dept.displayImage}
+                        alt=''
+                        loading='lazy'
+                        decoding='async'
+                        className='h-full w-full object-contain p-6 mix-blend-multiply transition-transform duration-700 ease-luxe group-hover:scale-105'
+                    />
+                ) : (
+                    <span className='absolute inset-0 grid place-items-center break-words px-3 text-center font-display text-2xl leading-tight text-ink/70 sm:text-3xl'>{dept.name}</span>
+                )}
+            </div>
+            <div className='mt-4 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5'>
+                <p className='min-w-0 font-sans text-base text-ink'>{dept.name}</p>
+                <p className='font-sans text-xs text-ink-faint'>
+                    {hasProducts ? `${dept.productCount} ${dept.productCount === 1 ? 'piece' : 'pieces'}` : 'Arriving soon'}
+                </p>
+            </div>
+            {dept.description && <p className='mt-1 line-clamp-2 font-sans text-sm text-ink-soft'>{dept.description}</p>}
+        </>
+    );
+    return hasProducts ? (
+        <Link to={`/products?category=${encodeURIComponent(dept.slug)}`} className='group block'>{body}</Link>
+    ) : (
+        <div className='block opacity-80'>{body}</div>
+    );
+};
+
+// Product photos are shot on white, so their panels stay a light neutral in
+// both themes and the photo blends into it (mix-blend-multiply).
 const Home = () => {
     const newsletterOn = useFeature('newsletter');
     const dispatch = useDispatch();
+    const plusPrice = usePlusPrice();
+    const { categories } = useCategories();
 
     const [email, setEmail] = useState('');
-    const [progress, setProgress] = useState(0);
-
-    const onLoaderFinished = () => setProgress(0);
 
     const { loading, error, products } = useSelector(state => state.products);
-
-    // Each product appears once on the page: the newest is featured, the next
-    // three are the New Drop, and up to four more fill the Shop All grid.
-    const list = Array.isArray(products) ? products : [];
-    const featured = list[list.length - 1];
-    const rest = list.slice(0, -1).reverse();
-    const newDrop = rest.slice(0, 3);
-    const more = rest.slice(3, 7);
     const { success: subscribeSuccess, error: subscribeError } = useSelector(state => state.subscribe);
+
+    useEffect(() => {
+        if (subscribeSuccess) {
+            toast.success("You're on the list.");
+            dispatch(clearNewsletter());
+        }
+        if (subscribeError) {
+            toast.error("You're already on the list.");
+            dispatch(clearNewsletter());
+        }
+    }, [dispatch, subscribeSuccess, subscribeError]);
+
+    useEffect(() => {
+        if (error) {
+            toast.error(error);
+            dispatch(clearErrors());
+        }
+    }, [dispatch, error]);
+
+    useEffect(() => {
+        dispatch(getProduct());
+    }, [dispatch]);
 
     const submitSubscribeHandler = e => {
         e.preventDefault();
         dispatch(newsletter(email));
         setEmail('');
-        setProgress(50);
     };
 
-    useEffect(() => {
-        if (subscribeSuccess) {
-            toast.success("You've successfully subscribed to our newsletter");
-            dispatch(clearNewsletter());
-        }
-        if (subscribeError) {
-            toast.error("You've already subscribed to our newsletter");
-        }
-        if (error) {
-            toast.error(error);
-            dispatch(clearErrors());
-        }
-        setProgress(100);
-        setTimeout(() => setProgress(0), 5000);
-        dispatch(getProduct());
-    }, [dispatch, error, subscribeSuccess, subscribeError]);
+    // Newest first. The hero shows the newest piece; new arrivals show up to
+    // four, skipping the hero piece once there are enough others to fill a row.
+    const list = (Array.isArray(products) ? products : []).slice().reverse();
+    const hero = list.find(firstImage) || list[0];
+    const arrivals = (list.length > 4 ? list.filter(p => p !== hero) : list).slice(0, 4);
+    const storyProduct = list.find(p => p !== hero && firstImage(p)) || hero;
+    const departments = categories.filter(d => !d.parent);
+
+    if (loading && !list.length) return <Loader label='Opening the doors' />;
 
     return (
         <Fragment>
-            {loading ? (
-                <Fragment>
-                    <LoadingBar color='#A07C4B' progress={progress} onLoaderFinished={onLoaderFinished} />
-                    <Loader label='Opening the doors' />
-                </Fragment>
-            ) : (
-                <Fragment>
-                    <MetaData title='Maison · Curated Objects for Everyday Life' />
+            <MetaData title='Maison · Curated Objects for Everyday Life' />
 
-                    {/* ── Editorial hero ─────────────────────────── */}
-                    <section className='editorial-shell pt-16 pb-10 text-center'>
-                        <p className='eyebrow animate-fade-in'>The Autumn Edit · MMXXVI</p>
-                        <h1 className='heading-display mx-auto mt-6 max-w-4xl text-display-lg animate-fade-up'>
-                            Considered objects for the
-                            <span className='italic text-brass'> considered </span>
-                            life.
-                        </h1>
-                        <p className='mx-auto mt-6 max-w-xl font-sans text-base leading-relaxed text-ink-soft animate-fade-up'>
-                            A curated house of pieces chosen with intention — designed to be
-                            worn, used, and kept for years to come.
-                        </p>
-                        <div className='mt-9 flex items-center justify-center gap-4 animate-fade-up'>
-                            <Link to='/products' className='btn-solid'>Explore the Collection</Link>
-                            <Link to='/about' className='btn-outline'>Our Story</Link>
-                        </div>
-                    </section>
-
-                    {/* ── Featured piece band ────────────────────── */}
-                    {featured && (() => {
-                        const featuredImg =
-                            featured?.images?.[0]?.url ||
-                            'https://ecommerce-bucket-sdk.s3.ap-south-1.amazonaws.com/default.jpg';
-                        return (
-                            <section className='editorial-shell mt-16'>
-                                <div className='grid items-stretch overflow-hidden border border-line md:grid-cols-2'>
-                                    <div className='relative aspect-square md:aspect-auto'>
-                                        <img
-                                            src={featuredImg}
-                                            alt={featured?.name}
-                                            loading='lazy'
-                                            decoding='async'
-                                            className='absolute inset-0 h-full w-full object-cover'
-                                        />
-                                    </div>
-                                    <div className='flex flex-col justify-center bg-surface px-8 py-16 lg:px-16'>
-                                        <p className='eyebrow'>Featured</p>
-                                        <h2 className='heading-display mt-4 text-display'>
-                                            {featured?.name}
-                                        </h2>
-                                        <p className='mt-5 max-w-md whitespace-pre-line font-sans text-base leading-relaxed text-ink-soft line-clamp-4'>
-                                            {cleanText(featured?.description)}
-                                        </p>
-                                        <p className='mt-6 font-display text-3xl font-medium text-ink'>
-                                            {priceLabel(featured)}
-                                        </p>
-                                        <div className='mt-8'>
-                                            <Link to={`/product/${featured?._id}`} className='btn-outline'>
-                                                Discover the Piece
-                                            </Link>
-                                        </div>
-                                    </div>
-                                </div>
-                            </section>
-                        );
-                    })()}
-
-                    {/* ── New Drop ───────────────────────────────── */}
-                    {newDrop.length > 0 && (
-                    <section className='editorial-shell mt-24'>
-                        <div className='mb-10 flex items-end justify-between'>
-                            <div>
-                                <p className='eyebrow'>Just Landed</p>
-                                <h2 className='heading-display mt-3 text-display'>New Drop</h2>
-                            </div>
-                            <Link to='/products' className='link-reveal font-sans text-xs uppercase tracking-luxe sm:text-sm'>
-                                View all
-                            </Link>
-                        </div>
-                        <div className='grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3'>
-                            {newDrop.map(product => (
-                                <ProductCard key={product._id} product={product} />
-                            ))}
-                        </div>
-                    </section>
-                    )}
-
-                    {/* ── Shop All (editorial grid) ──────────────── */}
-                    {more.length > 0 && (
-                    <section className='editorial-shell mt-24'>
-                        <div className='mb-10 text-center'>
-                            <p className='eyebrow'>The Full House</p>
-                            <h2 className='heading-display mt-3 text-display'>Shop All</h2>
-                        </div>
-                        <div className='grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-4'>
-                            {more.map(product => (
-                                <ProductGridItem key={product._id} product={product} />
-                            ))}
-                        </div>
-                        <div className='mt-10 text-center'>
-                            <Link to='/products' className='btn-outline'>Shop the full collection</Link>
-                        </div>
-                    </section>
-                    )}
-
-                    {/* ── Newsletter ─────────────────────────────── */}
-                    {newsletterOn && (
-                    <section className='editorial-shell mt-28'>
-                        <div className='relative overflow-hidden border border-line bg-ink px-6 py-20 text-center'>
-                            <p className='eyebrow !text-brass-soft'>Stay in the Know</p>
-                            <h2 className='heading-display mx-auto mt-4 max-w-2xl text-display !text-canvas'>
-                                Join the list. First looks, private releases.
-                            </h2>
-                            <form
-                                onSubmit={submitSubscribeHandler}
-                                className='mx-auto mt-10 flex max-w-md flex-col items-center gap-4 sm:flex-row'
-                            >
-                                <input
-                                    type='email'
-                                    required
-                                    placeholder='Enter your email address'
-                                    value={email}
-                                    onChange={e => setEmail(e.target.value)}
-                                    className='w-full border-b border-white/25 bg-transparent py-3 text-center font-sans text-canvas placeholder:text-white/40 focus:border-brass focus:outline-none sm:text-left'
+            {/* Hero: a real photo next to a short promise */}
+            <section className='editorial-shell pt-8 sm:pt-12'>
+                <div className='flex flex-wrap items-center gap-10 lg:gap-14'>
+                    <Link
+                        to={hero ? `/product/${hero._id}` : '/products'}
+                        className='group relative block min-w-0 flex-[999_1_520px] overflow-hidden bg-[#F1EEE9]'
+                        aria-label={hero ? `Featured: ${hero.name}` : 'Shop the collection'}
+                    >
+                        <div className='aspect-[4/3] w-full sm:aspect-[16/11]'>
+                            {firstImage(hero) && (
+                                <img
+                                    src={firstImage(hero)}
+                                    alt={hero.name}
+                                    decoding='async'
+                                    className='h-full w-full object-contain p-8 mix-blend-multiply transition-transform duration-700 ease-luxe group-hover:scale-[1.03] sm:p-12'
                                 />
-                                <button
-                                    type='submit'
-                                    onClick={() => setProgress(progress + 60)}
-                                    className='btn-luxe w-full shrink-0 bg-brass px-8 py-4 text-white hover:bg-brass-soft sm:w-auto'
-                                >
-                                    Subscribe
-                                </button>
-                            </form>
+                            )}
                         </div>
-                    </section>
-                    )}
-                </Fragment>
+                        {hero && (
+                            <div className='absolute bottom-0 left-0 flex flex-wrap items-baseline gap-x-3 gap-y-1 bg-canvas/90 px-4 py-3 backdrop-blur sm:px-5'>
+                                <span className='font-sans text-[0.68rem] uppercase tracking-luxe text-brass'>Featured</span>
+                                <span className='font-display text-lg text-ink'>{hero.name}</span>
+                                <span className='font-sans text-sm text-ink-soft'>{priceLabel(hero)}</span>
+                            </div>
+                        )}
+                    </Link>
+
+                    <div className='min-w-0 flex-[1_1_340px]'>
+                        <p className='eyebrow'>The Autumn Edit</p>
+                        <h1 className='heading-display mt-4 text-5xl leading-[1.02] sm:text-6xl'>Everyday objects, chosen well.</h1>
+                        <p className='mt-5 max-w-md font-sans text-base leading-relaxed text-ink-soft sm:text-lg'>
+                            A short, considered selection of tech, clothing and things for the home — each piece picked to be used daily
+                            and kept for years.
+                        </p>
+                        <div className='mt-8 flex flex-wrap gap-3'>
+                            <Link to='/products' className='btn-solid'>Shop new arrivals</Link>
+                            <a href='#how-we-choose' className='btn-outline'>How we choose</a>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* Reasons to buy, all true today */}
+            <section aria-label='Shopping with Maison' className='editorial-shell mt-14'>
+                <ul className='grid grid-cols-1 border-y border-line sm:grid-cols-2 lg:grid-cols-4'>
+                    <li className='flex items-center gap-3 py-5 pr-4'>
+                        <Icon><path d='M3 7h11v9H3zM14 10h4l3 3v3h-7' /><circle cx='7' cy='17.5' r='1.5' /><circle cx='17' cy='17.5' r='1.5' /></Icon>
+                        <span className='font-sans text-sm text-ink'>Free shipping over {formatINR(FREE_SHIPPING_THRESHOLD)}</span>
+                    </li>
+                    <li className='flex items-center gap-3 py-5 pr-4'>
+                        <Icon><path d='M4 12a8 8 0 1 0 3-6.2' /><path d='M4 4v4h4' /></Icon>
+                        <span className='font-sans text-sm text-ink'>{RETURN_WINDOW_DAYS}-day returns from your order page</span>
+                    </li>
+                    <li className='flex items-center gap-3 py-5 pr-4'>
+                        <Icon><rect x='5' y='10' width='14' height='10' /><path d='M8 10V7a4 4 0 0 1 8 0v3' /></Icon>
+                        <span className='font-sans text-sm text-ink'>Secure checkout by Cashfree</span>
+                    </li>
+                    <li className='flex items-center gap-3 py-5 pr-4'>
+                        <Icon><path d='M12 3l2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.4 6.7 19.4l1.2-6L3.4 9.3l6-.7z' /></Icon>
+                        <span className='font-sans text-sm text-ink'>Maison Plus: free shipping, always</span>
+                    </li>
+                </ul>
+            </section>
+
+            {/* Departments, managed in Admin > Categories */}
+            {departments.length > 0 && (
+                <section className='editorial-shell mt-20 sm:mt-24'>
+                    <SectionHead title='Shop by category' link='/products' linkLabel='View all' />
+                    <div className='mt-8 grid grid-cols-2 gap-x-4 gap-y-8 sm:gap-x-6 lg:grid-cols-5'>
+                        {departments.map(dept => <CategoryTile key={dept._id} dept={dept} />)}
+                    </div>
+                </section>
+            )}
+
+            {/* New arrivals */}
+            {arrivals.length > 0 && (
+                <section className='editorial-shell mt-20 sm:mt-24'>
+                    <SectionHead title='New arrivals' link='/products' linkLabel='Shop all' />
+                    <div className='mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4'>
+                        {arrivals.map(product => <ProductCard key={product._id} product={product} />)}
+                    </div>
+                </section>
+            )}
+
+            {/* How we choose */}
+            <section id='how-we-choose' className='editorial-shell mt-24 scroll-mt-28 sm:mt-28'>
+                <div className='flex flex-wrap bg-surface-2'>
+                    <div className='relative min-h-[320px] min-w-0 flex-[1_1_420px] bg-[#F1EEE9] sm:min-h-[440px]'>
+                        {firstImage(storyProduct) && (
+                            <img src={firstImage(storyProduct)} alt='' loading='lazy' decoding='async' className='absolute inset-0 h-full w-full object-contain p-10 mix-blend-multiply' />
+                        )}
+                    </div>
+                    <div className='flex min-w-0 flex-[1_1_420px] flex-col justify-center px-6 py-12 sm:px-12 sm:py-16'>
+                        <p className='eyebrow'>How we choose</p>
+                        <h2 className='heading-display mt-4 text-4xl leading-tight sm:text-5xl'>Fewer things, each one worth keeping.</h2>
+                        <p className='mt-5 max-w-lg font-sans text-base leading-relaxed text-ink-soft'>
+                            Every piece has to pass one simple test: would we reach for it every day, and still want it years from now?
+                            We look for good materials, honest build and brands that stand behind what they make — then keep the range
+                            small on purpose, so choosing is easy and nothing here is filler.
+                        </p>
+                        <Link to='/about' className='link-reveal mt-7 self-start font-sans text-xs uppercase tracking-luxe sm:text-sm'>Read our story</Link>
+                    </div>
+                </div>
+            </section>
+
+            {/* Maison Plus */}
+            <section className='editorial-shell mt-24 sm:mt-28'>
+                <div className='flex flex-wrap items-center justify-between gap-8 bg-ink px-6 py-12 sm:px-12 sm:py-14'>
+                    <div className='min-w-0 flex-[1_1_420px]'>
+                        <p className='font-sans text-xs uppercase tracking-luxe text-brass-soft'>Maison Plus</p>
+                        <h2 className='mt-3 font-display text-3xl font-normal leading-tight text-canvas sm:text-4xl'>
+                            Free shipping on every order, and first access to new pieces.
+                        </h2>
+                    </div>
+                    <Link to='/membership' className='btn-luxe shrink-0 bg-canvas px-7 py-4 text-ink hover:bg-brass hover:text-white'>
+                        Join for {formatINR(plusPrice)}/month
+                    </Link>
+                </div>
+            </section>
+
+            {/* Newsletter */}
+            {newsletterOn && (
+                <section className='editorial-shell mt-24 text-center sm:mt-28'>
+                    <h2 className='heading-display text-4xl'>New pieces, first.</h2>
+                    <p className='mt-3 font-sans text-sm text-ink-soft'>One short email when something new arrives. No spam.</p>
+                    <form onSubmit={submitSubscribeHandler} className='mx-auto mt-8 flex max-w-md flex-col items-stretch gap-3 sm:flex-row sm:items-center'>
+                        <label htmlFor='home-newsletter' className='sr-only'>Email address</label>
+                        <input
+                            id='home-newsletter'
+                            type='email'
+                            required
+                            placeholder='Your email address'
+                            value={email}
+                            onChange={e => setEmail(e.target.value)}
+                            className='w-full border-b border-ink bg-transparent px-1 py-3 font-sans text-ink placeholder:text-ink-faint focus:border-brass focus:outline-none'
+                        />
+                        <button type='submit' className='btn-solid shrink-0'>Subscribe</button>
+                    </form>
+                </section>
             )}
         </Fragment>
     );

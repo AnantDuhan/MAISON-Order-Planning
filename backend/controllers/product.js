@@ -9,6 +9,7 @@ const { GoogleGenAI } = require("@google/genai");
 const cache = require("../utils/cache");
 const { generateEmbedding } = require("../utils/generateEmbedding");
 const searchService = require("../services/searchService");
+const categoryService = require("../services/categoryService");
 
 // Fields an admin may change through the JSON update endpoint.
 const inventory = require("../services/inventoryService");
@@ -56,6 +57,13 @@ exports.getAllProducts = async (req, res, next) => {
   const productsCount = await Product.estimatedDocumentCount();
 
   const apiFeature = new ApiFeatures(Product.find(), req.query).search().filter();
+
+  // A department ("Electronics") covers the categories inside it, matched
+  // case-insensitively so older products keep showing up.
+  if (typeof category === 'string' && category.trim()) {
+    const names = await categoryService.namesFor(category);
+    apiFeature.query.where('category').in(names.map(n => new RegExp(`^${n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i')));
+  }
 
   const filteredProductsCount = await Product.countDocuments(apiFeature.query.getFilter());
 

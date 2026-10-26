@@ -84,6 +84,7 @@ const ShippingPolicy = lazy(() => import("./components/layout/Legal/ShippingPoli
 const RefundPolicy = lazy(() => import("./components/layout/Legal/RefundPolicy"));
 const MembershipAnalytics = lazy(() => import("./components/Admin/MembershipAnalytics"));
 const FeatureFlags = lazy(() => import("./components/Admin/FeatureFlags"));
+const AdminCategories = lazy(() => import("./components/Admin/Categories"));
 const AuditLog = lazy(() => import("./components/Admin/AuditLog"));
 const CartRecovery = lazy(() => import("./components/Admin/CartRecovery"));
 const Inventory = lazy(() => import("./components/Admin/Inventory"));
@@ -269,6 +270,15 @@ function App() {
                 element={
                   <ProtectedAdminRoute>
                     <AuditLog />
+                  </ProtectedAdminRoute>
+                }
+                exact
+              />
+              <Route
+                path="/admin/categories"
+                element={
+                  <ProtectedAdminRoute>
+                    <AdminCategories />
                   </ProtectedAdminRoute>
                 }
                 exact

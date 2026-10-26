@@ -4,7 +4,7 @@ import SpellcheckIcon from '@mui/icons-material/Spellcheck';
 import StorageIcon from '@mui/icons-material/Storage';
 import React, { Fragment, useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 
 import { clearErrors, createProduct } from '../../actions/productAction';
@@ -15,11 +15,8 @@ import VariantEditor, { variantFormFields, variantTotalStock, withOptions } from
 import AiDraftPanel from './AiDraftPanel';
 import PhotoColorTags, { colourValues, useFileThumbnails } from './PhotoColorTags';
 import ButtonSpinner from '../layout/ButtonSpinner';
+import { categoryGroups, useCategories } from '../../utils/useCategories';
 
-const categories = [
-    'Laptop', 'Mobile', 'Footwear', 'Bottom', 'Tops', 'Attire',
-    'Camera', 'SmartPhones', 'Tracksuit', 'Jeans', 'Liquor',
-];
 
 const NewProduct = () => {
     const dispatch = useDispatch();
@@ -31,6 +28,8 @@ const NewProduct = () => {
     const [price, setPrice] = useState(0);
     const [description, setDescription] = useState('');
     const [category, setCategory] = useState('');
+    const { categories: categoryTree } = useCategories({ admin: true });
+    const categoryOptions = { groups: categoryGroups(categoryTree.filter(d => d.isActive !== false)), extra: null };
     const [metaTitle, setMetaTitle] = useState('');
     const [metaDescription, setMetaDescription] = useState('');
     const [Stock, setStock] = useState(0);
@@ -157,11 +156,19 @@ const NewProduct = () => {
                             <AccountTreeIcon />
                             <select value={category} onChange={e => setCategory(e.target.value)} required>
                                 <option value=''>Choose Category</option>
-                                {categories.map(cate => (
-                                    <option key={cate} value={cate}>{cate}</option>
+                                {categoryOptions.extra && <option value={categoryOptions.extra}>{categoryOptions.extra}</option>}
+                                {categoryOptions.groups.map(group => (
+                                    <optgroup key={group.label} label={group.label}>
+                                        {group.options.map(name => (
+                                            <option key={name} value={name}>{name === group.label ? `${name} (whole department)` : name}</option>
+                                        ))}
+                                    </optgroup>
                                 ))}
                             </select>
                         </div>
+                        <p className='-mt-2 font-sans text-xs text-ink-faint'>
+                            Missing one? <Link to='/admin/categories' className='text-brass underline-offset-4 hover:underline'>Manage categories</Link>
+                        </p>
 
                         <div>
                             <label className='eyebrow'>Description</label>
