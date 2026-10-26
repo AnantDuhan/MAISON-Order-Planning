@@ -16,6 +16,7 @@ import AiDraftPanel from './AiDraftPanel';
 import PhotoColorTags, { colourValues, useFileThumbnails } from './PhotoColorTags';
 import ButtonSpinner from '../layout/ButtonSpinner';
 import { categoryGroups, useCategories } from '../../utils/useCategories';
+import { checkPhotoTags, checkProductPhotos, photoLimitHint, shrinkPhotos } from '../../utils/photoLimits';
 
 
 const NewProduct = () => {
@@ -53,7 +54,7 @@ const NewProduct = () => {
         }
     }, [dispatch, error, navigate, success]);
 
-    const createProductSubmitHandler = e => {
+    const createProductSubmitHandler = async e => {
         e.preventDefault();
         const myForm = new FormData();
         myForm.set('name', name);
@@ -67,8 +68,10 @@ const NewProduct = () => {
         myForm.set('options', variantFields.options);
         myForm.set('variants', variantFields.variants);
         // Colour each photo shows, in upload order ('' = all colours).
-        myForm.set('imageColors', JSON.stringify(images.map((_, i) => photoTags[String(i)] || '')));
-        images.forEach(image => myForm.append('product', image));
+        const tags = images.map((_, i) => photoTags[String(i)] || '');
+        if (!checkPhotoTags(tags)) return;
+        myForm.set('imageColors', JSON.stringify(tags));
+        (await shrinkPhotos(images)).forEach(image => myForm.append('product', image));
         dispatch(createProduct(myForm));
     };
 
@@ -92,7 +95,11 @@ const NewProduct = () => {
     };
 
     const createProductImagesChange = e => {
-        const files = Array.from(e.target.files);
+        const files = checkProductPhotos(e.target.files, colours.length);
+        if (!files) {
+            e.target.value = '';
+            return;
+        }
         setImages(files);
         setImagesPreview([]);
         setPhotoTags({});
@@ -182,7 +189,7 @@ const NewProduct = () => {
                         </div>
 
                         <div>
-                            <label className='eyebrow'>Images</label>
+                            <label className='eyebrow'>Images <span className='normal-case tracking-normal text-ink-faint'>· {photoLimitHint(colours.length)}</span></label>
                             <label className='mt-3 flex cursor-pointer items-center justify-center border border-dashed border-line py-8 font-sans text-[0.72rem] uppercase tracking-luxe text-ink-soft transition-colors hover:border-brass hover:text-brass'>
                                 Choose Images
                                 <input

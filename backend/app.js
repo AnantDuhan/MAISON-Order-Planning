@@ -111,10 +111,18 @@ const compressImage = async file => {
   }
 };
 
-// Configure Multer for file uploads
+// Configure Multer for file uploads. Photos are limited per colour: up to
+// MAX_PHOTOS_PER_COLOUR for each colour, and as many again that are shared
+// (not tagged to a colour).
+// MAX_REQUEST_PHOTOS caps one upload so a request can't exhaust memory; the
+// admin forms also shrink photos in the browser before sending them.
+// Keep these in step with frontend/src/utils/photoLimits.js.
+const { MAX_PHOTOS_PER_COLOUR, MAX_REQUEST_PHOTOS, photoCountError } = require("./utils/photoLimits");
+const MAX_PRODUCT_PHOTOS = MAX_REQUEST_PHOTOS;
+const MAX_PHOTO_MB = 5;
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024, files: 10 },
+  limits: { fileSize: MAX_PHOTO_MB * 1024 * 1024, files: MAX_PRODUCT_PHOTOS },
   fileFilter: (req, file, cb) => {
     if (IMAGE_TYPES.includes(file.mimetype)) {
       cb(null, true);
@@ -128,23 +136,32 @@ const bucketHost = () =>
   `${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_BUCKET_REGION}.amazonaws.com`;
 
 // Unique key per upload so products never overwrite each other's images.
+// Several at a time (not one by one) so a product with many colour photos
+// finishes well inside the proxy's request timeout; order is kept.
+const UPLOAD_CONCURRENCY = 4;
 const uploadProductImages = async (productId, files = []) => {
-  const images = [];
-  for (const file of files) {
-    const { buffer, mimetype, ext } = await compressImage(file);
-    let safeName = file.originalname.replace(/[^\w.-]/g, "_");
-    if (ext) safeName = safeName.replace(/\.[^.]+$/, "") + `.${ext}`;
-    const key = `products/${productId}/${Date.now()}-${safeName}`;
-    await s3.send(new PutObjectCommand({
-      Bucket: process.env.AWS_BUCKET_NAME,
-      Key: key,
-      Body: buffer,
-      ContentType: mimetype,
-      // Filenames are unique per upload, so images can be cached forever.
-      CacheControl: "public, max-age=31536000, immutable",
-    }));
-    images.push({ _id: generateId(), url: `https://${bucketHost()}/${key}` });
-  }
+  const images = new Array(files.length);
+  let next = 0;
+  const worker = async () => {
+    while (next < files.length) {
+      const i = next++;
+      const file = files[i];
+      const { buffer, mimetype, ext } = await compressImage(file);
+      let safeName = file.originalname.replace(/[^\w.-]/g, "_");
+      if (ext) safeName = safeName.replace(/\.[^.]+$/, "") + `.${ext}`;
+      const key = `products/${productId}/${Date.now()}-${i}-${safeName}`;
+      await s3.send(new PutObjectCommand({
+        Bucket: process.env.AWS_BUCKET_NAME,
+        Key: key,
+        Body: buffer,
+        ContentType: mimetype,
+        // Filenames are unique per upload, so images can be cached forever.
+        CacheControl: "public, max-age=31536000, immutable",
+      }));
+      images[i] = { _id: generateId(), url: `https://${bucketHost()}/${key}` };
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(UPLOAD_CONCURRENCY, files.length) }, worker));
   return images;
 };
 
@@ -298,10 +315,25 @@ app.use(seoRoute); // /sitemap.xml
 // These live outside /api/v1 because the frontend calls them at these paths.
 // Middleware is attached per route (not router.use) so it never runs for
 // unrelated requests such as the SPA fallback below.
+// Product photos, with plain-language errors instead of multer's ("Too many files").
+const acceptProductPhotos = (req, res, next) =>
+  upload.array("product", MAX_PRODUCT_PHOTOS)(req, res, err => {
+    if (!err) return next();
+    const message =
+      err.code === "LIMIT_FILE_COUNT" || err.code === "LIMIT_UNEXPECTED_FILE"
+        ? `Upload up to ${MAX_REQUEST_PHOTOS} photos at once (${MAX_PHOTOS_PER_COLOUR} per colour)`
+        : err.code === "LIMIT_FILE_SIZE"
+          ? `Each photo must be under ${MAX_PHOTO_MB} MB`
+          : err.message === "Invalid file type."
+            ? "Photos must be PNG, JPEG or WebP"
+            : err.message;
+    res.status(400).json({ success: false, message });
+  });
+
 const adminProducts = express.Router();
 const adminOnly = [apiLimiter, isAuthUser, authRoles("admin")];
 
-adminProducts.post("/admin/add-product", adminOnly, upload.array("product", 10), async (req, res) => {
+adminProducts.post("/admin/add-product", adminOnly, acceptProductPhotos, async (req, res) => {
   try {
     const productId = generateId();
     // Validate options/variants (and photo tags) before uploading anything,
@@ -317,6 +349,8 @@ adminProducts.post("/admin/add-product", adminOnly, upload.array("product", 10),
     } catch (error) {
       return res.status(400).json({ success: false, message: error.message });
     }
+    const countError = photoCountError((req.files || []).map((_, i) => (Array.isArray(imageColors) ? imageColors[i] : "") || ""));
+    if (countError) return res.status(400).json({ success: false, message: countError });
 
     let images = await uploadProductImages(productId, req.files);
     images = cleanImageColors(tagNewImages(images, imageColors), fields.options);
@@ -355,7 +389,7 @@ adminProducts.post("/admin/add-product", adminOnly, upload.array("product", 10),
   }
 });
 
-adminProducts.put("/admin/product/:id", adminOnly, upload.array("product", 10), async (req, res) => {
+adminProducts.put("/admin/product/:id", adminOnly, acceptProductPhotos, async (req, res) => {
   try {
     const productId = req.params.id;
     const product = await Product.findById(productId);
@@ -369,6 +403,21 @@ adminProducts.put("/admin/product/:id", adminOnly, upload.array("product", 10), 
     const variantError = applyVariantInput(update, req.body, product);
     if (variantError) {
       return res.status(400).json({ success: false, message: variantError });
+    }
+
+    // Photo limits per colour, for the photos the product will end up with.
+    try {
+      let tagsAfter = null;
+      if (req.files && req.files.length > 0) {
+        const tags = parseTags(req.body.imageColors);
+        tagsAfter = req.files.map((_, i) => (Array.isArray(tags) ? tags[i] : "") || "");
+      } else if (req.body.imageTags !== undefined) {
+        tagsAfter = tagExistingImages(product.images, req.body.imageTags).map(img => img.color || "");
+      }
+      const countError = tagsAfter && photoCountError(tagsAfter);
+      if (countError) return res.status(400).json({ success: false, message: countError });
+    } catch (error) {
+      return res.status(400).json({ success: false, message: error.message });
     }
 
     let oldImages = null;

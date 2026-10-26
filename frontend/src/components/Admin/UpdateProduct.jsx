@@ -15,6 +15,7 @@ import VariantEditor, { variantFormFields, variantTotalStock } from './VariantEd
 import PhotoColorTags, { colourValues, useFileThumbnails } from './PhotoColorTags';
 import ButtonSpinner from '../layout/ButtonSpinner';
 import { categoryGroups, useCategories } from '../../utils/useCategories';
+import { checkPhotoTags, checkProductPhotos, photoLimitHint, shrinkPhotos } from '../../utils/photoLimits';
 
 
 const UpdateProduct = () => {
@@ -78,7 +79,7 @@ const UpdateProduct = () => {
         }
     }, [dispatch, error, navigate, isUpdated, productId, product, updateError]);
 
-    const updateProductSubmitHandler = e => {
+    const updateProductSubmitHandler = async e => {
         e.preventDefault();
         const productCategory = category;
         if (!productCategory) {
@@ -98,16 +99,24 @@ const UpdateProduct = () => {
         // Photo colours: new uploads replace the current photos (in upload
         // order); otherwise the current photos are re-tagged by id.
         if (images.length) {
-            myForm.set('imageColors', JSON.stringify(images.map((_, i) => newPhotoTags[String(i)] || '')));
+            const tags = images.map((_, i) => newPhotoTags[String(i)] || '');
+            if (!checkPhotoTags(tags)) return;
+            myForm.set('imageColors', JSON.stringify(tags));
         } else {
-            myForm.set('imageTags', JSON.stringify(Object.fromEntries((oldImages || []).map(img => [img._id, oldPhotoTags[img._id] || '']))));
+            const tagsById = Object.fromEntries((oldImages || []).map(img => [img._id, oldPhotoTags[img._id] || '']));
+            if (!checkPhotoTags(Object.values(tagsById))) return;
+            myForm.set('imageTags', JSON.stringify(tagsById));
         }
-        images.forEach(image => myForm.append('product', image));
+        (await shrinkPhotos(images)).forEach(image => myForm.append('product', image));
         dispatch(updateProduct(productId, myForm));
     };
 
     const updateProductImagesChange = e => {
-        const files = Array.from(e.target.files);
+        const files = checkProductPhotos(e.target.files, colours.length);
+        if (!files) {
+            e.target.value = '';
+            return;
+        }
         setImages(files);
         setImagesPreview([]);
         setNewPhotoTags({});
@@ -199,7 +208,7 @@ const UpdateProduct = () => {
                         </div>
 
                         <div>
-                            <label className='eyebrow'>Images</label>
+                            <label className='eyebrow'>Images <span className='normal-case tracking-normal text-ink-faint'>· {photoLimitHint(colours.length)}</span></label>
                             <label className='mt-3 flex cursor-pointer items-center justify-center border border-dashed border-line py-8 font-sans text-[0.72rem] uppercase tracking-luxe text-ink-soft transition-colors hover:border-brass hover:text-brass'>
                                 Replace Images
                                 <input
