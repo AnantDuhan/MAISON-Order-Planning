@@ -117,7 +117,7 @@ export const createProduct = productData => async dispatch => {
             headers: { 'Content-Type': 'application/json' }
         };
 
-        const { data } = await axios.post(`/admin/add-product`, productData, {
+        const { data } = await axios.post(`/api/v1/admin/add-product`, productData, {
             config
         });
 
@@ -157,7 +157,7 @@ export const deleteProduct = id => async dispatch => {
     try {
         dispatch({ type: DELETE_PRODUCT_REQUEST });
 
-        const { data } = await axios.delete(`/admin/product/${id}`);
+        const { data } = await axios.delete(`/api/v1/admin/product/${id}`);
 
         dispatch({
             type: DELETE_PRODUCT_SUCCESS,
