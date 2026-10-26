@@ -15,9 +15,8 @@ import LoadingBar from 'react-top-loading-bar';
 import Loader from '../layout/Loader/Loader';
 import MetaData from '../layout/MetaData';
 import { useFeature } from '../../context/FeatureFlagsContext';
-import { isWithinReturnWindow, returnDeadline, windowDaysFor } from '../../utils/returnWindow';
-import { rewardFor, tierName } from '../../utils/membershipTiers';
-import { formatINR } from '../../utils/priceLabel';
+import { isWithinReturnWindow, windowDaysFor } from '../../utils/returnWindow';
+import { tierName } from '../../utils/membershipTiers';
 
 const formatDate = value => (value
     ? new Date(value).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
@@ -338,16 +337,7 @@ const OrderDetails = ({ startReturn = false }) => {
                                     )}
                                     {order.memberTier && (
                                         <p className='mt-4 font-sans text-xs text-ink-soft'>
-                                            Placed as a {tierName(order.memberTier)} member: free shipping, {windowDaysFor(order)}-day returns, priority dispatch.
-                                        </p>
-                                    )}
-                                    {order.memberTier === 'plus' && !order.isReturned && !order.isRefunded && (
-                                        <p className='mt-2 font-sans text-sm text-ink'>
-                                            {order.memberRewardAt
-                                                ? `${formatINR(order.memberRewardAmount || 0)} Plus store credit added on ${formatDate(order.memberRewardAt)}.`
-                                                : returnDeadline(order)
-                                                    ? `${formatINR(rewardFor(order))} Plus store credit will be added after ${formatDate(returnDeadline(order))}.`
-                                                    : `${formatINR(rewardFor(order))} Plus store credit will be added once the return window closes.`}
+                                            Placed as a {tierName(order.memberTier)} member: free shipping, {windowDaysFor(order)}-day returns{order.memberTier === 'plus' ? ', priority dispatch' : ''}.
                                         </p>
                                     )}
                                     {(isPaid || order.isRefunded) && (

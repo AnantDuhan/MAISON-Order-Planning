@@ -28,7 +28,6 @@ import MetaData from '../layout/MetaData';
 import ShipmentPanel, { ShipFields } from './ShipmentPanel';
 import OrderItemsList from '../Order/OrderItemsList';
 import { EntityHistory } from './AuditLog';
-import { useFeature } from '../../context/FeatureFlagsContext';
 
 const refundOptions = ['Initiated', 'Pending', 'Approved', 'Rejected', 'Refunded'];
 
@@ -73,8 +72,6 @@ const ProcessOrder = () => {
     const [initiateOpen, setInitiateOpen] = useState(false);
     const [approveOpen, setApproveOpen] = useState(false);
     const [selectedRefundStatus, setSelectedRefundStatus] = useState('');
-    const [refundMethod, setRefundMethod] = useState('original');
-    const storeCreditOn = useFeature('storeCredit');
     const [status, setStatus] = useState('');
     const [shipDetails, setShipDetails] = useState({ courier: '', awb: '', trackingUrl: '' });
     const [progress, setProgress] = useState(0);
@@ -111,9 +108,9 @@ const ProcessOrder = () => {
             if (refundBusy) return;
             setRefundBusy(true);
             try {
-                await dispatch(updateRefundStatus(order._id, refundId, selectedRefundStatus, refundMethod));
+                await dispatch(updateRefundStatus(order._id, refundId, selectedRefundStatus));
                 toast.success(selectedRefundStatus === 'Refunded'
-                    ? `Refunded ${refundMethod === 'store-credit' ? 'as store credit' : 'to the original payment method'}`
+                    ? 'Refunded to the original payment method'
                     : `Refund status set to ${selectedRefundStatus}`);
                 setApproveOpen(false);
             } catch (error) {
@@ -353,24 +350,10 @@ const ProcessOrder = () => {
                                 </Select>
                             </FormControl>
                             {selectedRefundStatus === 'Refunded' && (
-                                <Fragment>
-                                    <p style={{ marginTop: '1.5rem', fontSize: '0.72rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: '#A07C4B' }}>
-                                        Refund to
-                                    </p>
-                                    <FormControl fullWidth sx={{ mt: 1.5 }}>
-                                        <Select value={refundMethod} onChange={event => setRefundMethod(event.target.value)}>
-                                            <MenuItem value='original'>Original payment method</MenuItem>
-                                            <MenuItem value='store-credit' disabled={!storeCreditOn}>
-                                                MAISON store credit (instant){storeCreditOn ? '' : ' — turned off in Features'}
-                                            </MenuItem>
-                                        </Select>
-                                    </FormControl>
-                                    {order.storeCreditApplied > 0 && (
-                                        <p style={{ marginTop: '0.75rem', fontSize: '0.8rem', opacity: 0.75 }}>
-                                            ₹{order.storeCreditApplied} of this order was paid with store credit and always goes back as store credit.
-                                        </p>
-                                    )}
-                                </Fragment>
+                                <p style={{ marginTop: '1.5rem', fontSize: '0.8rem', opacity: 0.75 }}>
+                                    The refund goes back to the original payment method.
+                                    {order.storeCreditApplied > 0 && ` ₹${order.storeCreditApplied} of this older order was paid with store credit, which no longer exists — pay that part back to the customer directly.`}
+                                </p>
                             )}
                         </DialogContent>
                         <DialogActions>

@@ -135,7 +135,7 @@ const AuditLog = () => {
             <div className='grid gap-3 sm:grid-cols-3 lg:grid-cols-6'>
                 <select className={inputClass} value={filters.entityType} onChange={set('entityType')}>
                     <option value=''>All records</option>
-                    {['order', 'product', 'user', 'return', 'banner', 'coupon', 'wallet'].map(t => <option key={t} value={t}>{t}</option>)}
+                    {['order', 'product', 'user', 'return', 'banner', 'coupon'].map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
                 <select className={inputClass} value={filters.action} onChange={set('action')}>
                     <option value=''>All actions</option>

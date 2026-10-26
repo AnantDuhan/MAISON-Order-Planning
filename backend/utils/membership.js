@@ -1,12 +1,12 @@
 const Subscription = require('../models/plusMembership');
 const { tierOf } = require('./membershipPlans');
 
-// What each tier gets. One place, so checkout, returns, rewards and emails agree.
+// What each tier gets. One place, so checkout, returns and emails agree.
 const BENEFITS = {
-    essential: { freeShipping: true, returnDays: 14, memberCoupons: true, prioritySupport: true, priorityDispatch: true, restockHeadStart: true, rewardRate: 0, earlyAccess: false },
-    plus: { freeShipping: true, returnDays: 14, memberCoupons: true, prioritySupport: true, priorityDispatch: true, restockHeadStart: true, rewardRate: 0.02, earlyAccess: true },
+    // Essential: the three everyday perks. Plus: all of those, and the rest.
+    essential: { freeShipping: true, returnDays: 14, memberCoupons: true, prioritySupport: false, priorityDispatch: false, restockHeadStart: false, earlyAccess: false },
+    plus: { freeShipping: true, returnDays: 14, memberCoupons: true, prioritySupport: true, priorityDispatch: true, restockHeadStart: true, earlyAccess: true },
 };
-const REWARD_CAP_RUPEES = 500;
 
 /** 'essential' | 'plus' for a user whose membership Cashfree reports as ACTIVE, else null. */
 const getMembershipTier = async userId => {
@@ -23,4 +23,4 @@ const hasActiveMembership = async userId => Boolean(await getMembershipTier(user
 
 const benefitsOf = tier => BENEFITS[tier] || null;
 
-module.exports = { BENEFITS, REWARD_CAP_RUPEES, getMembershipTier, hasActiveMembership, benefitsOf };
+module.exports = { BENEFITS, getMembershipTier, hasActiveMembership, benefitsOf };

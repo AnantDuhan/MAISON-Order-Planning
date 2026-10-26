@@ -39,7 +39,7 @@ const sections = [
     {
         heading: 'Membership',
         body: [
-            'Maison Essential and Plus benefits, prices and billing periods are shown on the membership page at the time you join. Plus store credit is added after an order’s return window closes and is not added for returned or refunded orders; store credit has no cash value. Membership is personal to your account and is not transferable.',
+            'Maison Essential and Plus benefits, prices and billing periods are shown on the membership page at the time you join. Membership is personal to your account and is not transferable.',
         ],
     },
     {

@@ -30,11 +30,6 @@ const FEATURES = [
         description: 'Customers can apply coupon codes at checkout.',
         offMessage: 'Coupons can’t be used right now.',
     },
-    {
-        key: 'storeCredit', group: 'Checkout', label: 'Store credit', default: true,
-        description: 'Customers can pay with store credit, and refunds can be issued as store credit. Existing balances are kept.',
-        offMessage: 'Store credit can’t be used right now.',
-    },
     // After purchase
     {
         key: 'returns', group: 'After purchase', label: 'Return requests', default: true,

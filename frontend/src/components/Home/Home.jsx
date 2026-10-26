@@ -249,7 +249,7 @@ const Home = () => {
                     <div className='min-w-0 flex-[1_1_420px]'>
                         <p className='font-sans text-xs uppercase tracking-luxe text-brass-soft'>Maison Membership</p>
                         <h2 className='mt-3 font-display text-3xl font-normal leading-tight text-canvas sm:text-4xl'>
-                            Free shipping, 14-day returns and members-only offers. Plus adds 2% back and first access.
+                            Free shipping, 14-day returns and members-only offers. Plus adds early access, back-in-stock first and priority dispatch.
                         </h2>
                     </div>
                     <Link to='/membership' className='btn-luxe shrink-0 bg-canvas px-7 py-4 text-ink hover:bg-brass hover:text-white'>

@@ -1,6 +1,5 @@
 const generateId = require('../utils/generateId');
 const inventory = require('../services/inventoryService');
-const wallet = require('../services/walletService');
 const featureFlags = require('../services/featureFlags');
 const { priceOrder } = require('../utils/orderPricing');
 const { getMembershipTier } = require('../utils/membership');
@@ -22,14 +21,11 @@ exports.createCashfreeOrder = async (req, res) => {
 
         // The amount is computed on the server from DB prices. Any `amount`
         // the client sends is ignored.
-        const { orderItems, couponCode, useStoreCredit } = req.body;
+        const { orderItems, couponCode } = req.body;
 
         // Admin feature switches (/admin/features).
         if (couponCode && !(await featureFlags.isEnabled('coupons'))) {
             return res.status(403).json({ success: false, code: 'FEATURE_DISABLED', feature: 'coupons', message: featureFlags.offMessage('coupons') });
-        }
-        if (useStoreCredit && !(await featureFlags.isEnabled('storeCredit'))) {
-            return res.status(403).json({ success: false, code: 'FEATURE_DISABLED', feature: 'storeCredit', message: featureFlags.offMessage('storeCredit') });
         }
 
         // Housekeeping: return stock from checkouts that were never paid.
@@ -58,38 +54,9 @@ exports.createCashfreeOrder = async (req, res) => {
         // charges the same amount even if the membership changes meanwhile.
         if (tier) await inventory.setHoldMember(cashfreeOrderId, tier);
 
-        // Store credit first; the remainder (if any) is paid online.
-        let storeCreditApplied = 0;
-        if (useStoreCredit) {
-            try {
-                storeCreditApplied = await wallet.applyToCheckout({
-                    userId: req.user._id,
-                    checkoutId: cashfreeOrderId,
-                    totalRupees: orderAmount,
-                });
-                if (storeCreditApplied > 0) await inventory.setHoldWallet(cashfreeOrderId, storeCreditApplied);
-            } catch (error) {
-                await inventory.releaseHoldForPayment(cashfreeOrderId, 'store credit failed').catch(() => {});
-                throw error;
-            }
-        }
-        const amountDue = Math.round((orderAmount - storeCreditApplied) * 100) / 100;
-
-        // Fully covered by store credit: no online payment needed.
-        if (amountDue <= 0) {
-            return res.status(200).json({
-                success: true,
-                walletOnly: true,
-                orderId: cashfreeOrderId,
-                amount: 0,
-                storeCreditApplied,
-                holdMinutes: inventory.HOLD_MINUTES,
-            });
-        }
-
         const payload = {
             order_id: cashfreeOrderId,
-            order_amount: Number(amountDue.toFixed(2)),
+            order_amount: Number(orderAmount.toFixed(2)),
             order_currency: 'INR',
             customer_details: {
                 customer_id: String(req.user._id),
@@ -122,7 +89,6 @@ exports.createCashfreeOrder = async (req, res) => {
             orderId: cashfreeOrder.order_id,
             paymentSessionId: cashfreeOrder.payment_session_id,
             amount: payload.order_amount,
-            storeCreditApplied,
             holdMinutes: inventory.HOLD_MINUTES,
         });
     } catch (error) {

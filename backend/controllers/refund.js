@@ -7,8 +7,6 @@ const cache = require('../utils/cache');
 // Used through the module object so tests can stub them.
 const invoiceService = require('../services/invoiceService');
 const inventory = require('../services/inventoryService');
-const wallet = require('../services/walletService');
-const featureFlags = require('../services/featureFlags');
 
 exports.initiateRefund = async (req, res) => {
     try {
@@ -151,11 +149,9 @@ exports.initiateRefund = async (req, res) => {
 exports.updateRefundStatus = async (req, res) => {
     try {
         const { refundStatus, refundMethod } = req.body;
-        if (refundMethod !== undefined && !['original', 'store-credit'].includes(refundMethod)) {
+        // Refunds go back to the original payment method only (there is no store credit).
+        if (refundMethod !== undefined && refundMethod !== 'original') {
             return res.status(400).json({ success: false, message: 'Invalid refund method' });
-        }
-        if (refundMethod === 'store-credit' && !(await featureFlags.isEnabled('storeCredit'))) {
-            return res.status(409).json({ success: false, message: 'Store credit is turned off in Features. Refund to the original payment method, or turn store credit back on.' });
         }
         const refundId = req.params.refundId;
         const orderId = req.params.orderId;
@@ -201,24 +197,7 @@ exports.updateRefundStatus = async (req, res) => {
 
         // MOCK GATEWAY: We removed Stripe. We just update the database directly.
         if (refundStatus === 'Refunded' && !order.isRefunded) {
-            // Store credit used on the order always goes back as store credit;
-            // the rest goes where the admin chose.
-            const method = refundMethod || refund.method || 'original';
-            const amount = Number(refund.amount) || 0;
-            const toWallet = method === 'store-credit'
-                ? amount
-                : Math.min(Number(order.storeCreditApplied) || 0, amount);
-            if (toWallet > 0) {
-                await wallet.credit(order.user?._id || order.user, wallet.toPaise(toWallet), {
-                    type: 'refund',
-                    reference: { type: 'refund', id: String(refund._id) },
-                    note: `Refund for order ${order._id}`,
-                    idempotencyKey: `refund:${refund._id}`,
-                    createdBy: req.user && { id: String(req.user._id), name: req.user.name },
-                });
-            }
-            refund.method = method;
-            refund.storeCreditAmount = toWallet;
+            refund.method = 'original';
         }
         if (refundStatus === 'Refunded') {
             order.isRefunded = true;

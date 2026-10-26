@@ -88,3 +88,20 @@ test('a completed refund issues one credit note', async () => {
     await call('Refunded');
     assert.deepEqual(creditNotes, [['o1', 'r1', { refundMethod: 'original' }]]);
 });
+
+test('refunds go to the original payment method only (no store credit)', async () => {
+    const { order } = setup();
+    const res = mockRes();
+    await updateRefundStatus(
+        { params: { refundId: 'r1', orderId: 'o1' }, body: { refundStatus: 'Refunded', refundMethod: 'store-credit' } },
+        res
+    );
+    assert.equal(res.statusCode, 400);
+    assert.equal(order.isRefunded, false);
+});
+
+test('a completed refund is recorded as going to the original payment method', async () => {
+    const { call, creditNotes } = setup();
+    await call('Refunded');
+    assert.deepEqual(creditNotes[0][2], { refundMethod: 'original' });
+});

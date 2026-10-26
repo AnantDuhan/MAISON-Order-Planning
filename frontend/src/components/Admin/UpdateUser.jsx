@@ -11,7 +11,6 @@ import { UPDATE_USER_RESET } from '../../constants/userConstants';
 import Loader from '../layout/Loader/Loader';
 import MetaData from '../layout/MetaData';
 import AdminPage from './shared/AdminPage';
-import WalletAdminPanel from './WalletAdminPanel';
 
 const UpdateUser = () => {
     const dispatch = useDispatch();
@@ -105,7 +104,6 @@ const UpdateUser = () => {
                         </div>
                     </form>
                 )}
-                <WalletAdminPanel userId={id} />
             </AdminPage>
         </Fragment>
     );
