@@ -67,9 +67,9 @@ const OrderList = () => {
         memberTier: item.memberTier || null,
     }));
     const lateCount = allRows.filter(r => r.late > 0).length;
-    // Late orders first so they can't hide on page 3, then members' orders
+    // Late orders first so they can't hide on page 3, then Plus orders
     // still to ship (priority dispatch), then everything else.
-    const rank = r => (r.late > 0 ? 2 : r.memberTier && r.status === 'Processing' ? 1 : 0);
+    const rank = r => (r.late > 0 ? 2 : r.memberTier === 'plus' && r.status === 'Processing' ? 1 : 0);
     const rows = (lateOnly ? allRows.filter(r => r.late > 0) : allRows)
         .slice()
         .sort((a, b) => rank(b) - rank(a));

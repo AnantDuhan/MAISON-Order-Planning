@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const { stubs } = require('./helpers');
 
 const Subscription = require('../models/plusMembership');
-const { getMembershipTier, hasActiveMembership } = require('../utils/membership');
+const { getMembershipTier, hasActiveMembership, BENEFITS } = require('../utils/membership');
 const { planFor, tierOf, PLANS } = require('../utils/membershipPlans');
 
 const s = stubs();
@@ -37,4 +37,11 @@ test('only an ACTIVE membership gives a tier', async () => {
     s.set(Subscription, 'findOne', () => found(null));
     assert.equal(await getMembershipTier('u1'), null);
     assert.equal(await getMembershipTier(undefined), null);
+});
+
+test('Essential has the three everyday perks; Plus has everything', () => {
+    const on = b => Object.keys(b).filter(k => b[k] === true).sort();
+    assert.deepEqual(on(BENEFITS.essential), ['freeShipping', 'memberCoupons']);
+    assert.equal(BENEFITS.essential.returnDays, 14);
+    assert.deepEqual(on(BENEFITS.plus), ['earlyAccess', 'freeShipping', 'memberCoupons', 'priorityDispatch', 'prioritySupport', 'restockHeadStart']);
 });

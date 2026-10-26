@@ -234,14 +234,15 @@ test('back-in-stock: each waiting customer is emailed once', async t => {
     assert.deepEqual(sentTo.sort(), ['a@x.com', 'b@x.com']);
 });
 
-test('back-in-stock: members are emailed at once, everyone else 6 hours later', async t => {
+test('back-in-stock: Plus members are emailed at once, everyone else 6 hours later', async t => {
     s.set(Product, 'find', () => lean([{ _id: 'lamp', name: 'Lamp', price: 10, images: [], Stock: 3 }]));
     const alerts = [
         { _id: 'm1', user: 'member', email: 'member@x.com', notifyAfter: null },
         { _id: 'n1', user: 'guest', email: 'guest@x.com', notifyAfter: null },
     ];
     s.set(StockAlert, 'find', () => ({ limit: async () => alerts.filter(a => !a.notifiedAt) }));
-    s.set(Subscription, 'distinct', async () => ['member']);
+    let memberQuery;
+    s.set(Subscription, 'distinct', async (field, q) => { memberQuery = q; return ['member']; });
     s.set(StockAlert, 'updateOne', async (filter, change) => {
         const alert = alerts.find(a => a._id === filter._id);
         if ('notifiedAt' in filter && alert.notifiedAt) return { modifiedCount: 0 };
@@ -260,6 +261,8 @@ test('back-in-stock: members are emailed at once, everyone else 6 hours later', 
     const restock = new Date('2026-10-26T10:00:00Z');
     assert.equal(await inventory.notifyBackInStock(['lamp'], { now: restock }), 1);
     assert.deepEqual(sentTo, ['member@x.com']);
+    // Only Plus gets the head start; Essential waits with everyone else.
+    assert.deepEqual(memberQuery.tier, { $ne: 'essential' });
     assert.equal(alerts[1].notifyAfter.toISOString(), '2026-10-26T16:00:00.000Z');
 
     assert.equal(await inventory.notifyBackInStock(['lamp'], { now: new Date('2026-10-26T15:00:00Z') }), 0);

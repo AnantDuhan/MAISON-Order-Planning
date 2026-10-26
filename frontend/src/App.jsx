@@ -71,7 +71,6 @@ const LoginAndRegister = lazy(
   () => import("./components/User/LoginAndRegister"),
 );
 const Profile = lazy(() => import("./components/User/Profile"));
-const StoreCredit = lazy(() => import("./components/User/StoreCredit"));
 const ResetPassword = lazy(() => import("./components/User/ResetPassword"));
 const UpdatePassword = lazy(() => import("./components/User/UpdatePassword"));
 const UpdateProfile = lazy(() => import("./components/User/UpdateProfile"));
@@ -188,9 +187,6 @@ function App() {
               )}
               {isAuthenticated && (
                 <Route path="/membership" element={<Membership />} exact />
-              )}
-              {isAuthenticated && (
-                <Route path="/account/store-credit" element={<StoreCredit />} exact />
               )}
               {isAuthenticated && (
                 <Route path="/account/addresses" element={<AddressBook />} exact />

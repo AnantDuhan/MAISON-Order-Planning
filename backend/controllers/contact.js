@@ -52,7 +52,7 @@ exports.contactUs = async (req, res) => {
                 { name, email, subject, message }
         );
 
-        // Members get priority support: their messages are flagged in the subject.
+        // Plus members get priority support: their messages are flagged in the subject.
         let tier = null;
         try {
             const account = await User.findOne({ email }).select('_id').lean();
@@ -60,7 +60,7 @@ exports.contactUs = async (req, res) => {
         } catch {
             tier = null;
         }
-        const tierLabel = { essential: 'Essential', plus: 'Plus' }[tier];
+        const tierLabel = tier === 'plus' ? 'Plus' : null;
 
         sendEmailInBackground({
             email: 'duhananant@gmail.com',

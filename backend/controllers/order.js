@@ -16,7 +16,6 @@ const { sendOrderConfirmationWithInvoice } = require('../services/invoiceService
 const inventory = require('../services/inventoryService');
 const shipments = require('../services/shipmentService');
 const cartRecovery = require('../services/cartRecoveryService');
-const wallet = require('../services/walletService');
 const { hasVariants, findVariant, variantLabel } = require('../utils/productVariants');
 const { renderPackingSlip } = require('../utils/packingSlipPdf');
 const logger = require('../config/logger');
@@ -64,7 +63,7 @@ exports.newOrder = async (req, res, next) => {
         const { shippingInfo, orderItems, paymentInfo, couponCode } = req.body;
 
         const provider = paymentInfo?.provider;
-        if (!['cashfree', 'wallet'].includes(provider) || typeof paymentInfo.id !== 'string') {
+        if (provider !== 'cashfree' || typeof paymentInfo.id !== 'string') {
             return res.status(400).json({
                 success: false,
                 message: 'A completed payment is required to place an order',
@@ -77,7 +76,7 @@ exports.newOrder = async (req, res, next) => {
             });
         }
 
-        // Store credit and member shipping taken at checkout are recorded on the checkout's hold.
+        // The membership tier at checkout is recorded on the checkout's hold.
         const hold = await inventory.getHold(paymentInfo.id);
         if (hold && String(hold.user) !== String(req.user._id)) {
             return res.status(403).json({ success: false, message: 'You cannot use this payment for the order' });
@@ -91,38 +90,21 @@ exports.newOrder = async (req, res, next) => {
         // Stock isn't checked here: it was held for this payment at checkout
         // (and may now read 0 because this customer holds the last unit).
         const pricing = await priceOrder(orderItems, couponCode, { checkStock: false, freeShipping, tier });
-        const walletApplied = hold?.walletApplied || 0;
 
-        let paymentId;
-        if (provider === 'wallet') {
-            // Paid entirely with store credit: no gateway involved.
-            if (!hold) {
-                return res.status(402).json({ success: false, message: 'Checkout not found. Please try again.' });
-            }
-            if (Math.abs(walletApplied - pricing.totalPrice) > 0.01) {
-                return res.status(409).json({
-                    success: false,
-                    message: 'Store credit does not cover this order. Please go through checkout again.',
-                });
-            }
-            paymentId = `wallet_${paymentInfo.id}`;
-        } else {
-            const cashfreeOrder = await getCashfreeOrder(paymentInfo.id);
-            if (cashfreeOrder.order_status !== 'PAID') {
-                return res.status(402).json({
-                    success: false,
-                    message: 'Cashfree payment has not been completed',
-                });
-            }
-            const dueOnline = Math.round((pricing.totalPrice - walletApplied) * 100) / 100;
-            if (Math.abs(Number(cashfreeOrder.order_amount) - dueOnline) > 0.01) {
-                return res.status(409).json({
-                    success: false,
-                    message: 'The amount paid does not match the order total. Please contact support.',
-                });
-            }
-            paymentId = String(cashfreeOrder.cf_order_id || paymentInfo.id);
+        const cashfreeOrder = await getCashfreeOrder(paymentInfo.id);
+        if (cashfreeOrder.order_status !== 'PAID') {
+            return res.status(402).json({
+                success: false,
+                message: 'Cashfree payment has not been completed',
+            });
         }
+        if (Math.abs(Number(cashfreeOrder.order_amount) - pricing.totalPrice) > 0.01) {
+            return res.status(409).json({
+                success: false,
+                message: 'The amount paid does not match the order total. Please contact support.',
+            });
+        }
+        const paymentId = String(cashfreeOrder.cf_order_id || paymentInfo.id);
 
         // Prevent duplicate orders for the same completed payment
         // (protects against double-submit / client retries).
@@ -147,25 +129,6 @@ exports.newOrder = async (req, res, next) => {
                 'order paid but stock ran out — needs admin review');
         }
 
-        // If the hold had expired, its store credit was given back: take it again.
-        let paymentShortfall = 0;
-        if (stock.source === 'late' && walletApplied > 0) {
-            try {
-                await wallet.retakeForCheckout({ userId: req.user._id, checkoutId: paymentInfo.id, amountRupees: walletApplied });
-            } catch (error) {
-                if (provider === 'wallet') {
-                    if (stock.committed) await inventory.restoreStock(pricing.orderItems).catch(() => {});
-                    return res.status(409).json({
-                        success: false,
-                        message: 'Your checkout expired and the store credit is no longer available. Nothing was charged.',
-                    });
-                }
-                paymentShortfall = walletApplied;
-                logger.error({ orderId, payment: paymentId, walletApplied },
-                    'order paid online but store credit could not be re-applied — needs admin review');
-            }
-        }
-
         let order;
         try {
             order = await Order.create({
@@ -173,8 +136,6 @@ exports.newOrder = async (req, res, next) => {
                 shippingInfo,
                 orderItems: pricing.orderItems,
                 paymentInfo: { id: paymentId, status: 'PAID', provider },
-                storeCreditApplied: walletApplied - paymentShortfall,
-                paymentShortfall,
                 itemsPrice: pricing.itemsPrice,
                 taxPrice: pricing.taxPrice,
                 shippingPrice: pricing.shippingPrice,

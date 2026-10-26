@@ -133,7 +133,7 @@ test('creates the order at server prices when the payment matches', async () => 
 test('a member checkout keeps free shipping even if the membership ended before the order', async () => {
     setupCatalogue();
     // Lamp is ₹400: normally ₹550 with shipping, ₹400 for a member.
-    s.set(inventory, 'getHold', async () => ({ user: 'u1', walletApplied: 0, memberFreeShipping: true }));
+    s.set(inventory, 'getHold', async () => ({ user: 'u1', memberFreeShipping: true }));
     s.set(Subscription, 'exists', async () => null); // membership lapsed after paying
     cashfreeOrder = { order_status: 'PAID', order_amount: 400, cf_order_id: 'cf2' };
     let created;

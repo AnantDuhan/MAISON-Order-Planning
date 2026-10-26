@@ -155,25 +155,12 @@ const releaseHold = async (filter, reason) => {
     );
     if (hold) {
         await restoreStock(hold.items);
-        if (hold.walletApplied > 0) {
-            // Lazy require: walletService doesn't depend on inventory.
-            await require('./walletService').reverseCheckout({
-                userId: hold.user,
-                checkoutId: hold.cashfreeOrderId,
-                amountRupees: hold.walletApplied,
-                reason: reason === 'expired' ? 'Checkout expired' : 'Checkout not completed',
-            });
-        }
     }
     return hold;
 };
 
 /** The hold for a checkout, whatever its state (null if none). */
 const getHold = cashfreeOrderId => StockHold.findOne({ cashfreeOrderId }).lean();
-
-/** Record store credit taken for this checkout on its hold. */
-const setHoldWallet = (cashfreeOrderId, walletApplied) =>
-    StockHold.updateOne({ cashfreeOrderId }, { walletApplied });
 
 const setHoldMember = (cashfreeOrderId, tier) =>
     StockHold.updateOne({ cashfreeOrderId }, { memberFreeShipping: true, memberTier: tier });
@@ -287,12 +274,12 @@ const checkLowStock = async productIds => {
  * claimed (notifiedAt set) before its email goes out, so concurrent runs can't
  * email the same person twice.
  */
-// Members get restock emails this long before everyone else.
+// Plus members get restock emails this long before everyone else.
 const MEMBER_HEAD_START_MS = 6 * 60 * 60 * 1000;
 
 /**
  * Email people waiting for these products, now that they're in stock.
- * Members (Essential or Plus) are emailed straight away; everyone else is
+ * Plus members are emailed straight away; everyone else (Essential included) is
  * scheduled MEMBER_HEAD_START_MS later and emailed by a later call (the
  * /jobs/back-in-stock job, or the next restock), if it's still in stock.
  */
@@ -308,6 +295,8 @@ const notifyBackInStock = async (productIds, { now = new Date() } = {}) => {
         if (!pending.length) continue;
         const members = new Set((await Subscription.distinct('user', {
             user: { $in: pending.map(a => String(a.user)) }, isActive: true, status: 'ACTIVE',
+            // Older memberships have no tier and are Plus.
+            tier: { $ne: 'essential' },
         })).map(String));
 
         for (const alert of pending) {
@@ -471,7 +460,6 @@ module.exports = {
     releaseExpiredHolds,
     commitForOrder,
     getHold,
-    setHoldWallet,
     setHoldMember,
     checkLowStock,
     notifyBackInStock,

@@ -20,7 +20,6 @@ const ALLOWED = [
     /^\/membership\/(webhook|return)$/,
     /^\/cashfree\/order\/[^/]+\/verify$/,    // finish payments already in progress
     /^\/order\/new$/,
-    /^\/wallet\/me$/,
     /^\/me$/,                                // sign-in, so admins can get in
     /^\/logout$/,
     /^\/login(\/|$)/,

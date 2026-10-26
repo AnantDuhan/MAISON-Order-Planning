@@ -199,13 +199,12 @@ export const initiateRefund = id => async dispatch => {
 export const updateRefundStatus = (
     orderId,
     refundId,
-    refundStatus,
-    refundMethod
+    refundStatus
 ) => async dispatch => {
     try {
         dispatch({ type: REFUND_STATUS_UPDATE_REQUEST });
 
-        await axios.patch(`/api/v1/admin/order/${orderId}/refund/${refundId}/status`, { refundStatus, refundMethod });
+        await axios.patch(`/api/v1/admin/order/${orderId}/refund/${refundId}/status`, { refundStatus });
 
         dispatch({
             type: REFUND_STATUS_UPDATE_SUCCESS,

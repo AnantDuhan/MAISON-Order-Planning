@@ -65,7 +65,7 @@ test('payments in progress, gateway callbacks, jobs and sign-in keep working', a
     await closeShop();
     const allowed = [
         '/health', '/features', '/jobs/stock-holds', '/cashfree/webhook', '/membership/webhook',
-        '/membership/return', '/cashfree/order/order_u1_abc/verify', '/order/new', '/wallet/me',
+        '/membership/return', '/cashfree/order/order_u1_abc/verify', '/order/new',
         '/me', '/logout', '/login', '/login/2fa', '/login/passkey/verify', '/auth/google',
         '/password/forgot', '/password/reset/tok123',
     ];
