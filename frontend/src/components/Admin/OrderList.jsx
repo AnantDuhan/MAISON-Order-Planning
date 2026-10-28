@@ -1,4 +1,3 @@
-import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import React, { Fragment, useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
@@ -10,6 +9,7 @@ import { DELETE_ORDER_RESET } from '../../constants/orderConstants';
 import MetaData from '../layout/MetaData';
 import AdminPage from './shared/AdminPage';
 import AdminTable from './shared/AdminTable';
+import ConfirmDelete from './shared/ConfirmDelete';
 import { formatINR } from '../../utils/priceLabel';
 
 const refundTone = status =>
@@ -20,6 +20,21 @@ const refundTone = status =>
         : 'text-ink-soft';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+const itemImage = item => (item?.images || []).find(img => img?.url)?.url || item?.image || null;
+const shortDate = value => (value
+    ? new Date(value).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+    : '');
+
+const statusTone = row => (row.status === 'Delivered' ? 'border-success/40 bg-success/10 text-success'
+    : row.late ? 'border-danger/40 bg-danger/10 text-danger'
+        : 'border-line bg-surface text-ink');
+
+const Badge = ({ className, title, children }) => (
+    <span title={title} className={`inline-block border px-1.5 py-0.5 font-sans text-[0.6rem] uppercase tracking-luxe ${className}`}>
+        {children}
+    </span>
+);
 
 /** Days past its delivery estimate for an undelivered, unrefunded order; 0 if on time. */
 const daysLate = order => {
@@ -65,6 +80,10 @@ const OrderList = () => {
         refundStatus: item.refundStatus,
         late: daysLate(item),
         memberTier: item.memberTier || null,
+        image: itemImage(item.orderItems?.[0]),
+        more: Math.max(0, (item.orderItems?.length || 0) - 1),
+        placedAt: item.createdAt,
+        city: item.shippingInfo?.city || '',
     }));
     const lateCount = allRows.filter(r => r.late > 0).length;
     // Late orders first so they can't hide on page 3, then Plus orders
@@ -73,6 +92,50 @@ const OrderList = () => {
     const rows = (lateOnly ? allRows.filter(r => r.late > 0) : allRows)
         .slice()
         .sort((a, b) => rank(b) - rank(a));
+
+    // Phones and tablets: what to ship, how urgent, and for how much.
+    const renderCard = row => (
+        <div className='py-5'>
+            <Link to={`/admin/order/${row.id}`} className='flex gap-4'>
+                <span className='h-20 w-16 shrink-0 overflow-hidden bg-surface'>
+                    {row.image && <img src={row.image} alt='' loading='lazy' decoding='async' className='h-full w-full object-cover' />}
+                </span>
+                <span className='min-w-0 flex-1'>
+                    <span className='flex items-baseline justify-between gap-3'>
+                        <span className='truncate font-sans text-[0.68rem] uppercase tracking-luxe text-ink-faint'>
+                            #{row.id.slice(-8)}{row.placedAt ? ` · ${shortDate(row.placedAt)}` : ''}{row.city ? ` · ${row.city}` : ''}
+                        </span>
+                        <span className='shrink-0 font-sans text-sm font-medium text-ink'>{formatINR(row.amount)}</span>
+                    </span>
+                    <span className='mt-1 line-clamp-2 font-sans text-sm text-ink'>
+                        {row.name}{row.more > 0 && <span className='text-ink-soft'> + {row.more} more</span>}
+                    </span>
+                    <span className='mt-2 flex flex-wrap gap-1.5'>
+                        <Badge className={statusTone(row)}>{row.status}</Badge>
+                        {row.late > 0 && <Badge className='border-danger/40 bg-danger/10 text-danger'>{row.late}d late</Badge>}
+                        {row.memberTier && (
+                            <Badge className='border-brass/50 bg-brass/10 text-brass' title={row.memberTier === 'plus' ? 'Plus order: dispatch first' : 'Essential member'}>
+                                {row.memberTier === 'plus' ? 'Plus' : 'Essential'}
+                            </Badge>
+                        )}
+                        {row.refundStatus && (
+                            <Badge className={`border-line ${refundTone(row.refundStatus)}`}>Refund {row.refundStatus}</Badge>
+                        )}
+                    </span>
+                </span>
+            </Link>
+            <div className='mt-3 flex flex-wrap items-center gap-2 pl-20'>
+                <Link
+                    to={`/admin/order/${row.id}`}
+                    className='inline-flex min-h-[40px] items-center gap-1.5 border border-line px-3 font-sans text-[0.68rem] uppercase tracking-luxe text-ink transition-colors hover:border-brass hover:text-brass'
+                >
+                    <EditIcon sx={{ fontSize: 16 }} />
+                    Process
+                </Link>
+                <ConfirmDelete variant='button' what={`order ${row.id}`} onConfirm={() => deleteOrderHandler(row.id)} />
+            </div>
+        </div>
+    );
 
     const columns = [
         { key: 'id', label: 'Order ID', width: '1.4fr' },
@@ -91,7 +154,7 @@ const OrderList = () => {
                         </span>
                     )}
                     {row.memberTier && (
-                        <span title='Member order: dispatch first' className='ml-2 inline-block border border-brass/50 bg-brass/10 px-1.5 py-0.5 align-middle font-sans text-[0.6rem] uppercase tracking-luxe text-brass'>
+                        <span title={row.memberTier === 'plus' ? 'Plus order: dispatch first' : 'Essential member'} className='ml-2 inline-block border border-brass/50 bg-brass/10 px-1.5 py-0.5 align-middle font-sans text-[0.6rem] uppercase tracking-luxe text-brass'>
                             {row.memberTier === 'plus' ? 'Plus' : 'Essential'}
                         </span>
                     )}
@@ -123,13 +186,7 @@ const OrderList = () => {
                     <Link to={`/admin/order/${row.id}`} className='text-ink-soft hover:text-brass' title='Process'>
                         <EditIcon fontSize='small' />
                     </Link>
-                    <button
-                        onClick={() => deleteOrderHandler(row.id)}
-                        className='text-ink-soft hover:text-danger'
-                        title='Delete'
-                    >
-                        <DeleteIcon fontSize='small' />
-                    </button>
+                    <ConfirmDelete what={`order ${row.id}`} onConfirm={() => deleteOrderHandler(row.id)} />
                 </span>
             ),
         },
@@ -150,7 +207,7 @@ const OrderList = () => {
                         </button>
                     </div>
                 )}
-                <AdminTable columns={columns} rows={rows} emptyMessage={lateOnly ? 'No late orders.' : 'No orders yet.'} />
+                <AdminTable columns={columns} rows={rows} renderCard={renderCard} emptyMessage={lateOnly ? 'No late orders.' : 'No orders yet.'} />
             </AdminPage>
         </Fragment>
     );

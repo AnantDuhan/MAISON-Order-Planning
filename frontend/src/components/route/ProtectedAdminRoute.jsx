@@ -18,10 +18,12 @@ import Loader from "../layout/Loader/Loader";
  * loop straight back into the redirect.
  */
 const ProtectedAdminRoute = ({ children }) => {
-  const { loading, isAuthenticated, user } = useSelector((state) => state.user);
+  const { loading, isAuthenticated, authChecked, user } = useSelector((state) => state.user);
 
-  // Auth state not resolved yet — wait instead of redirecting.
-  if (loading !== false) {
+  // Auth state not resolved yet — wait instead of redirecting. `loading`
+  // alone isn't enough: it starts out false, and the page now renders before
+  // the startup /me check has even begun.
+  if (loading || (!authChecked && !isAuthenticated)) {
     return <Loader label='Checking your access' />;
   }
 

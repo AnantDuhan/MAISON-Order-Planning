@@ -4,7 +4,7 @@ import PhoneIcon from '@mui/icons-material/Phone';
 import PinDropIcon from '@mui/icons-material/PinDrop';
 import PublicIcon from '@mui/icons-material/Public';
 import TransferWithinAStationIcon from '@mui/icons-material/TransferWithinAStation';
-import { Country, State } from 'country-state-city';
+import { COUNTRIES, statesOf } from '../../utils/indiaRegions';
 import React, { Fragment, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router';
@@ -25,7 +25,7 @@ const Shipping = () => {
     const [address, setAddress] = useState(shippingInfo.address);
     const [city, setCity] = useState(shippingInfo.city);
     const [state, setState] = useState(shippingInfo.state);
-    const [country, setCountry] = useState(shippingInfo.country);
+    const [country, setCountry] = useState(shippingInfo.country || 'IN');
     const [pinCode, setPinCode] = useState(shippingInfo.pinCode);
     const [phoneNumber, setPhoneNumber] = useState(shippingInfo.phoneNumber);
     const [saveToBook, setSaveToBook] = useState(false);
@@ -48,7 +48,7 @@ const Shipping = () => {
         setAddress('');
         setCity('');
         setState('');
-        setCountry('');
+        setCountry('IN');
         setPinCode('');
         setPhoneNumber('');
     };
@@ -135,10 +135,9 @@ const Shipping = () => {
                             <PublicIcon />
                             <select required value={country} onChange={e => setCountry(e.target.value)}>
                                 <option value=''>Country</option>
-                                {Country &&
-                                    Country.getAllCountries().map(item => (
-                                        <option key={item.isoCode} value={item.isoCode}>{item.name}</option>
-                                    ))}
+                                {COUNTRIES.map(item => (
+                                    <option key={item.isoCode} value={item.isoCode}>{item.name}</option>
+                                ))}
                             </select>
                         </div>
 
@@ -147,10 +146,9 @@ const Shipping = () => {
                                 <TransferWithinAStationIcon />
                                 <select required value={state} onChange={e => setState(e.target.value)}>
                                     <option value=''>State</option>
-                                    {State &&
-                                        State.getStatesOfCountry(country).map(item => (
-                                            <option key={item.isoCode} value={item.isoCode}>{item.name}</option>
-                                        ))}
+                                    {statesOf(country).map(item => (
+                                        <option key={item.isoCode} value={item.isoCode}>{item.name}</option>
+                                    ))}
                                 </select>
                             </div>
                         )}

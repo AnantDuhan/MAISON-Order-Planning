@@ -6,6 +6,7 @@ import MetaData from '../layout/MetaData';
 import { useFeature } from '../../context/FeatureFlagsContext';
 import { formatINR } from '../../utils/priceLabel';
 import { TIERS, tierName } from '../../utils/membershipTiers';
+import { loadCashfree, preloadCashfree } from '../../utils/loadCashfree';
 
 const planKeyOf = membership => {
     const id = String(membership?.planId || '');
@@ -19,15 +20,14 @@ const Check = () => (
     </svg>
 );
 
-const cashfree = window.Cashfree
-    ? window.Cashfree({ mode: import.meta.env.REACT_APP_CASHFREE_MODE || 'sandbox' })
-    : null;
 
 const Membership = () => {
     const [plans, setPlans] = useState([]);
     const [membership, setMembership] = useState(null);
     const [loading, setLoading] = useState(false);
     const [invoices, setInvoices] = useState([]);
+
+    useEffect(preloadCashfree, []);
 
     useEffect(() => {
         axios.get('/api/v1/membership/plans').then(({ data }) => setPlans(data.plans)).catch(error => {
@@ -59,7 +59,8 @@ const Membership = () => {
     const startMembership = async plan => {
         setLoading(true);
         try {
-            if (!cashfree) throw new Error('Cashfree checkout is unavailable. Please refresh and try again.');
+            // SDK first, so a failed load doesn't leave a half-started membership.
+            const cashfree = await loadCashfree();
             const { data } = await axios.post('/api/v1/membership', { plan });
             await cashfree.subscriptionsCheckout({
                 subsSessionId: data.subscriptionSessionId,
@@ -79,9 +80,7 @@ const Membership = () => {
                 await startMembership(planKeyOf(membership));
                 return;
             }
-            if (!cashfree) {
-                throw new Error('Cashfree checkout is unavailable. Please refresh and try again.');
-            }
+            const cashfree = await loadCashfree();
             await cashfree.subscriptionsCheckout({
                 subsSessionId: membership.subscriptionSessionId,
                 redirectTarget: '_self',

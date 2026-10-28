@@ -11,6 +11,7 @@ import { clearErrors, getProductDetails, updateProduct } from '../../actions/pro
 import { UPDATE_PRODUCT_RESET } from '../../constants/productConstants';
 import MetaData from '../layout/MetaData';
 import AdminPage from './shared/AdminPage';
+import ProductDetailsEditor, { toDetailFields } from './ProductDetailsEditor';
 import VariantEditor, { variantFormFields, variantTotalStock } from './VariantEditor';
 import PhotoColorTags, { colourValues, useFileThumbnails } from './PhotoColorTags';
 import ButtonSpinner from '../layout/ButtonSpinner';
@@ -40,6 +41,7 @@ const UpdateProduct = () => {
     const categoryOptions = { groups, extra: category && !known ? category : null };
     const [Stock, setStock] = useState(0);
     const [variantData, setVariantData] = useState({ options: [], variants: [] });
+    const [details, setDetails] = useState({ highlights: [], specs: [] });
     const hasOptions = variantData.options.length > 0;
     const colours = colourValues(variantData.options);
     const [oldPhotoTags, setOldPhotoTags] = useState({});
@@ -57,6 +59,7 @@ const UpdateProduct = () => {
         } else if (product) {
             setName(product.name);
             setDescription(product.description);
+            setDetails({ highlights: product.highlights || [], specs: product.specs || [] });
             setPrice(product.price);
             setCategory(product.category);
             setStock(product.Stock);
@@ -94,6 +97,9 @@ const UpdateProduct = () => {
         myForm.set('name', name);
         myForm.set('price', price);
         myForm.set('description', description);
+        const detailFields = toDetailFields(details);
+        myForm.set('highlights', detailFields.highlights);
+        myForm.set('specs', detailFields.specs);
         myForm.set('category', productCategory);
         if (earlyAccess) myForm.set('earlyAccess', earlyAccess);
         myForm.set('Stock', hasOptions ? variantTotalStock(variantData.variants) : Stock);
@@ -230,6 +236,8 @@ const UpdateProduct = () => {
                                 className='mt-3 w-full resize-none border border-line bg-transparent p-4 font-sans text-ink placeholder:text-ink-faint focus:border-brass focus:outline-none'
                             ></textarea>
                         </div>
+
+                        <ProductDetailsEditor category={category} value={details} onChange={setDetails} />
 
                         <div>
                             <label className='eyebrow'>Images <span className='normal-case tracking-normal text-ink-faint'>· {photoLimitHint(colours.length)}</span></label>

@@ -1,0 +1,6 @@
+# Netlify response headers.
+# Vite gives every built file under /assets a content hash in its name, so
+# browsers can keep them for a year without asking again. index.html is not
+# listed here and stays revalidated, so a deploy is picked up straight away.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable

@@ -6,9 +6,8 @@ import {
   DialogTitle,
 } from "@mui/material";
 import { Rating } from "@mui/material";
-import React, { Fragment, useEffect, useState } from "react";
+import React, { Fragment, useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { Carousel } from "react-responsive-carousel";
 import { Link, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import LoadingBar from "react-top-loading-bar";
@@ -16,12 +15,13 @@ import Loader from "../layout/Loader/Loader";
 import Lightbox from "yet-another-react-lightbox";
 import "yet-another-react-lightbox/styles.css";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
-import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
-import WarningAmberOutlinedIcon from "@mui/icons-material/WarningAmberOutlined";
+import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
+import FavoriteIcon from "@mui/icons-material/Favorite";
 
 import { addItemsToCart } from "../../actions/cartAction";
 import BackInStockButton from "./BackInStockButton";
-import VariantPicker, { colorOption, findSelectedVariant, imagesForColor } from "./VariantPicker";
+import VariantPicker, { colorOption, defaultSelection, findSelectedVariant, imagesForColor } from "./VariantPicker";
+import ProductGallery from "./ProductGallery";
 import {
   addProductToWishlist,
   clearErrors,
@@ -41,13 +41,12 @@ import ReviewsSection from "./ReviewsSection";
 import {
   Breadcrumbs,
   DeliveryLine,
+  Highlights,
+  ProductInfo,
   ProductJsonLd,
   RecentlyViewed,
   RelatedProducts,
-  ShippingReturns,
 } from "./ProductExtras";
-
-import "react-responsive-carousel/lib/styles/carousel.min.css";
 
 import io from "socket.io-client";
 import { useFeature } from '../../context/FeatureFlagsContext';
@@ -100,21 +99,43 @@ const ProductDetails = () => {
   const chosenColor = selection[colorOption(product)?.name];
   const galleryImages = imagesForColor(product, chosenColor);
 
-  // Single-value options (e.g. only one colour) are pre-selected.
+  // Options still to choose, shown in the picker after a failed "Add to bag".
+  const [missing, setMissing] = useState([]);
+  const pickerRef = useRef(null);
+  const chooseOptions = (next) => {
+    setSelection(next);
+    setQuantity(1);
+    setMissing((m) => m.filter((name) => !next[name]));
+  };
+
+  // Single-value options, and the first colour in stock, start selected.
   useEffect(() => {
     if (!product?._id) return;
-    const preset = {};
-    for (const option of product.options || []) {
-      if (option.values.length === 1) preset[option.name] = option.values[0].value;
-    }
-    setSelection(preset);
+    setSelection(defaultSelection(product));
     setQuantity(1);
+    setMissing([]);
   }, [product?._id]);
+
+  // Phones: a buy bar pinned to the bottom whenever the main buy button is
+  // off screen — below the first screen on short phones, or scrolled past.
+  const buyRowRef = useRef(null);
+  const [showBuyBar, setShowBuyBar] = useState(false);
+  useEffect(() => {
+    const el = buyRowRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") return undefined;
+    const observer = new IntersectionObserver(
+      ([entry]) => setShowBuyBar(!entry.isIntersecting),
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [product?._id, loading]);
 
   const addToCartHandler = async () => {
     if (hasOptions && !selectedVariant) {
-      const missing = product.options.filter((o) => !selection[o.name]).map((o) => o.name.toLowerCase());
-      toast.info(`Please choose ${missing.join(' and ') || 'an option'}`);
+      const names = product.options.filter((o) => !selection[o.name]).map((o) => o.name);
+      setMissing(names);
+      pickerRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      toast.info(`Please choose ${names.map((n) => n.toLowerCase()).join(' and ') || 'an option'}`);
       return;
     }
     try {
@@ -126,11 +147,9 @@ const ProductDetails = () => {
     }
   };
 
+  const inWishlist = (wishlist || []).some((item) => (item.product || item._id) === id);
   const wishlistHandler = () => {
-    const isProductInWishlist = wishlist.some(
-      (item) => (item.product || item._id) === id,
-    );
-    if (isProductInWishlist) {
+    if (inWishlist) {
       toast.info("Product is already in the wishlist");
     } else {
       dispatch(addProductToWishlist(id));
@@ -238,6 +257,42 @@ const ProductDetails = () => {
       ? null
       : (product?.priceFrom ?? product?.price);
 
+  // What the buy controls can do right now.
+  const optionsComplete = !hasOptions || Boolean(selectedVariant);
+  const canBuy = optionsComplete ? inStock : product?.Stock >= 1;
+  const status = !product?._id
+    ? null
+    : optionsComplete
+      ? inStock
+        ? unitsLeft <= 3
+          ? { text: `Only ${unitsLeft} left`, tone: "text-brass" }
+          : { text: "In stock", tone: "text-success" }
+        : { text: hasOptions ? "This option is sold out" : "Sold out", tone: "text-danger" }
+      : product.Stock < 1
+        ? { text: "Sold out", tone: "text-danger" }
+        : null;
+  const showNotify = backInStockOn && !canBuy;
+  const priceText = product?._id
+    ? shownPrice != null ? formatINR(shownPrice) : `From ${formatINR(product.priceFrom)}`
+    : "";
+  const priceCaption = selectedVariant
+    ? Object.values(selection).filter(Boolean).join(" · ")
+    : hasOptions && shownPrice == null
+      ? `Price depends on ${product.options.filter((o) => !selection[o.name]).map((o) => o.name.toLowerCase()).join(" and ") || "your choice"}`
+      : "";
+  const reviewCount = product?.reviews?.length || 0;
+
+  const primaryAction = (className = "") =>
+    lockedForMe ? (
+      <Link to="/membership" className={`btn-solid text-center ${className}`}>
+        Join Plus to buy now
+      </Link>
+    ) : (
+      <button type="button" onClick={addToCartHandler} className={`btn-solid ${className}`}>
+        Add to bag
+      </button>
+    );
+
   return (
     <Fragment>
       {loading || !product?._id ? (
@@ -259,73 +314,54 @@ const ProductDetails = () => {
           />
           <ProductJsonLd product={product} />
 
-          <div className="editorial-shell py-14">
-            <Breadcrumbs product={product} />
-            <div className="grid gap-12 lg:grid-cols-2 lg:gap-16">
-              {/* Gallery */}
-              <div className="lg:sticky lg:top-28 lg:self-start">
-                <div className="overflow-hidden border border-line bg-surface-2">
-                  {galleryImages.length > 0 && (
-                    <Carousel
-                      key={chosenColor || "all"}
-                      showThumbs={false}
-                      autoPlay
-                      infiniteLoop
-                      showStatus={false}
-                    >
-                      {galleryImages.map((item, i) => (
-                        <div
-                          key={i}
-                          onClick={() => openLightbox(i)}
-                          className="cursor-zoom-in"
-                        >
-                          <img
-                            className="aspect-square w-full object-cover"
-                            src={item.url}
-                            alt={chosenColor ? `${product.name} in ${chosenColor}, photo ${i + 1}` : `${product.name}, photo ${i + 1}`}
-                          />
-                        </div>
-                      ))}
-                    </Carousel>
-                  )}
-                </div>
-                <p className="mt-3 text-center font-sans text-[0.7rem] uppercase tracking-luxe text-ink-faint">
-                  Tap image to zoom
-                </p>
+          <div className="editorial-shell pb-14 sm:pt-10">
+            <div className="hidden sm:block">
+              <Breadcrumbs product={product} />
+            </div>
+            <div className="grid gap-6 sm:gap-8 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:gap-14 xl:gap-20">
+              {/* Gallery: edge to edge on phones */}
+              <div className="-mx-6 sm:mx-0 lg:sticky lg:top-28 lg:self-start">
+                <ProductGallery
+                  images={galleryImages}
+                  alt={chosenColor ? `${product.name} in ${chosenColor}` : product.name}
+                  onOpen={openLightbox}
+                />
               </div>
 
               <Lightbox
                 open={lightboxIsOpen}
                 close={() => setLightboxIsOpen(false)}
-                slides={
-                  galleryImages.map((item) => ({ src: item.url }))
-                }
+                slides={galleryImages.map((item) => ({ src: item.url }))}
                 index={lightboxImageIndex}
               />
 
               {/* Details */}
               <div className="flex flex-col">
                 <p className="eyebrow">{product.category || "Maison"}</p>
-                <h1 className="heading-display mt-3 text-4xl sm:text-5xl">
+                <h1 className="heading-display mt-2 text-[2rem] leading-[1.08] sm:text-5xl">
                   {product.name}
                 </h1>
-                <p className="mt-2 font-sans text-[0.72rem] uppercase tracking-luxe text-ink-faint">
-                  Ref. {product._id}
-                </p>
 
-                <div className="mt-5 flex items-center gap-3">
-                  <Rating name="product-rating" {...options} />
-                  <span className="font-sans text-sm text-ink-faint">
-                    {product.numOfReviews} Reviews
-                  </span>
+                <div className="mt-3 flex items-center gap-2 font-sans text-sm text-ink-faint">
+                  {reviewCount > 0 ? (
+                    <a href="#reviews" className="flex items-center gap-2 hover:text-ink">
+                      <Rating name="product-rating" {...options} size="small" />
+                      <span>
+                        {Number(product.ratings || 0).toFixed(1)} · {reviewCount} {reviewCount === 1 ? "review" : "reviews"}
+                      </span>
+                    </a>
+                  ) : (
+                    <span>No reviews yet</span>
+                  )}
                 </div>
 
-                <p className="mt-6 font-display text-4xl font-medium text-ink">
-                  {shownPrice != null ? formatINR(shownPrice) : `From ${formatINR(product.priceFrom)}`}
-                </p>
+                <div className="mt-5 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                  <p className="font-display text-[2rem] font-medium leading-none text-ink sm:text-4xl">{priceText}</p>
+                  {priceCaption && <p className="font-sans text-sm text-ink-faint">{priceCaption}</p>}
+                </div>
 
                 {earlyAccessLive && (
-                  <div className="mt-4 border border-brass/50 bg-brass/5 px-4 py-3">
+                  <div className="mt-5 border border-brass/50 bg-brass/5 px-4 py-3">
                     <p className="font-sans text-[0.68rem] uppercase tracking-luxe text-brass">Maison Plus early access</p>
                     <p className="mt-1 font-sans text-sm text-ink-soft">
                       {tier === 'plus'
@@ -335,275 +371,182 @@ const ProductDetails = () => {
                   </div>
                 )}
 
-                <div className="mt-3 flex items-center gap-2">
-                  <span
-                    className={`h-2 w-2 rounded-full ${inStock ? "bg-success" : "bg-danger"}`}
-                  />
-                  <span
-                    className={`font-sans text-[0.72rem] uppercase tracking-luxe ${inStock ? "text-success" : "text-danger"}`}
-                  >
-                    {hasOptions && !selectedVariant && product.Stock >= 1
-                      ? "Choose your options"
-                      : inStock
-                        ? unitsLeft <= 3 ? `Only ${unitsLeft} left` : "In Stock"
-                        : selectedVariant ? "This option is sold out" : "Out of Stock"}
-                  </span>
-                </div>
-
-                {(inStock || (hasOptions && !selectedVariant && product.Stock >= 1)) && <DeliveryLine />}
-
                 {hasOptions && (
-                  <div className="mt-8">
+                  <div ref={pickerRef} className="mt-7 scroll-mt-28">
                     <VariantPicker
                       product={product}
                       selection={selection}
-                      onChange={(next) => { setSelection(next); setQuantity(1); }}
+                      missing={missing}
+                      onChange={chooseOptions}
                     />
                   </div>
                 )}
 
-                <div className="mt-8 rule-luxe" />
-
-                {/* Quantity + actions */}
-                <div className="mt-8 flex flex-col gap-4">
-                  <div className="flex items-center gap-4">
-                    <label className="font-sans text-[0.72rem] uppercase tracking-luxe text-ink-soft">
-                      Quantity
-                    </label>
-                    <select
-                      value={quantity}
-                      onChange={(e) => setQuantity(Number(e.target.value))}
-                      disabled={!inStock}
-                      className="border border-line bg-transparent px-4 py-2 font-sans text-sm text-ink focus:border-brass focus:outline-none disabled:opacity-50"
-                    >
-                      {[...Array(Math.min(10, unitsLeft || 1)).keys()].map(
-                        (x) => (
-                          <option key={x + 1} value={x + 1}>
-                            {x + 1}
-                          </option>
-                        ),
-                      )}
-                    </select>
-                  </div>
-
-                  {(!inStock || (hasOptions && product.Stock < 1)) && backInStockOn && (hasOptions ? product.Stock < 1 || selectedVariant : true) && (
-                    <BackInStockButton productId={product._id} isAuthenticated={Boolean(user)} />
-                  )}
-
-                  <div className="flex flex-col gap-3 sm:flex-row">
-                    {(inStock || (hasOptions && !selectedVariant && product.Stock >= 1)) && (
-                      lockedForMe ? (
-                        <Link to="/membership" className="btn-solid flex-1 text-center">
-                          Join Plus to buy now
-                        </Link>
-                      ) : (
-                        <button
-                          onClick={addToCartHandler}
-                          className="btn-solid flex-1"
-                        >
-                          Add to Cart
-                        </button>
-                      )
-                    )}
-                    <button
-                      onClick={wishlistHandler}
-                      className="btn-outline flex-1"
-                    >
-                      Add to Wishlist
-                    </button>
-                  </div>
-                </div>
-
-                {/* Description */}
-                <div className="mt-10">
-                  <p className="eyebrow">Description</p>
-                  <p className="mt-4 whitespace-pre-line font-sans text-[0.95rem] leading-relaxed text-ink-soft">
-                    {cleanText(product.description)}
-                  </p>
-                </div>
-
-                <ShippingReturns />
-
-                {reviewsOn && (
-                <button
-                  onClick={submitReviewToggle}
-                  className="mt-10 self-start font-sans text-[0.72rem] uppercase tracking-luxe text-brass underline-offset-4 hover:underline"
-                >
-                  Write a Review
-                </button>
+                {status && (
+                  <p className={`mt-6 font-sans text-[0.72rem] uppercase tracking-luxe ${status.tone}`}>{status.text}</p>
                 )}
+
+                {/* Quantity, buy and wishlist on one row */}
+                <div ref={buyRowRef} className={`${status ? "mt-3" : "mt-7"} flex items-stretch gap-2`}>
+                  {canBuy && (
+                    <div className="flex shrink-0 items-center border border-line bg-surface" role="group" aria-label="Quantity">
+                      <button
+                        type="button"
+                        onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                        disabled={quantity <= 1}
+                        aria-label="One less"
+                        className="h-full w-10 font-sans text-lg text-ink-soft hover:text-ink disabled:opacity-30"
+                      >
+                        −
+                      </button>
+                      <span className="w-7 text-center font-sans text-sm text-ink" aria-live="polite">{quantity}</span>
+                      <button
+                        type="button"
+                        onClick={() => setQuantity((q) => Math.min(Math.min(10, unitsLeft || 1), q + 1))}
+                        disabled={quantity >= Math.min(10, unitsLeft || 1)}
+                        aria-label="One more"
+                        className="h-full w-10 font-sans text-lg text-ink-soft hover:text-ink disabled:opacity-30"
+                      >
+                        +
+                      </button>
+                    </div>
+                  )}
+                  {canBuy ? (
+                    primaryAction("min-h-[52px] flex-1")
+                  ) : showNotify ? (
+                    <div className="flex-1">
+                      <BackInStockButton productId={product._id} isAuthenticated={Boolean(user)} />
+                    </div>
+                  ) : (
+                    <span className="flex min-h-[52px] flex-1 items-center justify-center border border-line font-sans text-[0.72rem] uppercase tracking-luxe text-ink-faint">
+                      Sold out
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={wishlistHandler}
+                    aria-label={inWishlist ? "In your wishlist" : "Add to wishlist"}
+                    aria-pressed={inWishlist}
+                    title={inWishlist ? "In your wishlist" : "Add to wishlist"}
+                    className="flex min-h-[52px] w-[52px] shrink-0 items-center justify-center border border-line bg-surface text-ink transition-colors hover:border-ink"
+                  >
+                    {inWishlist ? <FavoriteIcon fontSize="small" className="text-brass" /> : <FavoriteBorderIcon fontSize="small" />}
+                  </button>
+                </div>
+
+                {canBuy && <DeliveryLine />}
+
+                <Highlights items={product.highlights} />
+
+                <ProductInfo
+                  description={cleanText(product.description)}
+                  specs={product.specs}
+                  productId={product._id}
+                />
               </div>
             </div>
 
             {/* Reviews */}
-            <div className="mt-24">
-              <div className="mb-10 flex flex-wrap items-end justify-between gap-4">
+            <section id="reviews" className="mt-20 scroll-mt-24 sm:mt-24">
+              <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
                 <div>
-                  <p className="eyebrow">What Buyers Say</p>
+                  <p className="eyebrow">What buyers say</p>
                   <h2 className="heading-display mt-3 text-display">Reviews</h2>
                 </div>
-                {user &&
-                  user.role === "admin" &&
-                  product.reviews &&
-                  product.reviews.length > 2 && (
-                    <Button
-                      variant="contained"
-                      onClick={generateSummaryHandler}
-                      disabled={summaryLoading}
-                      startIcon={<AutoAwesomeIcon />}
-                      sx={{
-                        backgroundColor: "#A07C4B",
-                        textTransform: "uppercase",
-                        letterSpacing: "0.14em",
-                        fontSize: "0.72rem",
-                        "&:hover": { backgroundColor: "#8a6a3f" },
-                      }}
-                    >
-                      {summaryLoading ? "Generating…" : "Generate AI Summary"}
-                    </Button>
+                <div className="flex flex-wrap items-center gap-3">
+                  {user &&
+                    user.role === "admin" &&
+                    product.reviews &&
+                    product.reviews.length > 2 && (
+                      <Button
+                        variant="contained"
+                        onClick={generateSummaryHandler}
+                        disabled={summaryLoading}
+                        startIcon={<AutoAwesomeIcon />}
+                        sx={{
+                          backgroundColor: "#A07C4B",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.14em",
+                          fontSize: "0.72rem",
+                          "&:hover": { backgroundColor: "#8a6a3f" },
+                        }}
+                      >
+                        {summaryLoading ? "Generating…" : "Generate AI Summary"}
+                      </Button>
+                    )}
+                  {reviewsOn && (
+                    <button type="button" onClick={submitReviewToggle} className="btn-outline">
+                      Write a review
+                    </button>
                   )}
+                </div>
               </div>
 
-              {product.reviews &&
-                product.reviews.length > 0 &&
-                product.aiSummary?.overall && (
-                  <section className="mb-12 overflow-hidden border border-brass/30 bg-surface">
-                    {/* Header */}
-                    <div className="border-b border-line bg-surface-2 px-6 py-5 sm:px-8">
-                      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="flex items-center gap-4">
-                          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-brass/30 bg-brass/5">
-                            <AutoAwesomeIcon className="text-brass" />
-                          </div>
-
-                          <div>
-                            <p className="eyebrow">AI Review Insights</p>
-
-                            <p className="mt-1 text-xs tracking-wide text-ink-soft">
-                              Based on {product.reviews.length} customer reviews
-                            </p>
-                          </div>
-                        </div>
-
-                        <span className="w-fit border border-brass/30 px-3 py-1 text-[0.65rem] font-medium uppercase tracking-[0.16em] text-brass">
-                          AI Generated
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Content */}
-                    <div className="p-6 sm:p-8">
-                      {/* Overall takeaway */}
-                      {product.aiSummary.overall && (
-                        <div className="border-l-2 border-brass/60 pl-5">
-                          <p className="text-xs font-medium uppercase tracking-[0.16em] text-ink-soft">
-                            Overall Takeaway
-                          </p>
-
-                          <p className="mt-3 max-w-3xl font-sans text-[1rem] leading-7 text-ink">
-                            {product.aiSummary.overall}
-                          </p>
+              {reviewCount > 0 && product.aiSummary?.overall && (
+                <section className="mb-10 border border-line bg-surface p-6 sm:p-8">
+                  <p className="eyebrow flex items-center gap-2">
+                    <AutoAwesomeIcon sx={{ fontSize: 14 }} />
+                    In short · from {reviewCount} {reviewCount === 1 ? "review" : "reviews"}
+                  </p>
+                  <p className="mt-3 max-w-3xl font-display text-xl leading-snug text-ink sm:text-2xl">
+                    {product.aiSummary.overall}
+                  </p>
+                  {(product.aiSummary.pros?.length > 0 || product.aiSummary.cons?.length > 0) && (
+                    <div className="mt-6 grid gap-6 sm:grid-cols-2">
+                      {product.aiSummary.pros?.length > 0 && (
+                        <div>
+                          <p className="font-sans text-[0.68rem] uppercase tracking-luxe text-success">Buyers like</p>
+                          <ul className="mt-2 space-y-1.5">
+                            {product.aiSummary.pros.map((pro) => (
+                              <li key={pro} className="flex gap-2 font-sans text-sm leading-6 text-ink-soft">
+                                <span aria-hidden="true" className="text-success">+</span>
+                                {pro}
+                              </li>
+                            ))}
+                          </ul>
                         </div>
                       )}
-
-                      {/* Pros / Cons */}
-                      <div className="mt-8 grid gap-5 md:grid-cols-2">
-                        {/* Pros */}
-                        {product.aiSummary.pros?.length > 0 && (
-                          <div className="border border-success/20 bg-success/5 p-6">
-                            <div className="flex items-center gap-3">
-                              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-success/10">
-                                <CheckCircleOutlineIcon
-                                  fontSize="small"
-                                  className="text-success"
-                                />
-                              </div>
-
-                              <div>
-                                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-ink">
-                                  What Customers Love
-                                </p>
-
-                                <p className="mt-1 text-xs text-ink-soft">
-                                  Frequently mentioned positives
-                                </p>
-                              </div>
-                            </div>
-
-                            <ul className="mt-5 space-y-3">
-                              {product.aiSummary.pros.map((pro, index) => (
-                                <li
-                                  key={index}
-                                  className="flex items-start gap-3 font-sans text-sm leading-6 text-ink-soft"
-                                >
-                                  <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-success" />
-                                  <span>{pro}</span>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-
-                        {/* Cons */}
-                        {product.aiSummary.cons?.length > 0 && (
-                          <div className="border border-danger/20 bg-danger/5 p-6">
-                            <div className="flex items-center gap-3">
-                              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-danger/10">
-                                <WarningAmberOutlinedIcon
-                                  fontSize="small"
-                                  className="text-danger"
-                                />
-                              </div>
-
-                              <div>
-                                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-ink">
-                                  Areas to Consider
-                                </p>
-
-                                <p className="mt-1 text-xs text-ink-soft">
-                                  Commonly mentioned concerns
-                                </p>
-                              </div>
-                            </div>
-
-                            <ul className="mt-5 space-y-3">
-                              {product.aiSummary.cons.map((con, index) => (
-                                <li
-                                  key={index}
-                                  className="flex items-start gap-3 font-sans text-sm leading-6 text-ink-soft"
-                                >
-                                  <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-danger" />
-                                  <span>{con}</span>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Footer */}
-                      <div className="mt-7 flex items-center gap-2 border-t border-line pt-5">
-                        <AutoAwesomeIcon
-                          fontSize="inherit"
-                          className="text-brass"
-                        />
-
-                        <p className="text-[0.68rem] uppercase tracking-[0.12em] text-ink-soft">
-                          AI-generated from customer reviews
-                        </p>
-                      </div>
+                      {product.aiSummary.cons?.length > 0 && (
+                        <div>
+                          <p className="font-sans text-[0.68rem] uppercase tracking-luxe text-danger">Worth knowing</p>
+                          <ul className="mt-2 space-y-1.5">
+                            {product.aiSummary.cons.map((con) => (
+                              <li key={con} className="flex gap-2 font-sans text-sm leading-6 text-ink-soft">
+                                <span aria-hidden="true" className="text-danger">−</span>
+                                {con}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
                     </div>
-                  </section>
-                )}
+                  )}
+                  <p className="mt-6 font-sans text-[0.68rem] text-ink-faint">Summarised by AI from customer reviews.</p>
+                </section>
+              )}
 
-              <div className="mt-10">
-                <ReviewsSection reviews={product.reviews} />
-              </div>
-            </div>
+              <ReviewsSection reviews={product.reviews} />
+            </section>
 
             <RelatedProducts productId={product._id} />
             <RecentlyViewed product={product} />
+
+            {/* Room for the pinned buy bar on phones */}
+            <div aria-hidden="true" className="h-20 lg:hidden" />
           </div>
+
+          {/* Phones: price and Add to bag stay in reach while the main button is off screen */}
+          {showBuyBar && canBuy && (
+            <div className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/95 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 backdrop-blur lg:hidden">
+              <div className="mx-auto flex max-w-xl items-center gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="font-display text-xl leading-tight text-ink">{priceText}</p>
+                  {priceCaption && <p className="truncate font-sans text-[0.7rem] text-ink-faint">{priceCaption}</p>}
+                </div>
+                {primaryAction("min-h-[48px] w-[11.5rem] shrink-0 !px-4")}
+              </div>
+            </div>
+          )}
 
           <Dialog
             aria-labelledby="review-dialog"
@@ -617,7 +560,7 @@ const ProductDetails = () => {
                 fontSize: "1.6rem",
               }}
             >
-              Submit Review
+              Write a review
             </DialogTitle>
             <DialogContent
               className="flex flex-col gap-4"

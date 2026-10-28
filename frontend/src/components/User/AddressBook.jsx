@@ -1,7 +1,7 @@
 import React, { Fragment, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { toast } from 'react-toastify';
-import { Country, State } from 'country-state-city';
+import { COUNTRIES, countryName, stateName, statesOf } from '../../utils/indiaRegions';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 
 import { addAddress, deleteAddress } from '../../actions/userAction';
@@ -12,15 +12,11 @@ const emptyForm = {
     address: '',
     city: '',
     state: '',
-    country: '',
+    country: 'IN',
     pinCode: '',
     phoneNumber: ''
 };
 
-// ISO code -> display name, for rendering saved addresses.
-const countryName = iso => Country.getCountryByCode(iso)?.name || iso;
-const stateName = (countryIso, stateIso) =>
-    State.getStateByCodeAndCountry(stateIso, countryIso)?.name || stateIso;
 
 const AddressBook = () => {
     const dispatch = useDispatch();
@@ -169,7 +165,7 @@ const AddressBook = () => {
                                     onChange={e => setField('country', e.target.value)}
                                 >
                                     <option value=''>Country</option>
-                                    {Country.getAllCountries().map(item => (
+                                    {COUNTRIES.map(item => (
                                         <option key={item.isoCode} value={item.isoCode}>
                                             {item.name}
                                         </option>
@@ -184,7 +180,7 @@ const AddressBook = () => {
                                         onChange={e => setField('state', e.target.value)}
                                     >
                                         <option value=''>State</option>
-                                        {State.getStatesOfCountry(form.country).map(item => (
+                                        {statesOf(form.country).map(item => (
                                             <option key={item.isoCode} value={item.isoCode}>
                                                 {item.name}
                                             </option>

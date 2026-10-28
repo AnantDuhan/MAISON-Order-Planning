@@ -11,8 +11,7 @@ export const wakeUpServer = () => async (dispatch) => {
 
     const check = async () => {
       try {
-        const res = await axios.get('/api/v1/health');
-        console.log("✅ Server Responded:", res.data);
+        await axios.get('/api/v1/health');
         dispatch({ type: SERVER_WAKEUP_SUCCESS });
       } catch (err) {
         setTimeout(check, 3000);

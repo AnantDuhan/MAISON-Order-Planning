@@ -33,18 +33,36 @@ export const Breadcrumbs = ({ product }) => (
 
 /** Estimated delivery date and the shipping rule, shown while the item can be bought. */
 export const DeliveryLine = () => (
-    <div className='mt-4 flex flex-col gap-1 font-sans text-sm text-ink-soft'>
-        <p>
-            Order today for delivery by <span className='text-ink'>{estimatedDeliveryLabel()}</span>
-        </p>
-        <p className='text-ink-faint'>
-            Free shipping over {formatINR(FREE_SHIPPING_THRESHOLD)}, and always for members · otherwise {formatINR(SHIPPING_CHARGE)}
-        </p>
+    <div className='mt-5 flex gap-3 font-sans text-sm text-ink-soft'>
+        <span aria-hidden='true' className='mt-1.5 h-2 w-2 shrink-0 rounded-full bg-success' />
+        <div className='flex flex-col gap-0.5'>
+            <p>
+                Order today for delivery by <span className='text-ink'>{estimatedDeliveryLabel()}</span>
+            </p>
+            <p className='text-ink-faint'>
+                Free shipping over {formatINR(FREE_SHIPPING_THRESHOLD)}, and always for members · otherwise {formatINR(SHIPPING_CHARGE)}
+            </p>
+        </div>
     </div>
 );
 
-const Panel = ({ title, children }) => (
-    <details className='group border-b border-line py-5'>
+/** Up to four key facts as tiles under the buy button. */
+export const Highlights = ({ items }) => {
+    const list = (items || []).filter(Boolean);
+    if (!list.length) return null;
+    return (
+        <ul className='mt-8 grid grid-cols-2 gap-2'>
+            {list.map(text => (
+                <li key={text} className='border border-line bg-surface px-4 py-3 font-sans text-sm leading-snug text-ink'>
+                    {text}
+                </li>
+            ))}
+        </ul>
+    );
+};
+
+const Panel = ({ title, children, open = false }) => (
+    <details open={open} className='group border-b border-line py-5'>
         <summary className='flex cursor-pointer list-none items-center justify-between font-sans text-[0.72rem] uppercase tracking-luxe text-ink [&::-webkit-details-marker]:hidden'>
             {title}
             <span aria-hidden='true' className='text-lg leading-none text-ink-faint transition-transform group-open:rotate-45'>+</span>
@@ -53,9 +71,37 @@ const Panel = ({ title, children }) => (
     </details>
 );
 
-/** Shipping, returns and payment answers next to the buy button. */
+/**
+ * Everything below the buy button, folded: the description (open), the
+ * specifications table, then shipping, returns and payment answers.
+ */
+export const ProductInfo = ({ description, specs, productId }) => (
+    <div className='mt-8 border-t border-line'>
+        {description && (
+            <Panel title='Details' open>
+                <p className='whitespace-pre-line text-[0.95rem]'>{description}</p>
+                <p className='text-xs text-ink-faint'>Product code {productId}</p>
+            </Panel>
+        )}
+        {specs?.length > 0 && (
+            <Panel title='Specifications'>
+                <dl className='divide-y divide-line border-y border-line'>
+                    {specs.map(row => (
+                        <div key={row.label} className='grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-4 py-2.5'>
+                            <dt className='text-ink-faint'>{row.label}</dt>
+                            <dd className='text-ink'>{row.value}</dd>
+                        </div>
+                    ))}
+                </dl>
+            </Panel>
+        )}
+        <ShippingReturns />
+    </div>
+);
+
+/** Shipping, returns and payment answers. */
 export const ShippingReturns = () => (
-    <div className='mt-10 border-t border-line'>
+    <>
         <Panel title='Shipping & Delivery'>
             <p>
                 Complimentary shipping on orders over {formatINR(FREE_SHIPPING_THRESHOLD)}, and on every order for Maison members; otherwise a flat {formatINR(SHIPPING_CHARGE)}.
@@ -77,7 +123,7 @@ export const ShippingReturns = () => (
                 order and can be downloaded from your account.
             </p>
         </Panel>
-    </div>
+    </>
 );
 
 /** "You may also like" — same category first, then the newest pieces. */
