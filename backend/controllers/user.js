@@ -68,29 +68,35 @@ const sendVerificationEmail = async user => {
 const { createTwoFactorPendingToken, issueSession, completeLogin } = require('../utils/session');
 const trustedDevice = require('../utils/trustedDevice');
 
+const { toNational } = require('../utils/phone');
+
+// Shown until the customer uploads a photo (served by the frontend).
+const DEFAULT_AVATAR = '/Profile.png';
+
 // register user
 // Register User
 exports.registerUser = async (req, res, next) => {
     try {
-        const { name, whatsappNumber, password } = req.body;
+        const { name, password } = req.body;
         const email = normalizeEmail(req.body.email);
         const file = req.file;
-
-        if (!file) {
-            return res.status(400).json({
-                success: false,
-                message: 'No file uploaded.'
-            });
+        // Optional; stored in the national form phone login matches on. Left
+        // out entirely when empty: a stored null would collide on the unique index.
+        const rawNumber = String(req.body.whatsappNumber || '').trim();
+        const whatsappNumber = rawNumber ? toNational(rawNumber) : null;
+        if (rawNumber && !whatsappNumber) {
+            return res.status(400).json({ success: false, message: 'Please enter a valid mobile number, or leave it empty.' });
         }
 
         const userId = generateId();
-        const avatarUrl = await uploadAvatar(userId, file);
+        // A photo is optional at sign-up (it can be added from the profile).
+        const avatarUrl = file ? await uploadAvatar(userId, file) : DEFAULT_AVATAR;
 
         // Create user as UNVERIFIED
         const user = await User.create({
             _id: userId,
             name,
-            whatsappNumber,
+            ...(whatsappNumber ? { whatsappNumber } : {}),
             email,
             password,
             avatar: avatarUrl,

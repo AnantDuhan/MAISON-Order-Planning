@@ -19,6 +19,8 @@ const { snapshot } = require("../middleware/audit");
 const UPDATABLE_PRODUCT_FIELDS = ["name", "description", "price", "category", "Stock", "lowStockThreshold"];
 
 const LIST_CACHE_TTL = 60;
+// Fields a product card needs (ProductCard, priceLabel, optionsSummary, stockStatus).
+const LIST_FIELDS = 'name price priceFrom priceTo images category ratings numOfReviews Stock options earlyAccessUntil createdAt';
 const DETAIL_CACHE_TTL = 3600;
 
 const syncSearchIndex = product =>
@@ -54,9 +56,10 @@ exports.getAllProducts = async (req, res, next) => {
   }
 
   const resultPerPage = Number(process.env.RESULT_PER_PAGE) || 8;
-  const productsCount = await Product.estimatedDocumentCount();
 
-  const apiFeature = new ApiFeatures(Product.find(), req.query).search().filter();
+  // Only what a product card shows: reviews, descriptions, variants and AI
+  // summaries are loaded on the product page, not in listings.
+  const apiFeature = new ApiFeatures(Product.find().select(LIST_FIELDS).lean(), req.query).search().filter();
 
   // A department ("Electronics") covers the categories inside it, matched
   // case-insensitively so older products keep showing up.
@@ -65,10 +68,14 @@ exports.getAllProducts = async (req, res, next) => {
     apiFeature.query.where('category').in(names.map(n => new RegExp(`^${n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i')));
   }
 
-  const filteredProductsCount = await Product.countDocuments(apiFeature.query.getFilter());
-
+  const filter = apiFeature.query.getFilter();
   apiFeature.pagination(resultPerPage);
-  const products = await apiFeature.query;
+  // Independent queries: run together instead of one after another.
+  const [productsCount, filteredProductsCount, products] = await Promise.all([
+    Product.estimatedDocumentCount(),
+    Product.countDocuments(filter),
+    apiFeature.query,
+  ]);
 
   const payload = {
     success: true,
@@ -78,7 +85,8 @@ exports.getAllProducts = async (req, res, next) => {
     filteredProductsCount,
   };
 
-  await cache.setJSON(cacheKey, payload, LIST_CACHE_TTL);
+  // Don't make the shopper wait for the cache write (setJSON never throws).
+  cache.setJSON(cacheKey, payload, LIST_CACHE_TTL);
 
   res.status(200).json(payload);
 };
@@ -121,7 +129,7 @@ exports.getProductDetails = async (req, res, next) => {
       });
     }
     // --- 3. Store in Cache ---
-    await cache.setJSON(cacheKey, product, DETAIL_CACHE_TTL);
+    cache.setJSON(cacheKey, product, DETAIL_CACHE_TTL); // not awaited; never throws
 
     maybeAutoSummarize(product, req.app);
 
@@ -140,7 +148,8 @@ exports.getProductDetails = async (req, res, next) => {
 
 const RELATED_LIMIT = 4;
 const RELATED_CACHE_TTL = 600;
-const RELATED_FIELDS = "name images price priceFrom priceTo ratings numOfReviews category";
+// Same cards as the listings: without Stock every related product read "Sold out".
+const RELATED_FIELDS = LIST_FIELDS;
 
 // GET /product/:id/related — up to four products for "You may also like":
 // same category first, then the newest products to fill the row.

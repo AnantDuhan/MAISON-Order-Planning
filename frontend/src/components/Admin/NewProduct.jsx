@@ -11,6 +11,7 @@ import { clearErrors, createProduct } from '../../actions/productAction';
 import { NEW_PRODUCT_RESET } from '../../constants/productConstants';
 import MetaData from '../layout/MetaData';
 import AdminPage from './shared/AdminPage';
+import ProductDetailsEditor, { toDetailFields } from './ProductDetailsEditor';
 import VariantEditor, { variantFormFields, variantTotalStock, withOptions } from './VariantEditor';
 import AiDraftPanel from './AiDraftPanel';
 import PhotoColorTags, { colourValues, useFileThumbnails } from './PhotoColorTags';
@@ -36,6 +37,7 @@ const NewProduct = () => {
     const [earlyAccess, setEarlyAccess] = useState(false);
     const [Stock, setStock] = useState(0);
     const [variantData, setVariantData] = useState({ options: [], variants: [] });
+    const [details, setDetails] = useState({ highlights: [], specs: [] });
     const hasOptions = variantData.options.length > 0;
     const colours = colourValues(variantData.options);
     const [photoTags, setPhotoTags] = useState({});
@@ -61,6 +63,9 @@ const NewProduct = () => {
         myForm.set('name', name);
         myForm.set('price', price);
         myForm.set('description', description);
+        const detailFields = toDetailFields(details);
+        myForm.set('highlights', detailFields.highlights);
+        myForm.set('specs', detailFields.specs);
         myForm.set('category', category);
         myForm.set('metaTitle', metaTitle);
         myForm.set('metaDescription', metaDescription);
@@ -197,6 +202,8 @@ const NewProduct = () => {
                                 className='mt-3 w-full resize-none border border-line bg-transparent p-4 font-sans text-ink placeholder:text-ink-faint focus:border-brass focus:outline-none'
                             ></textarea>
                         </div>
+
+                        <ProductDetailsEditor category={category} value={details} onChange={setDetails} />
 
                         <div>
                             <label className='eyebrow'>Images <span className='normal-case tracking-normal text-ink-faint'>· {photoLimitHint(colours.length)}</span></label>

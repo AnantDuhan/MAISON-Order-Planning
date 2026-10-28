@@ -202,9 +202,13 @@ const pickProductFields = body => {
   // now; "end" opens the product to everyone.
   if (body.earlyAccess === "start") fields.earlyAccessUntil = new Date(Date.now() + EARLY_ACCESS_HOURS * 60 * 60 * 1000);
   if (body.earlyAccess === "end") fields.earlyAccessUntil = null;
+  const details = parseProductDetails(body);
+  if (details.highlights) fields.highlights = details.highlights;
+  if (details.specs) fields.specs = details.specs;
   return fields;
 };
 const EARLY_ACCESS_HOURS = 48;
+const { parseProductDetails } = require("./utils/productDetails");
 
 // Options (Size, Colour…) and variants arrive as JSON strings in the
 // multipart form. Validates them and sets the derived Stock / price range.

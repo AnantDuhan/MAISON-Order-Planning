@@ -38,17 +38,43 @@ const availability = (product, selection, optionName, value) => {
 };
 
 /**
+ * First colour that has stock, so the gallery and price start on something
+ * buyable. Only colour is pre-picked: sizes and other options stay for the
+ * shopper to choose, so nobody gets a size they never chose.
+ */
+export const defaultSelection = product => {
+    const preset = {};
+    for (const option of product?.options || []) {
+        if (option.values.length === 1) preset[option.name] = option.values[0].value;
+    }
+    const colour = colorOption(product);
+    if (colour && !preset[colour.name]) {
+        const inStock = colour.values.find(({ value }) =>
+            activeVariants(product).some(v => v.options?.[colour.name] === value && v.Stock > 0));
+        if (inStock) preset[colour.name] = inStock.value;
+    }
+    return preset;
+};
+
+/**
  * Size buttons, colour swatches and text chips for a product's options.
  * Sold-out combinations stay selectable (so the shopper can ask to be told
- * when they're back) but are crossed out.
+ * when they're back) but are marked "Sold out". `missing` lists options the
+ * shopper still has to choose after trying to add to the bag.
  */
-const VariantPicker = ({ product, selection, onChange }) => (
+const VariantPicker = ({ product, selection, onChange, missing = [] }) => (
     <div className='flex flex-col gap-6'>
-        {(product.options || []).map(option => (
+        {(product.options || []).map(option => {
+            const chosen = selection[option.name];
+            const chosenSoldOut = chosen && !availability(product, selection, option.name, chosen).inStock;
+            const needsChoice = !chosen && missing.includes(option.name);
+            return (
             <fieldset key={option.name}>
-                <legend className='flex items-baseline gap-2 font-sans text-sm text-ink'>
-                    <span>{option.name}</span>
-                    {selection[option.name] && <span className='text-ink-soft'>· {selection[option.name]}</span>}
+                <legend className='flex flex-wrap items-baseline gap-x-1.5 font-sans text-sm text-ink-soft'>
+                    <span>{option.name}{chosen ? ':' : ''}</span>
+                    {chosen && <span className='font-medium text-ink'>{chosen}</span>}
+                    {chosenSoldOut && <span className='text-danger'>· sold out</span>}
+                    {needsChoice && <span role='alert' className='text-danger'>· please choose {option.name.toLowerCase()}</span>}
                 </legend>
                 <div className='mt-3 flex flex-wrap gap-2'>
                     {option.values.map(({ value, hex }) => {
@@ -67,7 +93,7 @@ const VariantPicker = ({ product, selection, onChange }) => (
                                     aria-pressed={selected}
                                     aria-label={`${option.name} ${value}${soldOut ? ', sold out' : ''}`}
                                     title={soldOut ? `${value} — sold out` : value}
-                                    className={`relative h-9 w-9 rounded-full border p-0.5 transition ${selected ? 'border-ink ring-1 ring-ink ring-offset-2 ring-offset-canvas' : 'border-line hover:border-ink-soft'}`}
+                                    className={`relative h-10 w-10 rounded-full border p-0.5 transition ${selected ? 'border-ink ring-1 ring-ink ring-offset-2 ring-offset-canvas' : 'border-line hover:border-ink-soft'}`}
                                 >
                                     <span
                                         className={`block h-full w-full rounded-full border border-ink/10 ${soldOut ? 'opacity-40' : ''}`}
@@ -87,15 +113,17 @@ const VariantPicker = ({ product, selection, onChange }) => (
                                 onClick={pick}
                                 aria-pressed={selected}
                                 aria-label={`${option.name} ${value}${soldOut ? ', sold out' : ''}`}
-                                className={`min-w-[3rem] border px-4 py-2 font-sans text-sm transition ${selected ? 'border-ink bg-ink text-canvas' : 'border-line text-ink hover:border-ink-soft'} ${soldOut ? 'text-ink-faint line-through decoration-ink-faint' : ''}`}
+                                className={`min-h-[44px] min-w-[3.25rem] border px-4 font-sans text-sm transition ${selected ? 'border-ink bg-surface text-ink ring-1 ring-inset ring-ink' : `border-line hover:border-ink-soft ${soldOut ? 'text-ink-faint' : 'bg-surface text-ink'}`} ${needsChoice ? 'border-danger/60' : ''}`}
                             >
-                                {value}
+                                <span className={soldOut ? 'line-through decoration-ink-faint' : ''}>{value}</span>
+                                {soldOut && <span className='ml-1.5 align-middle font-sans text-[0.58rem] uppercase tracking-luxe'>Sold out</span>}
                             </button>
                         );
                     })}
                 </div>
             </fieldset>
-        ))}
+            );
+        })}
     </div>
 );
 

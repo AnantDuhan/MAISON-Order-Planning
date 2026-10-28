@@ -8,9 +8,12 @@ import React, { Fragment, useMemo, useState } from 'react';
  *   - render(row) -> optional custom cell content
  * rows:    array of plain objects (must include a unique `id`)
  *
- * Stacks into labelled cards on mobile, renders as a grid on desktop.
+ * renderCard(row) -> optional compact card for phones and tablets; without it,
+ *                    rows stack into labelled fields there.
+ *
+ * Renders as a grid on desktop (lg and up).
  */
-const AdminTable = ({ columns, rows, pageSize = 10, emptyMessage = 'Nothing to show yet.' }) => {
+const AdminTable = ({ columns, rows, pageSize = 10, emptyMessage = 'Nothing to show yet.', renderCard }) => {
     const [page, setPage] = useState(1);
 
     const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
@@ -33,6 +36,14 @@ const AdminTable = ({ columns, rows, pageSize = 10, emptyMessage = 'Nothing to s
 
     return (
         <Fragment>
+            {/* Phones and tablets: compact cards, when the page provides them. */}
+            {renderCard && (
+                <ul className='divide-y divide-line border-y border-line lg:hidden'>
+                    {pageRows.map(row => <li key={row.id}>{renderCard(row)}</li>)}
+                </ul>
+            )}
+
+            <div className={renderCard ? 'hidden lg:block' : undefined}>
             {/* Header (desktop) */}
             <div
                 className='hidden gap-4 border-b border-line pb-4 lg:grid'
@@ -85,6 +96,7 @@ const AdminTable = ({ columns, rows, pageSize = 10, emptyMessage = 'Nothing to s
                         </div>
                     </div>
                 ))}
+            </div>
             </div>
 
             {/* Pager */}

@@ -10,10 +10,8 @@ import CheckoutSteps from '../Cart/CheckoutSteps';
 import MetaData from '../layout/MetaData';
 import { createOrder, clearErrors } from '../../actions/orderAction';
 import { formatINR } from '../../utils/priceLabel';
+import { loadCashfree, preloadCashfree } from '../../utils/loadCashfree';
 
-const cashfree = window.Cashfree
-    ? window.Cashfree({ mode: import.meta.env.REACT_APP_CASHFREE_MODE || 'sandbox' })
-    : null;
 
 const Payment = () => {
     const orderInfo = JSON.parse(sessionStorage.getItem('orderInfo'));
@@ -25,6 +23,8 @@ const Payment = () => {
     const { error } = useSelector(state => state.newOrder);
 
     const [isProcessing, setIsProcessing] = useState(false);
+
+    useEffect(preloadCashfree, []);
     const dueNow = Number(orderInfo?.totalPrice || 0);
 
     const submitHandler = async e => {
@@ -48,9 +48,7 @@ const Payment = () => {
                 phoneNumber: shippingInfo.phoneNumber,
             });
 
-            if (!cashfree) {
-                throw new Error('Cashfree checkout is unavailable. Please refresh and try again.');
-            }
+            const cashfree = await loadCashfree();
             const result = await cashfree.checkout({
                 paymentSessionId: data.paymentSessionId,
                 redirectTarget: '_modal',

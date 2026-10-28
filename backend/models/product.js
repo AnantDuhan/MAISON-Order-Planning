@@ -149,6 +149,20 @@ const productSchema = mongoose.Schema({
         default: false,
         index: true
     },
+    // Key facts shown as tiles on the product page ("6.9-inch display"), up to 4.
+    highlights: {
+        type: [{ type: String, trim: true, maxLength: 60 }],
+        default: [],
+    },
+    // Specifications table: label / value rows ("Weight" / "227 g").
+    specs: {
+        type: [{
+            _id: false,
+            label: { type: String, trim: true, required: true, maxLength: 40 },
+            value: { type: String, trim: true, required: true, maxLength: 160 },
+        }],
+        default: [],
+    },
     // Until this time only Maison Plus members can buy it (48-hour early access).
     earlyAccessUntil: {
         type: Date,
