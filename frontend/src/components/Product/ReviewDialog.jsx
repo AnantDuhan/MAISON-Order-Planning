@@ -59,7 +59,7 @@ const StarInput = ({ value, onChange }) => {
  * customers whose order with it has been delivered, and an earlier review
  * is loaded to edit. Phones get a bottom sheet.
  */
-const ReviewDialog = ({ open, onClose, product, user, onSubmitted }) => {
+const ReviewDialog = ({ open, onClose, product, user, onSubmitted, initialRating = 0 }) => {
     const [state, setState] = useState('loading'); // loading | signin | not-delivered | form | error
     const [rating, setRating] = useState(0);
     const [comment, setComment] = useState('');
@@ -83,7 +83,8 @@ const ReviewDialog = ({ open, onClose, product, user, onSubmitted }) => {
                 if (!alive) return;
                 setMaxLength(data.maxLength || 2000);
                 setEditing(Boolean(data.review));
-                setRating(data.review?.rating || 0);
+                // An earlier review wins; otherwise the star tapped in the email.
+                setRating(data.review?.rating || initialRating || 0);
                 setComment(data.review?.comment || '');
                 setState(data.canReview ? 'form' : 'not-delivered');
             })
@@ -92,7 +93,7 @@ const ReviewDialog = ({ open, onClose, product, user, onSubmitted }) => {
                 setState(error.response?.status === 401 ? 'signin' : 'error');
             });
         return () => { alive = false; };
-    }, [open, user, product?._id]);
+    }, [open, user, product?._id, initialRating]);
 
     const trimmed = comment.trim();
     const canSubmit = rating > 0 && trimmed.length > 0 && !busy;
@@ -170,7 +171,13 @@ const ReviewDialog = ({ open, onClose, product, user, onSubmitted }) => {
                             <p className='font-sans text-sm leading-relaxed text-ink-soft'>
                                 Sign in to review this piece. Reviews come from customers who have received it.
                             </p>
-                            <Link to='/login' onClick={onClose} className='btn-solid mt-5 inline-flex'>Sign in</Link>
+                            <Link
+                                to={`/login?redirect=${encodeURIComponent(`/product/${product?._id}?review=1${initialRating ? `&rating=${initialRating}` : ''}`)}`}
+                                onClick={onClose}
+                                className='btn-solid mt-5 inline-flex'
+                            >
+                                Sign in
+                            </Link>
                         </div>
                     )}
 

@@ -5,6 +5,7 @@ const {
    getProductDetails,
    createProductReview,
    getMyReview,
+   unsubscribeReviewRequests,
    getProductReviews,
    deleteReview,
    addToWishList,
@@ -59,6 +60,7 @@ router.route('/admin/product-options/template').get(isAuthUser, authRoles('admin
 
 router.route('/review').post(isAuthUser, requireFeature('reviews'), demoGuard('submit-review'), createProductReview);
 router.route('/product/:id/my-review').get(isAuthUser, getMyReview);
+router.route('/review-requests/unsubscribe/:token').get(unsubscribeReviewRequests);
 
 router
     .route('/reviews')

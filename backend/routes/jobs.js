@@ -86,6 +86,17 @@ router.post('/jobs/back-in-stock', requireCronSecret, async (req, res, next) => 
         next(err);
     }
 });
+// "How is it?" review requests, a few days after delivery (run daily).
+const reviewRequests = require('../services/reviewRequestService');
+router.post('/jobs/review-requests', requireCronSecret, async (req, res, next) => {
+    try {
+        const result = await reviewRequests.runReviewRequests({ limit: 200 });
+        res.status(200).json({ success: true, job: 'review-requests', ...result });
+    } catch (err) {
+        next(err);
+    }
+});
+
 router.post('/jobs/abandoned-carts', requireCronSecret, async (req, res, next) => {
     try {
         const result = await cartRecovery.runAbandonedCartReminders({ limit: 200 });

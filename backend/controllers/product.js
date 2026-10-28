@@ -373,6 +373,16 @@ exports.getMyReview = async (req, res) => {
   }
 };
 
+// GET /review-requests/unsubscribe/:token — one-click link in the email.
+exports.unsubscribeReviewRequests = async (req, res) => {
+  const ok = await require("../services/reviewRequestService").optOut(req.params.token).catch(() => false);
+  const home = (process.env.FRONTEND_URL || "/").replace(/\/+$/, "") || "/";
+  const page = (title, body) => `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><title>${title}</title><style>body{font-family:Georgia,serif;background:#F7F4EF;color:#1A1816;display:flex;min-height:100vh;align-items:center;justify-content:center;margin:0;padding:24px;text-align:center}main{max-width:420px}h1{font-weight:500}p{font-family:Helvetica,Arial,sans-serif;color:#4A453F;line-height:1.6}a{color:#85663C}</style></head><body><main>${body}</main></body></html>`;
+  res.status(ok ? 200 : 400).type("html").send(ok
+    ? page("Unsubscribed", `<h1>Done</h1><p>We won't email you asking for reviews. Order and account emails are not affected, and you can still review anything you've bought from its page.</p><a href="${home}">Back to MAISON</a>`)
+    : page("Link not valid", `<h1>This link isn't valid</h1><p>It may have been copied incompletely.</p><a href="${home}">Back to MAISON</a>`));
+};
+
 exports.createProductReview = async (req, res, next) => {
   const { productId } = req.body;
   const comment = typeof req.body.comment === "string" ? req.body.comment.trim() : req.body.comment;

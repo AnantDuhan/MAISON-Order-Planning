@@ -2,7 +2,7 @@ import { Button } from "@mui/material";
 import { Rating } from "@mui/material";
 import React, { Fragment, useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import LoadingBar from "react-top-loading-bar";
 import Loader from "../layout/Loader/Loader";
@@ -62,6 +62,17 @@ const ProductDetails = () => {
   const [progress, setProgress] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [open, setOpen] = useState(false);
+  // Links from the review-request email: ?review=1, and &rating=N for the
+  // star that was tapped. Opens the form once the product has loaded.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [emailRating, setEmailRating] = useState(0);
+  useEffect(() => {
+    if (searchParams.get("review") !== "1" || !product?._id || String(product._id) !== String(id)) return;
+    const n = Number(searchParams.get("rating"));
+    setEmailRating(Number.isInteger(n) && n >= 1 && n <= 5 ? n : 0);
+    setOpen(true);
+    setSearchParams({}, { replace: true });
+  }, [searchParams, product?._id, id, setSearchParams]);
   const [lightboxIsOpen, setLightboxIsOpen] = useState(false);
   const [lightboxImageIndex, setLightboxImageIndex] = useState(0);
 
@@ -536,6 +547,7 @@ const ProductDetails = () => {
             product={product}
             user={user}
             onSubmitted={onReviewPosted}
+            initialRating={emailRating}
           />
         </Fragment>
       )}

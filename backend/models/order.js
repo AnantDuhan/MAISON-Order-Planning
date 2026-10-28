@@ -125,6 +125,8 @@ const orderSchema = new mongoose.Schema({
         default: null
     },
     DeliveredAt: Date,
+    // When the "how is it?" review request email went out (once per order).
+    reviewRequestSentAt: { type: Date, default: null },
     createdAt: {
         type: Date,
         default: Date.now

@@ -3,6 +3,7 @@ import axios from 'axios';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { enrollAdminTwoFactor, verifyLoginOtp } from '../../actions/userAction';
+import { safeRedirect } from '../../utils/safeRedirect';
 
 const TwoFactorLogin = () => {
     const location = useLocation();
@@ -58,7 +59,7 @@ const TwoFactorLogin = () => {
                 : verifyLoginOtp(twoFactorToken, code, rememberDevice)
             );
 
-            navigate('/');
+            navigate(safeRedirect(location.state?.redirect) || '/');
         } catch (err) {
             setError(err.message);
         } finally {

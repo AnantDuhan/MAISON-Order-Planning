@@ -16,6 +16,7 @@ import PasswordlessLogin from './PasswordlessLogin';
 import ButtonSpinner from '../layout/ButtonSpinner';
 import TryDemoButton from '../layout/TryDemoButton';
 import WaxSealPanel from './WaxSealPanel';
+import { safeRedirect } from '../../utils/safeRedirect';
 import MetaData from '../layout/MetaData';
 
 const MIN_PASSWORD = 6; // matches the user model
@@ -95,6 +96,8 @@ const LoginAndRegister = () => {
         twoFactorEnrollmentRequired
     } = useSelector(state => state.user);
 
+    // Where to go after signing in (?redirect=/product/x?review=1), this site only.
+    const redirectTo = safeRedirect(new URLSearchParams(location.search).get('redirect'));
     // /login?mode=register opens the sign-up view.
     const [tab, setTab] = useState(() => (new URLSearchParams(location.search).get('mode') === 'register' ? 'register' : 'login'));
     // How to sign in: 'password' | 'email' | 'phone'
@@ -203,7 +206,8 @@ const LoginAndRegister = () => {
             dispatch(clearErrors());
         }
         if (isAuthenticated) {
-            navigate('/');
+            // e.g. back to the review form a review-request email linked to
+            navigate(redirectTo || '/');
         }
         if (message) {
             toast.success(message);
@@ -213,12 +217,13 @@ const LoginAndRegister = () => {
                 state: {
                     twoFactorToken,
                     enrollmentRequired: twoFactorEnrollmentRequired,
+                    redirect: redirectTo,
                 }
             });
         }
         const timer = setTimeout(() => setProgress(0), 5000);
         return () => clearTimeout(timer);
-    }, [dispatch, error, navigate, isAuthenticated, message, twoFactorRequired, twoFactorToken, twoFactorEnrollmentRequired]);
+    }, [dispatch, error, navigate, isAuthenticated, message, twoFactorRequired, twoFactorToken, twoFactorEnrollmentRequired, redirectTo]);
 
     const googleButton = (text, useOneTap) => showGoogle && (
         <div className='flex justify-center'>

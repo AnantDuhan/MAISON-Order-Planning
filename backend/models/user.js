@@ -167,6 +167,11 @@ const userSchema = new mongoose.Schema({
         type: Date,
         select: false
     },
+    // Opted out of "how is it?" review request emails (link in the email).
+    reviewRequestsOptOut: {
+        type: Boolean,
+        default: false
+    },
     // Opted out of abandoned-cart reminder emails (one-click link in the email).
     cartRemindersOptOut: {
         type: Boolean,
