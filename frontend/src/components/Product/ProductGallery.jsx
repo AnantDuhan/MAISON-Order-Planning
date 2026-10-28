@@ -23,7 +23,19 @@ const Arrow = ({ dir, onClick }) => (
 const ProductGallery = ({ images, alt, onOpen }) => {
     const [active, setActive] = useState(0);
     const track = useRef(null);
+    const thumbs = useRef(null);
     const count = images.length;
+
+    // Keep the active thumbnail in view when there are more than fit.
+    useEffect(() => {
+        const list = thumbs.current;
+        const thumb = list?.children[active];
+        if (!list || !thumb) return;
+        const top = thumb.offsetTop;
+        const bottom = top + thumb.offsetHeight;
+        if (top < list.scrollTop) list.scrollTo({ top, behavior: 'smooth' });
+        else if (bottom > list.scrollTop + list.clientHeight) list.scrollTo({ top: bottom - list.clientHeight, behavior: 'smooth' });
+    }, [active]);
 
     // A new set of photos (another colour) starts from the first one.
     const key = images.map(i => i.url).join('|');
@@ -53,7 +65,12 @@ const ProductGallery = ({ images, alt, onOpen }) => {
     return (
         <div className='flex gap-4'>
             {count > 1 && (
-                <div className='hidden w-[76px] shrink-0 flex-col gap-3 lg:flex'>
+                // The column is as tall as the main photo (the list inside is
+                // absolutely positioned), and scrolls when there are more
+                // thumbnails than fit. Before, eight thumbnails stretched the
+                // photo box and left an empty band under the photo.
+                <div className='relative hidden w-[76px] shrink-0 lg:block'>
+                <div ref={thumbs} className='absolute inset-0 flex flex-col gap-3 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'>
                     {images.map((img, i) => (
                         <button
                             key={img.url + i}
@@ -61,15 +78,16 @@ const ProductGallery = ({ images, alt, onOpen }) => {
                             onClick={() => go(i)}
                             aria-label={`Show photo ${i + 1}`}
                             aria-current={i === active}
-                            className={`aspect-[4/5] w-full overflow-hidden border bg-surface-2 transition ${i === active ? 'border-ink' : 'border-line opacity-70 hover:opacity-100'}`}
+                            className={`aspect-[4/5] w-full shrink-0 overflow-hidden border bg-surface-2 transition ${i === active ? 'border-ink' : 'border-line opacity-70 hover:opacity-100'}`}
                         >
                             <img src={img.url} alt='' loading='lazy' decoding='async' className='h-full w-full object-cover' />
                         </button>
                     ))}
                 </div>
+                </div>
             )}
 
-            <div className='group relative min-w-0 flex-1 overflow-hidden border-y border-line bg-surface-2 sm:border'>
+            <div className='group relative min-w-0 flex-1 self-start overflow-hidden border-y border-line bg-surface-2 sm:border'>
                 <div
                     ref={track}
                     onScroll={onScroll}
