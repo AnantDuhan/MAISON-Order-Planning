@@ -340,8 +340,42 @@ async function generateReviewSummary(productId, app) {
   return summary;
 }
 
+const MAX_REVIEW_LENGTH = 2000;
+
+// Can this customer review the product: only once an order containing it
+// has been delivered (the same rule createProductReview enforces).
+const hasReceived = (userId, productId) => Order.exists({
+  user: userId,
+  orderStatus: "Delivered",
+  "orderItems.product": String(productId),
+});
+
+// GET /product/:id/my-review — lets the review form say up front whether the
+// customer can post, and pre-fill their earlier review to edit.
+exports.getMyReview = async (req, res) => {
+  try {
+    const product = await Product.findById(req.params.id).select("reviews").lean();
+    if (!product) {
+      return res.status(404).json({ success: false, message: "Product not found" });
+    }
+    const mine = (product.reviews || []).find((rev) => String(rev.user) === String(req.user._id));
+    const canReview = Boolean(await hasReceived(req.user._id, req.params.id));
+    res.status(200).json({
+      success: true,
+      canReview,
+      reason: canReview ? null : "not-delivered",
+      review: mine ? { rating: mine.rating, comment: mine.comment } : null,
+      maxLength: MAX_REVIEW_LENGTH,
+    });
+  } catch (error) {
+    console.error("Get my review error:", error);
+    res.status(500).json({ success: false, message: "Internal Server Error" });
+  }
+};
+
 exports.createProductReview = async (req, res, next) => {
-  const { comment, productId } = req.body;
+  const { productId } = req.body;
+  const comment = typeof req.body.comment === "string" ? req.body.comment.trim() : req.body.comment;
   const rating = Number(req.body.rating);
 
   if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
@@ -350,10 +384,16 @@ exports.createProductReview = async (req, res, next) => {
       message: "Rating must be a whole number from 1 to 5",
     });
   }
-  if (typeof comment !== "string" || !comment.trim()) {
+  if (typeof comment !== "string" || !comment) {
     return res.status(400).json({
       success: false,
       message: "Please write a comment for your review",
+    });
+  }
+  if (comment.length > MAX_REVIEW_LENGTH) {
+    return res.status(400).json({
+      success: false,
+      message: `Please keep your review under ${MAX_REVIEW_LENGTH} characters`,
     });
   }
 
@@ -367,11 +407,7 @@ exports.createProductReview = async (req, res, next) => {
   }
 
   // Only customers who have received this product can review it.
-  const hasPurchased = await Order.exists({
-    user: req.user._id,
-    orderStatus: "Delivered",
-    "orderItems.product": String(productId),
-  });
+  const hasPurchased = await hasReceived(req.user._id, productId);
   if (!hasPurchased) {
     return res.status(403).json({
       success: false,

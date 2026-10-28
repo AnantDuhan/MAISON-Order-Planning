@@ -4,6 +4,7 @@ const {
    getAdminProducts,
    getProductDetails,
    createProductReview,
+   getMyReview,
    getProductReviews,
    deleteReview,
    addToWishList,
@@ -57,6 +58,7 @@ router.route('/admin/inventory').get(isAuthUser, authRoles('admin'), getInventor
 router.route('/admin/product-options/template').get(isAuthUser, authRoles('admin'), getOptionTemplate);
 
 router.route('/review').post(isAuthUser, requireFeature('reviews'), demoGuard('submit-review'), createProductReview);
+router.route('/product/:id/my-review').get(isAuthUser, getMyReview);
 
 router
     .route('/reviews')

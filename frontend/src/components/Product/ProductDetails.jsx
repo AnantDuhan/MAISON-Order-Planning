@@ -1,10 +1,4 @@
-import {
-  Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-} from "@mui/material";
+import { Button } from "@mui/material";
 import { Rating } from "@mui/material";
 import React, { Fragment, useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
@@ -22,15 +16,14 @@ import { addItemsToCart } from "../../actions/cartAction";
 import BackInStockButton from "./BackInStockButton";
 import VariantPicker, { colorOption, defaultSelection, findSelectedVariant, imagesForColor } from "./VariantPicker";
 import ProductGallery from "./ProductGallery";
+import ReviewDialog from "./ReviewDialog";
 import {
   addProductToWishlist,
   clearErrors,
   getProductDetails,
-  newReview,
   summarizeProductReviews,
 } from "../../actions/productAction";
 import {
-  NEW_REVIEW_RESET,
   REALTIME_PRODUCT_UPDATE,
   SUMMARIZE_REVIEWS_RESET,
 } from "../../constants/productConstants";
@@ -61,9 +54,6 @@ const ProductDetails = () => {
   );
   const { user } = useSelector((state) => state.user);
   const { wishlist } = useSelector((state) => state.wishlist);
-  const { success, error: reviewError } = useSelector(
-    (state) => state.newReview,
-  );
   const {
     loading: summaryLoading,
     isSummarized,
@@ -72,8 +62,6 @@ const ProductDetails = () => {
   const [progress, setProgress] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [open, setOpen] = useState(false);
-  const [rating, setRating] = useState(0);
-  const [comment, setComment] = useState("");
   const [lightboxIsOpen, setLightboxIsOpen] = useState(false);
   const [lightboxImageIndex, setLightboxImageIndex] = useState(0);
 
@@ -172,12 +160,14 @@ const ProductDetails = () => {
     open ? setOpen(false) : setOpen(true);
   };
 
-  const reviewSubmitHandler = () => {
-    const reviewData = { productId: id, comment, rating: Number(rating) };
-    dispatch(newReview(reviewData));
-    setOpen(false);
-    setProgress(progress + 80);
+  // The dialog posts the review itself (and shows any error in place).
+  const onReviewPosted = (edited) => {
+    toast.success(edited ? "Your review has been updated." : "Thank you, your review is posted.");
+    dispatch(getProductDetails(id));
   };
+  const myReview = (product?.reviews || []).find(
+    (rev) => user && String(rev.user?._id || rev.user) === String(user._id),
+  );
 
   const openLightbox = (index) => {
     setLightboxImageIndex(index);
@@ -196,14 +186,6 @@ const ProductDetails = () => {
       toast.error(error);
       dispatch(clearErrors());
     }
-    if (reviewError) {
-      toast.error(reviewError);
-      dispatch(clearErrors());
-    }
-    if (success) {
-      toast.success("Review Added Successfully");
-      dispatch({ type: NEW_REVIEW_RESET });
-    }
     if (isSummarized) {
       toast.success("AI Summary Generated!");
       dispatch({ type: SUMMARIZE_REVIEWS_RESET });
@@ -214,7 +196,7 @@ const ProductDetails = () => {
       isMounted = false;
       clearTimeout(timer);
     };
-  }, [dispatch, id, error, reviewError, success, isSummarized]);
+  }, [dispatch, id, error, isSummarized]);
 
   useEffect(() => {
     // Same origin by default: in dev the Vite server proxies /socket.io to
@@ -476,7 +458,7 @@ const ProductDetails = () => {
                     )}
                   {reviewsOn && (
                     <button type="button" onClick={submitReviewToggle} className="btn-outline">
-                      Write a review
+                      {myReview ? "Edit your review" : "Write a review"}
                     </button>
                   )}
                 </div>
@@ -548,48 +530,13 @@ const ProductDetails = () => {
             </div>
           )}
 
-          <Dialog
-            aria-labelledby="review-dialog"
+          <ReviewDialog
             open={open}
-            onClose={submitReviewToggle}
-            PaperProps={{ sx: { backgroundColor: "#FBF9F4" } }}
-          >
-            <DialogTitle
-              sx={{
-                fontFamily: "Cormorant Garamond, serif",
-                fontSize: "1.6rem",
-              }}
-            >
-              Write a review
-            </DialogTitle>
-            <DialogContent
-              className="flex flex-col gap-4"
-              sx={{ minWidth: 320 }}
-            >
-              <Rating
-                onChange={(e) => setRating(e.target.value)}
-                value={Number(rating)}
-                size="large"
-              />
-              <textarea
-                cols="30"
-                rows="5"
-                value={comment}
-                onChange={(e) => setComment(e.target.value)}
-                placeholder="Share your thoughts…"
-                className="field-luxe resize-none border border-line p-3"
-                style={{ color: "#1A1816" }}
-              ></textarea>
-            </DialogContent>
-            <DialogActions>
-              <Button onClick={submitReviewToggle} sx={{ color: "#8A8278" }}>
-                Cancel
-              </Button>
-              <Button onClick={reviewSubmitHandler} sx={{ color: "#A07C4B" }}>
-                Submit
-              </Button>
-            </DialogActions>
-          </Dialog>
+            onClose={() => setOpen(false)}
+            product={product}
+            user={user}
+            onSubmitted={onReviewPosted}
+          />
         </Fragment>
       )}
     </Fragment>
