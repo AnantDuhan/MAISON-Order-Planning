@@ -15,6 +15,7 @@ import { getLoginMethods, loginWithPasskey, passkeysSupported } from '../../acti
 import PasswordlessLogin from './PasswordlessLogin';
 import ButtonSpinner from '../layout/ButtonSpinner';
 import TryDemoButton from '../layout/TryDemoButton';
+import WaxSealPanel from './WaxSealPanel';
 import MetaData from '../layout/MetaData';
 
 const MIN_PASSWORD = 6; // matches the user model
@@ -78,34 +79,6 @@ const useColumnWidth = () => {
     }, []);
     return [ref, width];
 };
-
-const PERKS = [
-    'Track every order and return in one place',
-    'Saved addresses and a wishlist for faster checkout',
-    'Members: free shipping and 14-day returns',
-];
-
-/** Desktop only: the reasons to have an account, next to the form. */
-const BrandPanel = () => (
-    <aside className='relative hidden overflow-hidden bg-surface-2 lg:flex lg:flex-col lg:justify-center lg:p-14 xl:p-16'>
-        <span aria-hidden='true' className='absolute right-[10%] top-[6%] h-[30%] w-[26%] rounded-t-full bg-surface/50' />
-        <span aria-hidden='true' className='absolute bottom-[6%] right-[28%] h-32 w-32 rounded-full bg-brass/10' />
-        <div className='relative'>
-            <p className='eyebrow'>Maison</p>
-            <p className='mt-4 max-w-md font-display text-4xl italic leading-tight text-ink'>
-                Everyday objects, chosen with intention and made to be kept.
-            </p>
-            <ul className='mt-8 max-w-md'>
-                {PERKS.map(perk => (
-                    <li key={perk} className='flex gap-3 border-t border-ink/10 py-3 font-sans text-sm text-ink'>
-                        <span aria-hidden='true' className='text-brass'>✓</span>
-                        {perk}
-                    </li>
-                ))}
-            </ul>
-        </div>
-    </aside>
-);
 
 const LoginAndRegister = () => {
     const dispatch = useDispatch();
@@ -280,7 +253,7 @@ const LoginAndRegister = () => {
             <LoadingBar color='#A07C4B' progress={progress} onLoaderFinished={onLoaderFinished} />
             <GoogleOAuthProvider clientId={import.meta.env.REACT_APP_GOOGLE_CLIENT_ID}>
                 <div className='lg:grid lg:min-h-[calc(100vh-6.5rem)] lg:grid-cols-2'>
-                    <BrandPanel />
+                    <WaxSealPanel mode={tab} />
 
                     <div className='flex justify-center px-6 py-10 sm:py-14 lg:items-center lg:px-12'>
                         <div ref={googleRef} className='w-full max-w-[420px]'>
