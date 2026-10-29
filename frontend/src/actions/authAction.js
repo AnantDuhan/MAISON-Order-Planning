@@ -30,12 +30,17 @@ export const passkeysSupported = () => {
     }
 };
 
+const DEFAULT_LOGIN_METHODS = { password: true, emailCode: true, phone: false, passkey: true };
+
+// The login page must never crash: anything other than a methods object
+// (an error page, an HTML fallback from the CDN) means "use the defaults".
 export const getLoginMethods = async () => {
     try {
         const { data } = await axios.get('/api/v1/login/methods');
-        return data.methods;
+        const methods = data?.methods;
+        return methods && typeof methods === 'object' ? { ...DEFAULT_LOGIN_METHODS, ...methods } : DEFAULT_LOGIN_METHODS;
     } catch {
-        return { password: true, emailCode: true, phone: false, passkey: true };
+        return DEFAULT_LOGIN_METHODS;
     }
 };
 
@@ -103,7 +108,7 @@ export const loginWithPasskey = () => async dispatch => {
 
 export const fetchPasskeys = async () => {
     const { data } = await axios.get('/api/v1/passkeys');
-    return data.passkeys;
+    return Array.isArray(data?.passkeys) ? data.passkeys : [];
 };
 
 export const addPasskey = async name => {

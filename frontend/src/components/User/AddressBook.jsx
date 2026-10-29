@@ -1,21 +1,14 @@
 import React, { Fragment, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { toast } from 'react-toastify';
-import { COUNTRIES, countryName, stateName, statesOf } from '../../utils/indiaRegions';
+import { countryName, stateName } from '../../utils/indiaRegions';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 
 import { addAddress, deleteAddress } from '../../actions/userAction';
 import MetaData from '../layout/MetaData';
+import AddressFields, { EMPTY_ADDRESS, addressError } from './AddressFields';
 
-const emptyForm = {
-    label: '',
-    address: '',
-    city: '',
-    state: '',
-    country: 'IN',
-    pinCode: '',
-    phoneNumber: ''
-};
+const emptyForm = EMPTY_ADDRESS;
 
 
 const AddressBook = () => {
@@ -31,8 +24,9 @@ const AddressBook = () => {
 
     const submitHandler = async e => {
         e.preventDefault();
-        if (String(form.phoneNumber).length !== 10) {
-            toast.error('Phone Number should be 10 digits long');
+        const problem = addressError(form);
+        if (problem) {
+            toast.error(problem);
             return;
         }
         try {
@@ -90,7 +84,7 @@ const AddressBook = () => {
                                                 {a.city}, {stateName(a.country, a.state)}, {a.pinCode}
                                             </p>
                                             <p className='text-ink-soft'>{countryName(a.country)}</p>
-                                            <p className='text-ink-soft'>Phone: {a.phoneNumber}</p>
+                                            <p className='text-ink-soft'>+91 {a.phoneNumber}</p>
                                         </div>
                                         <button
                                             type='button'
@@ -111,89 +105,16 @@ const AddressBook = () => {
                     <div>
                         <p className='eyebrow'>Add a new address</p>
                         <form
-                            className='mt-4 flex flex-col gap-5 border border-line bg-surface p-6 sm:p-8'
+                            className='mt-4 flex flex-col gap-8 border border-line bg-surface p-6 sm:p-8'
                             onSubmit={submitHandler}
                         >
-                            <div className='field-row'>
-                                <input
-                                    type='text'
-                                    placeholder='Label (e.g. Home, Office) — optional'
-                                    value={form.label}
-                                    onChange={e => setField('label', e.target.value)}
-                                />
-                            </div>
-                            <div className='field-row'>
-                                <input
-                                    type='text'
-                                    placeholder='Address'
-                                    required
-                                    value={form.address}
-                                    onChange={e => setField('address', e.target.value)}
-                                />
-                            </div>
-                            <div className='field-row'>
-                                <input
-                                    type='text'
-                                    placeholder='City'
-                                    required
-                                    value={form.city}
-                                    onChange={e => setField('city', e.target.value)}
-                                />
-                            </div>
-                            <div className='field-row'>
-                                <input
-                                    type='text'
-                                    placeholder='Pin Code'
-                                    required
-                                    value={form.pinCode}
-                                    onChange={e => setField('pinCode', e.target.value)}
-                                />
-                            </div>
-                            <div className='field-row'>
-                                <input
-                                    type='text'
-                                    placeholder='Phone Number'
-                                    required
-                                    value={form.phoneNumber}
-                                    onChange={e => setField('phoneNumber', e.target.value)}
-                                />
-                            </div>
-                            <div className='field-row'>
-                                <select
-                                    required
-                                    value={form.country}
-                                    onChange={e => setField('country', e.target.value)}
-                                >
-                                    <option value=''>Country</option>
-                                    {COUNTRIES.map(item => (
-                                        <option key={item.isoCode} value={item.isoCode}>
-                                            {item.name}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                            {form.country && (
-                                <div className='field-row'>
-                                    <select
-                                        required
-                                        value={form.state}
-                                        onChange={e => setField('state', e.target.value)}
-                                    >
-                                        <option value=''>State</option>
-                                        {statesOf(form.country).map(item => (
-                                            <option key={item.isoCode} value={item.isoCode}>
-                                                {item.name}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                            )}
+                            <AddressFields value={form} onChange={setField} withLabel />
                             <button
                                 type='submit'
-                                disabled={saving || !form.state}
+                                disabled={saving}
                                 className='btn-solid mt-1 w-full disabled:opacity-40'
                             >
-                                {saving ? 'Saving…' : 'Save Address'}
+                                {saving ? 'Saving…' : 'Save address'}
                             </button>
                         </form>
                     </div>
