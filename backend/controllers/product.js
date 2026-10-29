@@ -47,19 +47,34 @@ exports.getAllProducts = async (req, res, next) => {
   // Cache per query signature — listings vary by search/filter/page. Keys are
   // built from a normalised, whitelisted view of the query so arbitrary
   // parameters can't create unbounded numbers of cache entries.
-  const { keyword, category, page, price, ratings } = req.query;
-  const cacheKey = `products:list:${JSON.stringify({ keyword, category, page, price, ratings })}`;
+  const { keyword, category, page, price, ratings, sort } = req.query;
+  const cacheKey = `products:list:${JSON.stringify({ keyword, category, page, price, ratings, sort })}`;
 
   const cached = await cache.getJSON(cacheKey);
   if (cached) {
     return res.status(200).json(cached);
   }
 
+  const payload = await exports.listProducts(req.query);
+
+  // Don't make the shopper wait for the cache write (setJSON never throws).
+  cache.setJSON(cacheKey, payload, LIST_CACHE_TTL);
+
+  res.status(200).json(payload);
+};
+
+/**
+ * One page of the catalogue for a listing query (keyword, category, price,
+ * ratings, sort, page). Shared by GET /products and by search when
+ * Elasticsearch is unavailable.
+ */
+exports.listProducts = async query => {
+  const { category } = query;
   const resultPerPage = Number(process.env.RESULT_PER_PAGE) || 8;
 
   // Only what a product card shows: reviews, descriptions, variants and AI
   // summaries are loaded on the product page, not in listings.
-  const apiFeature = new ApiFeatures(Product.find().select(LIST_FIELDS).lean(), req.query).search().filter();
+  const apiFeature = new ApiFeatures(Product.find().select(LIST_FIELDS).lean(), query).search().filter();
 
   // A department ("Electronics") covers the categories inside it, matched
   // case-insensitively so older products keep showing up.
@@ -69,7 +84,7 @@ exports.getAllProducts = async (req, res, next) => {
   }
 
   const filter = apiFeature.query.getFilter();
-  apiFeature.pagination(resultPerPage);
+  apiFeature.sort().pagination(resultPerPage);
   // Independent queries: run together instead of one after another.
   const [productsCount, filteredProductsCount, products] = await Promise.all([
     Product.estimatedDocumentCount(),
@@ -77,18 +92,13 @@ exports.getAllProducts = async (req, res, next) => {
     apiFeature.query,
   ]);
 
-  const payload = {
+  return {
     success: true,
     products,
     productsCount,
     resultPerPage,
     filteredProductsCount,
   };
-
-  // Don't make the shopper wait for the cache write (setJSON never throws).
-  cache.setJSON(cacheKey, payload, LIST_CACHE_TTL);
-
-  res.status(200).json(payload);
 };
 
 // Get All Product (Admin)

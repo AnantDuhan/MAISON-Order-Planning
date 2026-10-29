@@ -11,6 +11,15 @@ const RANGE_OPERATORS = ['gt', 'gte', 'lt', 'lte'];
 
 const escapeRegex = value => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
+// Listing sort orders a shopper can pick. _id breaks ties so pages never
+// repeat or skip a product.
+const SORTS = {
+    newest: { createdAt: -1, _id: -1 },
+    price_asc: { price: 1, _id: 1 },
+    price_desc: { price: -1, _id: -1 },
+    ratings: { ratings: -1, numOfReviews: -1, _id: -1 },
+};
+
 class ApiFeatures {
     constructor(query, queryStr) {
         this.query = query;
@@ -57,6 +66,14 @@ class ApiFeatures {
         return this;
     }
 
+    // ?sort=newest|price_asc|price_desc|ratings. Anything else (or nothing)
+    // keeps the old unsorted order, so existing clients see no change.
+    sort() {
+        const order = SORTS[this.queryStr.sort];
+        if (order) this.query = this.query.sort(order);
+        return this;
+    }
+
     pagination(resultPerPage) {
         const perPage = Number(resultPerPage) || 8;
         const currentPage = Math.max(1, Number(this.queryStr.page) || 1);
@@ -68,3 +85,4 @@ class ApiFeatures {
 }
 
 module.exports = ApiFeatures;
+module.exports.SORTS = SORTS;

@@ -81,7 +81,7 @@ async function bulkReindex() {
     return { indexed: products.length };
 }
 
-async function searchProducts({ keyword, category, minPrice, maxPrice, inStock, sort, page = 1, limit = 12 }) {
+async function searchProducts({ keyword, category, categories, minPrice, maxPrice, minRating, inStock, sort, page = 1, limit = 12 }) {
     const size = Number(limit) || 12;
     const from = (Math.max(1, Number(page) || 1) - 1) * size;
 
@@ -101,19 +101,25 @@ async function searchProducts({ keyword, category, minPrice, maxPrice, inStock, 
     }
 
     const filter = [];
-    if (category) filter.push({ term: { category } });
-    if (minPrice != null || maxPrice != null) {
+    // `category` is a keyword field (exact match), so also try the lowercase
+    // spelling older products were saved with.
+    const names = (categories && categories.length ? categories : category ? [category] : []).filter(Boolean);
+    if (names.length) filter.push({ terms: { category: [...new Set(names.flatMap(n => [n, n.toLowerCase()]))] } });
+    const isNum = v => v != null && v !== '' && Number.isFinite(Number(v));
+    if (isNum(minPrice) || isNum(maxPrice)) {
         const range = {};
-        if (minPrice != null) range.gte = Number(minPrice);
-        if (maxPrice != null) range.lte = Number(maxPrice);
+        if (isNum(minPrice)) range.gte = Number(minPrice);
+        if (isNum(maxPrice)) range.lte = Number(maxPrice);
         filter.push({ range: { price: range } });
     }
+    if (isNum(minRating) && Number(minRating) > 0) filter.push({ range: { ratings: { gte: Number(minRating) } } });
     if (inStock) filter.push({ range: { Stock: { gt: 0 } } });
 
     const sortClause = [];
     if (sort === 'price_asc') sortClause.push({ price: 'asc' });
     else if (sort === 'price_desc') sortClause.push({ price: 'desc' });
     else if (sort === 'ratings') sortClause.push({ ratings: 'desc' });
+    else if (sort === 'newest') sortClause.push({ createdAt: 'desc' });
 
     const resp = await esClient.search({
         index: PRODUCT_INDEX,

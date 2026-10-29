@@ -1,32 +1,62 @@
 const { searchProducts, suggestProducts } = require('../services/searchService');
+const categoryService = require('../services/categoryService');
+const { listProducts } = require('./product');
+
+const RESULT_PER_PAGE = () => Number(process.env.RESULT_PER_PAGE) || 8;
+
+// The extended query parser turns price[gte]=5 into { price: { gte: '5' } };
+// older clients may send minPrice/maxPrice instead.
+const rangeOf = (query, field, legacyMin, legacyMax) => ({
+    min: query[field]?.gte ?? query[`${field}[gte]`] ?? (legacyMin && query[legacyMin]),
+    max: query[field]?.lte ?? query[`${field}[lte]`] ?? (legacyMax && query[legacyMax]),
+});
 
 // GET /api/v1/search
+// Same filters, sorting and response shape as GET /products, ranked by
+// Elasticsearch relevance. If Elasticsearch is down, it falls back to the
+// catalogue query so search still returns results.
 exports.searchProductsController = async (req, res) => {
+    const { keyword, category, sort, page, inStock } = req.query;
+    const price = rangeOf(req.query, 'price', 'minPrice', 'maxPrice');
+    const ratings = rangeOf(req.query, 'ratings');
+    const limit = Number(req.query.limit) || RESULT_PER_PAGE();
+
     try {
-        const { keyword, category, sort, page, limit, inStock } = req.query;
-        const minPrice = req.query['price[gte]'] ?? req.query.minPrice;
-        const maxPrice = req.query['price[lte]'] ?? req.query.maxPrice;
+        // A department ("Accessories") covers every category inside it.
+        const categories = typeof category === 'string' && category.trim()
+            ? await categoryService.namesFor(category)
+            : [];
 
         const { products, total } = await searchProducts({
             keyword,
-            category,
-            minPrice,
-            maxPrice,
+            categories,
+            minPrice: price.min,
+            maxPrice: price.max,
+            minRating: ratings.min,
             inStock: inStock === 'true',
             sort,
             page,
             limit,
         });
 
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             products,
             total,
             productsCount: total,
+            filteredProductsCount: total,
+            resultPerPage: limit,
         });
     } catch (error) {
-        console.error('Search error:', error.message);
-        res.status(503).json({
+        console.error('Search error, using catalogue fallback:', error.message);
+    }
+
+    try {
+        const payload = await listProducts(req.query);
+        return res.status(200).json({ ...payload, total: payload.filteredProductsCount, fallback: true });
+    } catch (error) {
+        console.error('Search fallback error:', error.message);
+        return res.status(503).json({
             success: false,
             message: 'Search is temporarily unavailable',
         });
