@@ -17,6 +17,9 @@ import { useCategories } from '../../utils/useCategories';
 
 const FALLBACK_ESSENTIAL_PRICE = 600; // per year
 
+// "The November Edit": follows the calendar, so it never goes stale.
+const editLabel = (date = new Date()) => `The ${date.toLocaleDateString('en-IN', { month: 'long' })} Edit`;
+
 const firstImage = product => (product?.images || []).find(img => img?.url)?.url || null;
 
 const Icon = ({ children }) => (
@@ -115,7 +118,7 @@ const Home = () => {
     }, [dispatch, error]);
 
     useEffect(() => {
-        dispatch(getProduct());
+        dispatch(getProduct({ sort: 'newest' }));
     }, [dispatch]);
 
     const submitSubscribeHandler = e => {
@@ -124,15 +127,18 @@ const Home = () => {
         setEmail('');
     };
 
-    // Newest first. The hero shows the newest piece; new arrivals show up to
-    // four, skipping the hero piece once there are enough others to fill a row.
-    const list = (Array.isArray(products) ? products : []).slice().reverse();
+    // The API returns newest first. The hero shows the newest piece; new
+    // arrivals show up to four, skipping the hero piece once there are enough
+    // others to fill a row.
+    const list = Array.isArray(products) ? products : [];
     const hero = list.find(firstImage) || list[0];
     const arrivals = (list.length > 4 ? list.filter(p => p !== hero) : list).slice(0, 4);
     const storyProduct = list.find(p => p !== hero && firstImage(p)) || hero;
     const departments = categories.filter(d => !d.parent);
 
-    if (loading && !list.length) return <Loader label='Opening the doors' />;
+    // The store may still hold another page's results (the shop keeps them
+    // on screen while it reloads), so wait for Home's own list.
+    if (loading) return <Loader label='Opening the doors' />;
 
     return (
         <Fragment>
@@ -166,7 +172,7 @@ const Home = () => {
                     </Link>
 
                     <div className='min-w-0 flex-[1_1_340px]'>
-                        <p className='eyebrow'>The Autumn Edit</p>
+                        <p className='eyebrow'>{editLabel()}</p>
                         <h1 className='heading-display mt-4 text-5xl leading-[1.02] sm:text-6xl'>Everyday objects, chosen well.</h1>
                         <p className='mt-5 max-w-md font-sans text-base leading-relaxed text-ink-soft sm:text-lg'>
                             A short, considered selection of tech, clothing and things for the home — each piece picked to be used daily

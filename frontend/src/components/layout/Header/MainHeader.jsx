@@ -13,6 +13,8 @@ import axios from 'axios';
 import { logout } from '../../../actions/userAction';
 import ThemeToggle from '../ThemeToggle';
 import { useOverlay } from '../../../utils/useOverlay';
+import { formatINR } from '../../../utils/priceLabel';
+import { FREE_SHIPPING_THRESHOLD } from '../../../utils/delivery';
 
 const useDebounce = (value, delay) => {
     const [debouncedValue, setDebouncedValue] = useState(value);
@@ -106,7 +108,7 @@ const MainHeader = () => {
     const searchSubmitHandler = e => {
         e.preventDefault();
         if (keyword.trim()) {
-            navigate(`/search?keyword=${keyword}`);
+            navigate(`/search?keyword=${encodeURIComponent(keyword.trim())}`);
             setIsSuggestionsVisible(false);
             setMenuOpen(false);
         }
@@ -123,7 +125,7 @@ const MainHeader = () => {
             {/* Announcement strip */}
             <div className='hidden bg-ink text-canvas md:block'>
                 <p className='mx-auto max-w-editorial px-6 py-2 text-center font-sans text-[0.68rem] uppercase tracking-luxe lg:px-12'>
-                    Complimentary shipping on orders over ₹1,000 · Crafted for the considered life
+                    Complimentary shipping on orders over {formatINR(FREE_SHIPPING_THRESHOLD)} · Crafted for the considered life
                 </p>
             </div>
 

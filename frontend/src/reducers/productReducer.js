@@ -40,9 +40,6 @@ import {
     REMOVE_PRODUCT_FROM_WISHLIST_REQUEST,
     REMOVE_PRODUCT_FROM_WISHLIST_SUCCESS,
     REMOVE_PRODUCT_FROM_WISHLIST_FAIL,
-    SEARCH_PRODUCTS_REQUEST,
-    SEARCH_PRODUCTS_SUCCESS,
-    SEARCH_PRODUCTS_FAIL,
     SUMMARIZE_REVIEWS_REQUEST,
     SUMMARIZE_REVIEWS_SUCCESS,
     SUMMARIZE_REVIEWS_FAIL,
@@ -53,7 +50,15 @@ import {
 
 export const productsReducer = (state = { products: [] }, action) => {
     switch (action.type) {
+        // Keep the current products on screen while the next page or filter
+        // loads, so the shop doesn't blank out on every click.
         case ALL_PRODUCT_REQUEST:
+            return {
+                ...state,
+                loading: true,
+                error: null,
+                products: state.products || [],
+            };
         case ADMIN_PRODUCT_REQUEST:
             return {
                 loading: true,
@@ -74,6 +79,11 @@ export const productsReducer = (state = { products: [] }, action) => {
                 products: action.payload,
             };
         case ALL_PRODUCT_FAIL:
+            return {
+                ...state,
+                loading: false,
+                error: action.payload,
+            };
         case ADMIN_PRODUCT_FAIL:
             return {
                 loading: false,
@@ -368,37 +378,6 @@ export const wishlistReducer = (state = initialState, action) => {
 //             return state;
 //     }
 // };
-
-export const searchResultsReducer = (state = { products: [], facets: {} }, action) => {
-    switch (action.type) {
-        case SEARCH_PRODUCTS_REQUEST:
-            return {
-                loading: true,
-                products: [],
-                facets: {},
-            };
-        case SEARCH_PRODUCTS_SUCCESS:
-            return {
-                loading: false,
-                products: action.payload.products,
-                facets: action.payload.facets,
-            };
-        case SEARCH_PRODUCTS_FAIL:
-            return {
-                loading: false,
-                error: action.payload,
-                products: [],
-                facets: {},
-            };
-        case CLEAR_ERRORS:
-            return {
-                ...state,
-                error: null,
-            };
-        default:
-            return state;
-    }
-};
 
 export const summarizeReviewsReducer = (state = {}, action) => {
     switch (action.type) {

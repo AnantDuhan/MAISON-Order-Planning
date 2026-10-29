@@ -1,6 +1,3 @@
-// import { Elements } from '@stripe/react-stripe-js';
-// import { loadStripe } from '@stripe/stripe-js';
-// import axios from 'axios';
 import { Fragment, Suspense, lazy, useEffect } from "react";
 import { useSelector } from "react-redux";
 import { Route, Routes, useLocation } from "react-router-dom";
@@ -63,7 +60,6 @@ const ProductDetails = lazy(
   () => import("./components/Product/ProductDetails"),
 );
 const Products = lazy(() => import("./components/Product/Products"));
-const SearchResult = lazy(() => import("./components/Product/SearchResult"));
 const Wishlist = lazy(() => import("./components/Product/Wishlist"));
 const ForgotPassword = lazy(() => import("./components/User/ForgotPassword"));
 const AddressBook = lazy(() => import("./components/User/AddressBook"));
@@ -92,25 +88,12 @@ const VerifyInvoice = lazy(() => import("./components/Invoice/VerifyInvoice"));
 function App() {
   const { isAuthenticated, authChecked, user } = useSelector((state) => state.user);
   const storefrontOpen = useFeature("storefront");
-  // const [stripeApiKey, setStripeApiKey] = useState('');
 
   const location = useLocation();
   const isAdminRoute = location.pathname.startsWith("/admin");
 
-  // const [stripePromise] = useState(() => loadStripe('pk_test_51K9RkSSDvITsgzEyN1XtfELWFWiUetYQEU3NWsuHgEmnn07jtXs0HJKJ1x2cXldIX2hOc9qrm81fS6Fi1Z0pHsvu000MvtXP6h'));
-
   useEffect(() => {
-    // async function getStripeApiKey() {
-    //     try {
-    //         const { data } = await axios.get('/api/v1/stripeapikey');
-    //         setStripeApiKey(data.stripeApiKey);
-    //     } catch (error) {
-    //         console.error("Could not get Stripe API Key", error);
-    //     }
-    // }
-
     store.dispatch(loadUser());
-    // getStripeApiKey();
   }, []);
 
   // SPA page views for analytics (no-op until the visitor consents).
@@ -154,7 +137,7 @@ function App() {
               <Route path="/product/:id" element={<ProductDetails />} exact />
               <Route path="/products" element={<Products />} exact />
               <Route path="/products/:keyword" element={<Products />} exact />
-              <Route path="/search" element={<SearchResult />} />
+              <Route path="/search" element={<Products />} />
               <Route path="/about" element={<About />} exact />
               <Route path="/contact-us" element={<Contact />} exact />
               <Route path="/cart" element={<Cart />} exact />

@@ -36,23 +36,33 @@ import { ADD_PRODUCT_TO_WISHLIST_FAIL,
     UPDATE_PRODUCT_FAIL, 
     UPDATE_PRODUCT_REQUEST, 
     UPDATE_PRODUCT_SUCCESS,
-    SEARCH_PRODUCTS_REQUEST,
-    SEARCH_PRODUCTS_SUCCESS,
-    SEARCH_PRODUCTS_FAIL,
     SUMMARIZE_REVIEWS_REQUEST,
     SUMMARIZE_REVIEWS_SUCCESS,
     SUMMARIZE_REVIEWS_FAIL,
     CLEAR_ERRORS
 } from '../constants/productConstants';
 
-// Get All Products
-export const getProduct = (
+// Only the newest listing request may update the page, so quick filter
+// clicks can't be overwritten by a slower, older response.
+let latestListRequest = 0;
+
+const SORTS = ['newest', 'price_asc', 'price_desc', 'ratings'];
+
+/**
+ * Get one page of products for the shop, search and home page.
+ * `search: true` ranks by relevance through /search (which falls back to the
+ * catalogue if Elasticsearch is down); otherwise /products.
+ */
+export const getProduct = ({
     keyword = '',
-    currentPage = 1,
+    page = 1,
     price = [0, 999999],
-    category,
-    ratings = 0
-) => async dispatch => {
+    category = '',
+    ratings = 0,
+    sort = '',
+    search = false,
+} = {}) => async dispatch => {
+    const requestId = ++latestListRequest;
     try {
         dispatch({ type: ALL_PRODUCT_REQUEST });
 
@@ -63,7 +73,7 @@ export const getProduct = (
         const params = new URLSearchParams();
 
         if (keyword) params.set('keyword', keyword);
-        params.set('page', currentPage);
+        params.set('page', page);
 
         const [minPrice, maxPrice] = price || [];
         if (Number(minPrice) > 0) params.set('price[gte]', minPrice);
@@ -73,14 +83,17 @@ export const getProduct = (
 
         if (category) params.set('category', category);
         if (Number(ratings) > 0) params.set('ratings[gte]', ratings);
+        if (SORTS.includes(sort)) params.set('sort', sort);
 
-        const { data } = await axios.get(`/api/v1/products?${params.toString()}`);
+        const { data } = await axios.get(`/api/v1/${search ? 'search' : 'products'}?${params.toString()}`);
+        if (requestId !== latestListRequest) return;
 
         dispatch({
             type: ALL_PRODUCT_SUCCESS,
             payload: data
         });
     } catch (error) {
+        if (requestId !== latestListRequest) return;
         dispatch({
             type: ALL_PRODUCT_FAIL,
             payload: error.response?.data?.message || error.message || 'Could not load products'
@@ -337,43 +350,6 @@ export const removeProductFromWishlist = id => async dispatch => {
 //         return [];
 //     }
 // };
-
-export const searchProducts = (filters = {}) => async (dispatch) => {
-    try {
-        dispatch({ type: SEARCH_PRODUCTS_REQUEST });
-
-        // Destructure the filters with default values
-        const { keyword = '', price = {}, ratings = 0 } = filters;
-
-        // Use URLSearchParams to build the query string dynamically
-        const params = new URLSearchParams();
-
-        if (keyword) {
-            params.append('keyword', keyword);
-        }
-        if (price.lte) {
-            params.append('price[lte]', price.lte);
-        }
-        if (price.gte) {
-            params.append('price[gte]', price.gte);
-        }
-        if (ratings > 0) {
-            params.append('ratings[gte]', ratings);
-        }
-
-        const { data } = await axios.get(`/api/v1/search?${params.toString()}`);
-
-        dispatch({
-            type: SEARCH_PRODUCTS_SUCCESS,
-            payload: data,
-        });
-    } catch (error) {
-        dispatch({
-            type: SEARCH_PRODUCTS_FAIL,
-            payload: error.response?.data?.message || 'An error occurred',
-        });
-    }
-};
 
 export const summarizeProductReviews = (id) => async (dispatch) => {
     try {
