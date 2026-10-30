@@ -51,3 +51,9 @@ export const countryName = iso => (iso === 'IN' ? 'India' : iso);
 
 export const stateName = (countryIso, stateIso) =>
     (countryIso === 'IN' && IN_STATE_NAMES[stateIso]) || stateIso;
+
+/** "14, Race Course Road, Coimbatore, Tamil Nadu 641018, India" */
+export const formatAddress = (a = {}) =>
+    [a.address, a.city, [stateName(a.country, a.state), a.pinCode].filter(Boolean).join(' '), countryName(a.country)]
+        .filter(Boolean)
+        .join(', ');

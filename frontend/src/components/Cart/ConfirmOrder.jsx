@@ -9,11 +9,12 @@ import { useFeature } from '../../context/FeatureFlagsContext';
 import { formatINR } from '../../utils/priceLabel';
 import { shippingFor } from '../../utils/delivery';
 import { useIsMember } from '../../utils/useIsMember';
+import { formatAddress } from '../../utils/indiaRegions';
 
 const ConfirmOrder = () => {
     const { shippingInfo, cartItems } = useSelector(state => state.cart);
     const { user } = useSelector(state => state.user);
-    const { coupons } = useSelector(state => state.coupon);
+    const coupons = useSelector(state => state.coupon?.coupons) || [];
 
     const navigate = useNavigate();
     const dispatch = useDispatch();
@@ -28,7 +29,7 @@ const ConfirmOrder = () => {
     const couponDiscountAmount = (subtotal * selectedCouponValue) / 100;
     const totalPrice = subtotal + shippingCharges - couponDiscountAmount;
 
-    const address = `${shippingInfo.address}, ${shippingInfo.city}, ${shippingInfo.state}, ${shippingInfo.pinCode}, ${shippingInfo.country}`;
+    const address = formatAddress(shippingInfo);
 
     const proceedToPayment = () => {
         const data = { subtotal, shippingCharges, totalPrice, selectedCoupon };
@@ -40,9 +41,16 @@ const ConfirmOrder = () => {
         dispatch(getAllCoupons());
     }, [dispatch]);
 
+    // Nothing to review without items or an address (direct visit, new tab).
+    const missing = !cartItems?.length ? '/cart' : !shippingInfo?.address ? '/shipping' : null;
+    useEffect(() => {
+        if (missing) navigate(missing, { replace: true });
+    }, [missing, navigate]);
+    if (missing) return null;
+
     return (
         <Fragment>
-            <MetaData title='Confirm Order · Maison' />
+            <MetaData title='Confirm Order · Maison' noIndex />
             <CheckoutSteps activeStep={1} />
 
             <div className='editorial-shell py-14'>
@@ -58,7 +66,7 @@ const ConfirmOrder = () => {
                                 </div>
                                 <div className='flex justify-between'>
                                     <span className='font-sans text-sm text-ink-faint'>Phone</span>
-                                    <span className='font-sans text-sm text-ink'>{shippingInfo.phoneNumber}</span>
+                                    <span className='font-sans text-sm text-ink'>+91 {shippingInfo.phoneNumber}</span>
                                 </div>
                                 <div className='flex justify-between gap-8'>
                                     <span className='font-sans text-sm text-ink-faint'>Address</span>
@@ -72,21 +80,23 @@ const ConfirmOrder = () => {
                             <div className='mt-5 divide-y divide-line border border-line bg-surface'>
                                 {cartItems &&
                                     cartItems.map(item => (
-                                        <div key={`${item.product}|${item.variant || ''}`} className='flex items-center gap-5 p-5'>
-                                            <img src={item.image} alt='Product' className='h-16 w-14 border border-line object-cover' />
-                                            <Link
-                                                to={`/product/${item.product}`}
-                                                className='flex-1 font-display text-lg font-medium text-ink hover:text-brass'
-                                            >
-                                                {item.name}
-                                                {item.variantLabel && (
-                                                    <span className='mt-1 block font-sans text-sm font-normal text-ink-soft'>{item.variantLabel}</span>
-                                                )}
-                                            </Link>
-                                            <span className='font-sans text-sm text-ink-soft'>
-                                                {item.quantity} × {formatINR(item.price)} ={' '}
-                                                <b className='text-ink'>{formatINR(item.price * item.quantity)}</b>
-                                            </span>
+                                        <div key={`${item.product}|${item.variant || ''}`} className='flex items-start gap-4 p-5 sm:items-center sm:gap-5'>
+                                            <img src={item.image} alt='' className='h-16 w-14 shrink-0 border border-line object-cover' />
+                                            <div className='flex min-w-0 flex-1 flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-5'>
+                                                <Link
+                                                    to={`/product/${item.product}`}
+                                                    className='min-w-0 font-display text-lg font-medium leading-snug text-ink hover:text-brass'
+                                                >
+                                                    {item.name}
+                                                    {item.variantLabel && (
+                                                        <span className='mt-1 block font-sans text-sm font-normal text-ink-soft'>{item.variantLabel}</span>
+                                                    )}
+                                                </Link>
+                                                <span className='shrink-0 font-sans text-sm text-ink-soft'>
+                                                    {item.quantity} × {formatINR(item.price)} ={' '}
+                                                    <b className='text-ink'>{formatINR(item.price * item.quantity)}</b>
+                                                </span>
+                                            </div>
                                         </div>
                                     ))}
                             </div>

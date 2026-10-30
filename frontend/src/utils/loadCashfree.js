@@ -2,6 +2,7 @@
 // loads there (on first visit to either) instead of on every page of the shop.
 const SDK_URL = 'https://sdk.cashfree.com/js/v3/cashfree.js';
 const MODE = import.meta.env.REACT_APP_CASHFREE_MODE || 'sandbox';
+export const CASHFREE_MODE = MODE;
 
 let pending = null;
 

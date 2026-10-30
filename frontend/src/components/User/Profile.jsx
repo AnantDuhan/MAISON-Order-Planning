@@ -136,6 +136,11 @@ const Profile = () => {
   const isMember =
     membership?.isActive && membership.status === "ACTIVE";
 
+  // "10 January 2026" rather than the raw ISO date.
+  const joinedOn = user?.createdAt
+    ? new Date(user.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
+    : '—';
+
   const nextPaymentDate = membership?.nextPaymentDate
     ? new Date(membership.nextPaymentDate).toLocaleDateString(undefined, {
         year: "numeric",
@@ -254,11 +259,11 @@ const Profile = () => {
                     {/* MEMBER SINCE */}
                     <div className="flex items-center justify-between">
                       <span className="font-sans text-sm text-ink-soft">
-                        Member Since
+                        Customer since
                       </span>
 
                       <span className="font-sans text-xs uppercase tracking-wider text-ink">
-                        {String(user?.createdAt).substring(0, 10)}
+                        {joinedOn}
                       </span>
                     </div>
 
@@ -301,7 +306,7 @@ const Profile = () => {
                     <p className="eyebrow">Joined On</p>
 
                     <p className="mt-2 font-display text-2xl text-ink">
-                      {String(user?.createdAt).substring(0, 10)}
+                      {joinedOn}
                     </p>
                   </div>
 

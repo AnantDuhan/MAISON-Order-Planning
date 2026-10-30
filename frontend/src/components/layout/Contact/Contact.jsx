@@ -1,6 +1,3 @@
-import AccountCircleIcon from '@mui/icons-material/AccountCircle';
-import EmailIcon from '@mui/icons-material/Email';
-import SubjectIcon from '@mui/icons-material/Subject';
 import React, { Fragment, useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { toast } from 'react-toastify';
@@ -11,10 +8,12 @@ import { CLEAR_CONTACT } from '../../../constants/contactConstants';
 import { LEGAL_EMAIL } from '../Legal/LegalPage';
 import MetaData from '../MetaData';
 import ButtonSpinner from '../ButtonSpinner';
+import Field from '../Field';
 
 const ContactForm = () => {
     const dispatch = useDispatch();
     const { loading, error, success } = useSelector(state => state.contact);
+    const { user } = useSelector(state => state.user);
 
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
@@ -24,13 +23,19 @@ const ContactForm = () => {
     const [website, setWebsite] = useState('');
     const [formError, setFormError] = useState('');
 
+    // Signed-in shoppers don't need to type who they are.
+    useEffect(() => {
+        if (user?.name) setName(n => n || user.name);
+        if (user?.email) setEmail(e => e || user.email);
+    }, [user?.name, user?.email]);
+
     useEffect(() => {
         if (error) {
             toast.error(error);
             dispatch(clearErrors());
         }
         if (success) {
-            toast.success('Contact form submitted successfully');
+            toast.success("Thanks — we've got your message and will reply by email.");
             setName('');
             setEmail('');
             setSubject('');
@@ -100,49 +105,24 @@ const ContactForm = () => {
                                     onChange={e => setWebsite(e.target.value)}
                                 />
                             </div>
-                            <div className='field-row'>
-                                <AccountCircleIcon />
-                                <input
-                                    type='text'
-                                    placeholder='Your Name'
-                                    aria-label='Your name'
-                                    autoComplete='name'
-                                    maxLength={80}
-                                    required
-                                    value={name}
-                                    onChange={e => setName(e.target.value)}
-                                />
+                            <div className='grid gap-6 sm:grid-cols-2'>
+                                <Field label='Your name'>
+                                    <input type='text' autoComplete='name' maxLength={80} required value={name} onChange={e => setName(e.target.value)} />
+                                </Field>
+                                <Field label='Email'>
+                                    <input type='email' autoComplete='email' maxLength={120} required value={email} onChange={e => setEmail(e.target.value)} />
+                                </Field>
                             </div>
-                            <div className='field-row'>
-                                <EmailIcon />
-                                <input
-                                    type='email'
-                                    placeholder='Your Email'
-                                    aria-label='Your email'
-                                    autoComplete='email'
-                                    maxLength={120}
-                                    required
-                                    value={email}
-                                    onChange={e => setEmail(e.target.value)}
-                                />
-                            </div>
-                            <div className='field-row'>
-                                <SubjectIcon />
-                                <input
-                                    type='text'
-                                    placeholder='Subject'
-                                    aria-label='Subject'
-                                    maxLength={150}
-                                    required
-                                    value={subject}
-                                    onChange={e => setSubject(e.target.value)}
-                                />
-                            </div>
+                            <Field label='Subject'>
+                                <input type='text' maxLength={150} required placeholder='Order number, product name or topic' value={subject} onChange={e => setSubject(e.target.value)} />
+                            </Field>
 
-                            <div>
-                                <label htmlFor='contact-message' className='eyebrow'>Your Message</label>
+                            <label className='block'>
+                                <span className='flex items-baseline justify-between gap-3 font-sans text-[0.68rem] uppercase tracking-luxe text-ink-faint'>
+                                    Message
+                                    <span className='normal-case tracking-normal'>{message.length}/2000</span>
+                                </span>
                                 <textarea
-                                    id='contact-message'
                                     required
                                     minLength={10}
                                     maxLength={2000}
@@ -150,18 +130,15 @@ const ContactForm = () => {
                                     value={message}
                                     onChange={e => setMessage(e.target.value)}
                                     rows='6'
-                                    className='mt-3 w-full resize-none border border-line bg-transparent p-4 font-sans text-ink placeholder:text-ink-faint focus:border-brass focus:outline-none'
+                                    className='mt-2 w-full resize-none border border-line bg-transparent p-4 font-sans text-ink placeholder:text-ink-faint focus:border-brass focus:outline-none'
                                 ></textarea>
-                            </div>
+                            </label>
 
                             {formError && (
                                 <p role='alert' className='font-sans text-sm text-danger'>
                                     {formError}
                                 </p>
                             )}
-                            <p className='-mt-3 text-right font-sans text-xs text-ink-faint'>
-                                {message.length}/2000
-                            </p>
 
                             <button type='submit' disabled={loading} className='btn-solid w-full disabled:opacity-40'>
                                 {loading ? (
@@ -170,7 +147,7 @@ const ContactForm = () => {
                                             Sending…
                                         </>
                                     ) : (
-                                        'Submit'
+                                        'Send message'
                                     )}
                             </button>
                         </form>

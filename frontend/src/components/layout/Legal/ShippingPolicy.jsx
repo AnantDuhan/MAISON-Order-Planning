@@ -13,7 +13,7 @@ const sections = [
     {
         heading: 'Shipping charges',
         body: [
-            'Shipping is complimentary on orders over ₹1,000, and on every order for Maison Essential and Plus members. Members’ orders are dispatched first. Other orders of ₹1,000 or less carry a flat shipping charge of ₹150, shown in your cart and at checkout before you pay.',
+            'Shipping is complimentary on orders over ₹1,000, and on every order for Maison Essential and Plus members. Plus members’ orders are dispatched first. Other orders of ₹1,000 or less carry a flat shipping charge of ₹150, shown in your cart and at checkout before you pay.',
         ],
     },
     {
@@ -59,7 +59,7 @@ const ShippingPolicy = () => (
         description='Where Maison delivers, what shipping costs, how long delivery takes and how to track your order.'
         intro='How we get your order to you: charges, delivery times and tracking.'
         sections={sections}
-        lastUpdated='26 October 2026'
+        lastUpdated='30 October 2026'
     />
 );
 

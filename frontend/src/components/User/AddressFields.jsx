@@ -1,5 +1,6 @@
 import React from 'react';
 import { COUNTRIES, statesOf } from '../../utils/indiaRegions';
+import Field from '../layout/Field';
 
 export const EMPTY_ADDRESS = { label: '', address: '', city: '', state: '', country: 'IN', pinCode: '', phoneNumber: '' };
 
@@ -10,13 +11,6 @@ export const addressError = a => {
     if (!a.state) return 'Choose a state';
     return '';
 };
-
-const Field = ({ label, className = '', children }) => (
-    <label className={`block ${className}`}>
-        <span className='font-sans text-[0.68rem] uppercase tracking-luxe text-ink-faint'>{label}</span>
-        <span className='field-row mt-1'>{children}</span>
-    </label>
-);
 
 /**
  * The address form used at checkout and in the address book, so both look

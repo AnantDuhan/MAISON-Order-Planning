@@ -10,11 +10,18 @@ import CheckoutSteps from '../Cart/CheckoutSteps';
 import MetaData from '../layout/MetaData';
 import { createOrder, clearErrors } from '../../actions/orderAction';
 import { formatINR } from '../../utils/priceLabel';
-import { loadCashfree, preloadCashfree } from '../../utils/loadCashfree';
+import { CASHFREE_MODE, loadCashfree, preloadCashfree } from '../../utils/loadCashfree';
 
 
 const Payment = () => {
-    const orderInfo = JSON.parse(sessionStorage.getItem('orderInfo'));
+    // Set by Confirm Order. Missing when /payment is opened directly, in a new
+    // tab or after the session ends, so send the shopper back to review.
+    let orderInfo = null;
+    try {
+        orderInfo = JSON.parse(sessionStorage.getItem('orderInfo'));
+    } catch {
+        orderInfo = null;
+    }
 
     const dispatch = useDispatch();
     const navigate = useNavigate();
@@ -26,6 +33,11 @@ const Payment = () => {
 
     useEffect(preloadCashfree, []);
     const dueNow = Number(orderInfo?.totalPrice || 0);
+    const ready = dueNow > 0 && cartItems?.length > 0;
+
+    useEffect(() => {
+        if (!ready) navigate(cartItems?.length ? '/order/confirm' : '/cart', { replace: true });
+    }, [ready, cartItems?.length, navigate]);
 
     const submitHandler = async e => {
         e.preventDefault();
@@ -40,7 +52,7 @@ const Payment = () => {
                 ...(item.variant && { variant: item.variant }),
                 quantity: item.quantity,
             }));
-            const couponCode = orderInfo.selectedCoupon?.code;
+            const couponCode = orderInfo?.selectedCoupon?.code;
 
             const { data } = await axios.post('/api/v1/cashfree/order', {
                 orderItems: pricedItems,
@@ -97,14 +109,16 @@ const Payment = () => {
         }
     }, [dispatch, error]);
 
+    if (!ready) return null;
+
     return (
         <Fragment>
-            <MetaData title='Payment · Maison' />
+            <MetaData title='Payment · Maison' noIndex />
             <CheckoutSteps activeStep={2} />
 
             <div className='form-shell !min-h-0'>
                 <div className='form-card text-center'>
-                    <p className='eyebrow'>Secure Checkout · Demo</p>
+                    <p className='eyebrow'>Secure checkout{CASHFREE_MODE === 'sandbox' ? ' · Test mode' : ''}</p>
 
                     <div className='mt-8 flex flex-col items-center'>
                         <VerifiedUserIcon sx={{ fontSize: 48, color: '#4F6E54' }} />

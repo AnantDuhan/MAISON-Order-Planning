@@ -28,6 +28,7 @@ import MetaData from '../layout/MetaData';
 import ShipmentPanel, { ShipFields } from './ShipmentPanel';
 import OrderItemsList from '../Order/OrderItemsList';
 import { EntityHistory } from './AuditLog';
+import { formatAddress } from '../../utils/indiaRegions';
 
 const refundOptions = ['Initiated', 'Pending', 'Approved', 'Rejected', 'Refunded'];
 
@@ -155,9 +156,7 @@ const ProcessOrder = () => {
     // Cashfree orders are stored as 'PAID'; 'succeeded' covers legacy orders.
     const isPaid = ['PAID', 'succeeded'].includes(order?.paymentInfo?.status);
     const isDelivered = order?.orderStatus === 'Delivered';
-    const address = order?.shippingInfo
-        ? `${order.shippingInfo.address}, ${order.shippingInfo.city}, ${order.shippingInfo.state}, ${order.shippingInfo.pinCode}, ${order.shippingInfo.country}`
-        : '';
+    const address = order?.shippingInfo ? formatAddress(order.shippingInfo) : '';
 
     return (
         <Fragment>

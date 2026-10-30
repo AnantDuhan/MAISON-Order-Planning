@@ -71,7 +71,7 @@ const CategoryTile = ({ dept }) => {
                 )}
             </div>
             <div className='mt-4 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5'>
-                <p className='min-w-0 font-sans text-base text-ink'>{dept.name}</p>
+                <p className={`min-w-0 font-sans text-base ${hasProducts ? 'text-ink' : 'text-ink-faint'}`}>{dept.name}</p>
                 <p className='font-sans text-xs text-ink-faint'>
                     {hasProducts ? `${dept.productCount} ${dept.productCount === 1 ? 'piece' : 'pieces'}` : 'Arriving soon'}
                 </p>
@@ -82,7 +82,7 @@ const CategoryTile = ({ dept }) => {
     return hasProducts ? (
         <Link to={`/products?category=${encodeURIComponent(dept.slug)}`} className='group block'>{body}</Link>
     ) : (
-        <div className='block opacity-80'>{body}</div>
+        <div className='block'>{body}</div>
     );
 };
 

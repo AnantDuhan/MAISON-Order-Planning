@@ -1,11 +1,9 @@
-import MailOutlineIcon from '@mui/icons-material/MailOutline';
-import PhoneAndroidIcon from '@mui/icons-material/PhoneAndroid';
-import PinIcon from '@mui/icons-material/Pin';
 import React, { useEffect, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 
 import { requestLoginCode, verifyLoginCode } from '../../actions/authAction';
 import ButtonSpinner from '../layout/ButtonSpinner';
+import { AuthField, inputClass } from './AuthFields';
 
 const RESEND_SECONDS = 30;
 
@@ -62,25 +60,25 @@ const PasswordlessLogin = ({ channel }) => {
 
     if (step === 'identify') {
         return (
-            <form className='flex flex-col gap-6 animate-fade-in' onSubmit={send}>
+            <form className='flex flex-col gap-4 animate-fade-in' onSubmit={send}>
                 <p className='font-sans text-sm leading-relaxed text-ink-soft'>
                     {isEmail
                         ? "We'll email you a 6-digit code and a one-click sign-in link. No password needed."
                         : "We'll text a 6-digit code to the mobile number on your account."}
                 </p>
-                <div className='field-row'>
-                    {isEmail ? <MailOutlineIcon /> : <PhoneAndroidIcon />}
+                <AuthField id={`code-${channel}`} label={isEmail ? 'Email' : 'Mobile number'}>
                     <input
+                        id={`code-${channel}`}
                         type={isEmail ? 'email' : 'tel'}
                         inputMode={isEmail ? 'email' : 'tel'}
                         autoComplete={isEmail ? 'email' : 'tel'}
-                        placeholder={isEmail ? 'Email' : 'Mobile number (e.g. 98765 43210)'}
-                        aria-label={isEmail ? 'Email' : 'Mobile number'}
+                        placeholder={isEmail ? 'you@example.com' : '98765 43210'}
                         required
                         value={identifier}
                         onChange={e => setIdentifier(e.target.value)}
+                        className={inputClass}
                     />
-                </div>
+                </AuthField>
                 {error && (
                     <p role='alert' className='font-sans text-sm text-danger'>
                         {error}
@@ -93,7 +91,7 @@ const PasswordlessLogin = ({ channel }) => {
                             Sending…
                         </>
                     ) : (
-                        'Send Code'
+                        'Send code'
                     )}
                 </button>
             </form>
@@ -112,22 +110,21 @@ const PasswordlessLogin = ({ channel }) => {
                 {notice}{' '}
                 {isEmail && 'You can also just tap the link in the email.'}
             </p>
-            <div className='field-row'>
-                <PinIcon />
+            <AuthField id={`code-${channel}-otp`} label='6-digit code'>
                 <input
+                    id={`code-${channel}-otp`}
                     ref={codeInput}
                     type='text'
                     inputMode='numeric'
                     autoComplete='one-time-code'
                     pattern='[0-9]{6}'
                     maxLength={6}
-                    placeholder='6-digit code'
-                    aria-label='6-digit code'
-                    className='tracking-[0.4em]'
+                    placeholder='••••••'
                     value={code}
                     onChange={onCodeChange}
+                    className={`${inputClass} tracking-[0.4em]`}
                 />
-            </div>
+            </AuthField>
             <button type='submit' disabled={loading || code.length !== 6} className='btn-solid w-full disabled:opacity-40'>
                 {loading ? (
                     <>
@@ -135,7 +132,7 @@ const PasswordlessLogin = ({ channel }) => {
                         Verifying…
                     </>
                 ) : (
-                    'Sign In'
+                    'Sign in'
                 )}
             </button>
             <div className='flex items-center justify-between font-sans text-[0.7rem] uppercase tracking-luxe'>

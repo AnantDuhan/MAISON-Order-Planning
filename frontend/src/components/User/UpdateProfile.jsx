@@ -1,5 +1,3 @@
-import FaceIcon from '@mui/icons-material/Face';
-import MailOutlineIcon from '@mui/icons-material/MailOutline';
 import React, { Fragment, useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router';
@@ -10,6 +8,7 @@ import { clearErrors, loadUser, updateProfile } from '../../actions/userAction';
 import { UPDATE_PROFILE_RESET } from '../../constants/userConstants';
 import MetaData from '../layout/MetaData';
 import ButtonSpinner from '../layout/ButtonSpinner';
+import Field from '../layout/Field';
 
 const UpdateProfile = () => {
     const dispatch = useDispatch();
@@ -59,7 +58,7 @@ const UpdateProfile = () => {
             dispatch(clearErrors());
         }
         if (isUpdated) {
-            toast.success('Profile Updated Successfully');
+            toast.success('Profile updated');
             dispatch(loadUser());
             navigate('/account');
             dispatch({ type: UPDATE_PROFILE_RESET });
@@ -71,11 +70,11 @@ const UpdateProfile = () => {
     return (
         <Fragment>
             <LoadingBar color='#A07C4B' progress={progress} onLoaderFinished={onLoaderFinished} />
-            <MetaData title='Update Profile · Maison' />
+            <MetaData title='Edit Profile · Maison' noIndex />
             <div className='form-shell'>
                 <div className='form-card'>
                     <p className='eyebrow'>Your Details</p>
-                    <h2 className='heading-display mt-2 text-3xl'>Update Profile</h2>
+                    <h1 className='heading-display mt-2 text-3xl'>Edit profile</h1>
 
                     <form className='mt-8 flex flex-col gap-6' encType='multipart/form-data' onSubmit={updateProfileSubmit}>
                         <div className='flex flex-col items-center gap-4'>
@@ -90,14 +89,12 @@ const UpdateProfile = () => {
                             </label>
                         </div>
 
-                        <div className='field-row'>
-                            <FaceIcon />
-                            <input type='text' placeholder='Name' required name='name' value={name} onChange={e => setName(e.target.value)} />
-                        </div>
-                        <div className='field-row'>
-                            <MailOutlineIcon />
-                            <input type='email' placeholder='Email' required name='email' value={email} onChange={e => setEmail(e.target.value)} />
-                        </div>
+                        <Field label='Full name'>
+                            <input type='text' required name='name' autoComplete='name' value={name} onChange={e => setName(e.target.value)} />
+                        </Field>
+                        <Field label='Email'>
+                            <input type='email' required name='email' autoComplete='email' value={email} onChange={e => setEmail(e.target.value)} />
+                        </Field>
 
                         <button
                             type='submit'
@@ -111,7 +108,7 @@ const UpdateProfile = () => {
                                     Updating…
                                 </>
                             ) : (
-                                'Update'
+                                'Save changes'
                             )}
                         </button>
                     </form>

@@ -17,6 +17,7 @@ import MetaData from '../layout/MetaData';
 import { useFeature } from '../../context/FeatureFlagsContext';
 import { isWithinReturnWindow, windowDaysFor } from '../../utils/returnWindow';
 import { tierName } from '../../utils/membershipTiers';
+import { countryName, stateName } from '../../utils/indiaRegions';
 
 const formatDate = value => (value
     ? new Date(value).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
@@ -318,11 +319,11 @@ const OrderDetails = ({ startReturn = false }) => {
                                         <span className='block text-ink'>{order.user?.name}</span>
                                         {order.shippingInfo?.address}
                                         <br />
-                                        {order.shippingInfo?.city}, {order.shippingInfo?.state} {order.shippingInfo?.pinCode}
+                                        {order.shippingInfo?.city}, {stateName(order.shippingInfo?.country, order.shippingInfo?.state)} {order.shippingInfo?.pinCode}
                                         <br />
-                                        {order.shippingInfo?.country}
+                                        {countryName(order.shippingInfo?.country)}
                                         {order.shippingInfo?.phoneNumber && (
-                                            <span className='mt-2 block'>Phone {order.shippingInfo.phoneNumber}</span>
+                                            <span className='mt-2 block'>Phone +91 {order.shippingInfo.phoneNumber}</span>
                                         )}
                                     </address>
                                 </section>

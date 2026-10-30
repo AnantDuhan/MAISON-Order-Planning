@@ -1,6 +1,3 @@
-import LockIcon from '@mui/icons-material/Lock';
-import LockOpenIcon from '@mui/icons-material/LockOpen';
-import VpnKeyIcon from '@mui/icons-material/VpnKey';
 import React, { Fragment, useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router';
@@ -11,6 +8,7 @@ import { clearErrors, updatePassword } from '../../actions/userAction';
 import { UPDATE_PASSWORD_RESET } from '../../constants/userConstants';
 import MetaData from '../layout/MetaData';
 import ButtonSpinner from '../layout/ButtonSpinner';
+import Field from '../layout/Field';
 
 const UpdatePassword = () => {
     const dispatch = useDispatch();
@@ -26,6 +24,10 @@ const UpdatePassword = () => {
 
     const updatePasswordSubmit = e => {
         e.preventDefault();
+        if (newPassword !== confirmPassword) {
+            toast.error("The new passwords don't match");
+            return;
+        }
         dispatch(updatePassword({ oldPassword, newPassword, confirmPassword }));
         setProgress(50);
     };
@@ -36,7 +38,7 @@ const UpdatePassword = () => {
             dispatch(clearErrors());
         }
         if (isUpdated) {
-            toast.success('Password Updated Successfully');
+            toast.success('Password changed');
             navigate('/account');
             dispatch({ type: UPDATE_PASSWORD_RESET });
         }
@@ -47,25 +49,22 @@ const UpdatePassword = () => {
     return (
         <Fragment>
             <LoadingBar color='#A07C4B' progress={progress} onLoaderFinished={onLoaderFinished} />
-            <MetaData title='Change Password · Maison' />
+            <MetaData title='Change Password · Maison' noIndex />
             <div className='form-shell'>
                 <div className='form-card'>
-                    <p className='eyebrow'>Account Security</p>
-                    <h2 className='heading-display mt-2 text-3xl'>Change Password</h2>
+                    <p className='eyebrow'>Account security</p>
+                    <h1 className='heading-display mt-2 text-3xl'>Change password</h1>
 
                     <form className='mt-8 flex flex-col gap-6' onSubmit={updatePasswordSubmit}>
-                        <div className='field-row'>
-                            <VpnKeyIcon />
-                            <input type='password' placeholder='Old Password' required value={oldPassword} onChange={e => setOldPassword(e.target.value)} />
-                        </div>
-                        <div className='field-row'>
-                            <LockOpenIcon />
-                            <input type='password' placeholder='New Password' required value={newPassword} onChange={e => setNewPassword(e.target.value)} />
-                        </div>
-                        <div className='field-row'>
-                            <LockIcon />
-                            <input type='password' placeholder='Confirm Password' required value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} />
-                        </div>
+                        <Field label='Current password'>
+                            <input type='password' required autoComplete='current-password' value={oldPassword} onChange={e => setOldPassword(e.target.value)} />
+                        </Field>
+                        <Field label='New password'>
+                            <input type='password' required autoComplete='new-password' value={newPassword} onChange={e => setNewPassword(e.target.value)} />
+                        </Field>
+                        <Field label='Confirm new password' hint={confirmPassword && newPassword !== confirmPassword ? <span className='text-danger'>Doesn't match</span> : null}>
+                            <input type='password' required autoComplete='new-password' value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} />
+                        </Field>
                         <button
                             type='submit'
                             disabled={loading}
@@ -78,7 +77,7 @@ const UpdatePassword = () => {
                                     Updating…
                                 </>
                             ) : (
-                                'Change Password'
+                                'Change password'
                             )}
                         </button>
                     </form>

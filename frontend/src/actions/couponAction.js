@@ -39,7 +39,7 @@ export const getAllCoupons = () => async dispatch => {
 
         const { data } = await axios.get(`/api/v1/coupons/all`);
 
-        dispatch({ type: FETCH_COUPONS_SUCCESS, payload: data.coupons });
+        dispatch({ type: FETCH_COUPONS_SUCCESS, payload: Array.isArray(data?.coupons) ? data.coupons : [] });
     } catch (error) {
         dispatch({
             type: FETCH_COUPONS_FAIL,
