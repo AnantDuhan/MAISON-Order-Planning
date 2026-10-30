@@ -30,6 +30,11 @@ const { indexProduct, deleteProductDoc } = require("./services/searchService");
 const swaggerSpec = require("./config/swagger");
 
 const app = express();
+
+const noStoreByDefault = (req, res, next) => {
+  res.set("Cache-Control", "private, no-store");
+  next();
+};
 app.set("trust proxy", 1);
 
 // Express 5 defaults to the "simple" query parser, which turns
@@ -294,6 +299,10 @@ app.get('/api-docs.json', (req, res) => {
 });
 
 app.use("/api/v1", apiLimiter);
+// API responses depend on who's signed in (/me, cart, orders), so no browser
+// or CDN (Netlify proxies /api/*) may store them unless a route opts in by
+// setting its own Cache-Control.
+app.use("/api/v1", noStoreByDefault);
 // Maintenance mode: 503 for customers while the storefront is switched off
 // (admin Features page) or MAINTENANCE_MODE=true. See middleware/maintenance.js.
 app.use("/api/v1", maintenanceGate);

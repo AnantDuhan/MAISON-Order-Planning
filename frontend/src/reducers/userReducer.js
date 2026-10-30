@@ -280,11 +280,12 @@ export const userReducer = (
         error: null,
       };
 
+    // The header reports a failed sign-out itself; keeping it in `error`
+    // would resurface later as a stale toast on the login page.
     case LOGOUT_FAIL:
       return {
         ...state,
         loading: false,
-        error: action.payload,
       };
 
     // --------------------------------------------------

@@ -74,10 +74,15 @@ const MainHeader = () => {
         };
     }, [isAuthenticated]);
 
-    const handleLogout = () => {
-        dispatch(logout());
-        navigate('/');
-        toast.success('Logout Successfully');
+    const handleLogout = async () => {
+        setMenuOpen(false); // so the toast isn't drawn over the open menu
+        const signedOut = await dispatch(logout());
+        if (signedOut) {
+            navigate('/');
+            toast.success('Signed out');
+        } else {
+            toast.error('Could not sign out. Please try again.');
+        }
     };
 
     const handleDropDownSuggestionClick = suggestion => {

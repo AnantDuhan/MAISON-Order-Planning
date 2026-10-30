@@ -81,10 +81,10 @@ const CloseButton = ({ closeToast }) => (
 const MaisonToaster = () => (
     <ToastContainer
         className='maison-toasts'
-        position='bottom-right'
+        position='top-right'
         autoClose={4500}
         stacked
-        newestOnTop={false}
+        newestOnTop
         closeOnClick={false}
         pauseOnHover
         pauseOnFocusLoss

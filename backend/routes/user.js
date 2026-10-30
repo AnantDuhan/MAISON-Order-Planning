@@ -120,7 +120,8 @@ router.route('/password/forgot').post(authLimiter, forgotPassword);
 
 router.route('/password/reset/:token').put(authLimiter, resetPassword);
 
-router.route('/logout').get(logout);
+// POST from the app; GET kept for older clients (mobile app builds).
+router.route('/logout').post(logout).get(logout);
 
 router.route('/me').get(isAuthUser, getUserDetails);
 

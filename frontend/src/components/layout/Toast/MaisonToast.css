@@ -15,6 +15,16 @@
     --toastify-font-family: Jost, Inter, system-ui, sans-serif;
     --toastify-z-index: 10000;
     --toastify-toast-offset: 24px;
+    /* Top-right, just below the sticky header (110px with the announcement
+       strip from md up, 68px below) so toasts never cover the cart,
+       wishlist or account buttons. */
+    --toastify-toast-top: calc(110px + 16px + env(safe-area-inset-top, 0px));
+}
+
+@media (max-width: 767px) {
+    .maison-toasts {
+        --toastify-toast-top: calc(68px + 12px + env(safe-area-inset-top, 0px));
+    }
 }
 
 .maison-toasts .Toastify__toast {
@@ -133,7 +143,7 @@
     background: rgb(var(--c-danger));
 }
 
-/* ---- Phones: inset cards at the bottom ------------------------------------ */
+/* ---- Phones: full-width inset cards under the header ---------------------- */
 
 @media (max-width: 480px) {
     .maison-toasts {
@@ -146,7 +156,8 @@
         left: 12px;
         right: 12px;
         width: auto;
-        bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
+        top: var(--toastify-toast-top);
+        bottom: auto;
         padding: 0;
     }
     .Toastify__toast-container.maison-toasts .Toastify__toast {

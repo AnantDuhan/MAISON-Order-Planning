@@ -349,9 +349,13 @@ exports.resendVerificationEmail = async (req, res) => {
 };
 
 // logout User
+// Clears the session cookie with the same attributes it was set with (a
+// mismatch leaves the browser holding it). Never cacheable: a cached logout
+// response never reaches here, so the cookie would survive.
 exports.logout = async (req, res, next) => {
-    res.cookie('token', null, {
-        expires: new Date(Date.now()),
+    res.set('Cache-Control', 'no-store');
+    res.clearCookie('token', {
+        path: '/',
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'

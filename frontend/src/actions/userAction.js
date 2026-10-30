@@ -221,13 +221,16 @@ export const loadUser = () => async dispatch => {
 };
 
 // Logout User
+// Resolves true only once the server has cleared the session cookie, so the
+// UI never says "signed out" while the cookie is still there.
 export const logout = () => async dispatch => {
     try {
-        await axios.get(`/api/v1/logout`);
-
+        await axios.post('/api/v1/logout');
         dispatch({ type: LOGOUT_SUCCESS });
+        return true;
     } catch (error) {
-        dispatch({ type: LOGOUT_FAIL, payload: error.response.data.message });
+        dispatch({ type: LOGOUT_FAIL, payload: error.response?.data?.message || 'Could not sign out. Please try again.' });
+        return false;
     }
 };
 
