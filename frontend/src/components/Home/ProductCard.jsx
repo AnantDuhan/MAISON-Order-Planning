@@ -1,12 +1,23 @@
 import { Rating } from '@mui/material';
 import React, { Fragment, useState } from 'react';
-import { useDispatch } from 'react-redux';
-import { Link } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
+import { Link, useNavigate } from 'react-router-dom';
+import { addItemsToCart } from '../../actions/cartAction';
 import { addProductToWishlist } from '../../actions/productAction';
 import { toast } from 'react-toastify';
 import { priceLabel } from '../../utils/priceLabel';
 import { useCanHover } from '../../utils/useCanHover';
 import { optionsSummary, stockStatus } from '../../utils/productFacts';
+import { useMembershipTier } from '../../utils/useIsMember';
+
+// The product page caps a single line at 10; the card follows the same rule.
+const MAX_PER_LINE = 10;
+
+const BagIcon = () => (
+    <svg width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='1.5' aria-hidden='true'>
+        <path d='M6 7h12l-1 13H7L6 7z' /><path d='M9 7V6a3 3 0 0 1 6 0v1' />
+    </svg>
+);
 
 const DEFAULT_IMAGE = 'https://ecommerce-bucket-sdk.s3.ap-south-1.amazonaws.com/default.jpg';
 
@@ -74,6 +85,10 @@ const CardPhotos = ({ product }) => {
 
 const ProductCard = ({ product }) => {
     const dispatch = useDispatch();
+    const navigate = useNavigate();
+    const tier = useMembershipTier();
+    const cartItems = useSelector(state => state.cart?.cartItems) || [];
+    const [adding, setAdding] = useState(false);
 
     if (!product) return null;
 
@@ -86,6 +101,42 @@ const ProductCard = ({ product }) => {
         readOnly: true,
         precision: 0.2,
     };
+
+    // What the card's bag button does: add one, pick options on the product
+    // page, or nothing (sold out / Plus early access for non-Plus shoppers).
+    const hasOptions = (product.options || []).length > 0;
+    const earlyAccessLive = Boolean(product.earlyAccessUntil && new Date(product.earlyAccessUntil) > new Date());
+    const locked = earlyAccessLive && tier !== 'plus';
+    const canBuy = stock.tone !== 'out' && !locked;
+    const quickAction = !canBuy ? null : hasOptions ? 'options' : 'add';
+
+    const quickAdd = async e => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (quickAction === 'options') {
+            navigate(`/product/${product._id}`);
+            return;
+        }
+        // The cart stores a line's total quantity, so add one to what's there.
+        const line = cartItems.find(i => i.product === product._id && !i.variant);
+        const inBag = line?.quantity || 0;
+        const cap = Math.min(MAX_PER_LINE, Number(product.Stock) || 0);
+        if (inBag >= cap) {
+            toast.info(inBag ? `You already have ${inBag} in your bag, the most available` : 'This piece is sold out');
+            return;
+        }
+        setAdding(true);
+        try {
+            await dispatch(addItemsToCart(product._id, inBag + 1));
+            toast.success(inBag ? `${product.name} · ${inBag + 1} in your bag` : `${product.name} added to your bag`);
+        } catch (error) {
+            toast.error(error.message || 'Could not add to your bag');
+        } finally {
+            setAdding(false);
+        }
+    };
+
+    const quickLabel = quickAction === 'options' ? 'Choose options' : adding ? 'Adding…' : 'Add to bag';
 
     const addToWishlist = e => {
         e.preventDefault();
@@ -109,9 +160,36 @@ const ProductCard = ({ product }) => {
                             <path d='M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1.1L12 21l7.8-7.5 1-1.1a5.5 5.5 0 0 0 0-7.8z' />
                         </svg>
                     </button>
-                    <span className='pointer-events-none absolute bottom-0 left-0 right-0 hidden translate-y-full bg-ink/90 py-3 text-center font-sans text-[0.7rem] uppercase tracking-luxe text-canvas transition-transform duration-500 ease-luxe group-hover:translate-y-0 [@media(hover:hover)]:block'>
-                        View Piece
-                    </span>
+                    {quickAction ? (
+                        <>
+                            {/* Mouse: a bar slides up on hover. */}
+                            <button
+                                type='button'
+                                onClick={quickAdd}
+                                disabled={adding}
+                                className='absolute bottom-0 left-0 right-0 hidden translate-y-full items-center justify-center gap-2 bg-ink/90 py-3 font-sans text-[0.7rem] uppercase tracking-luxe text-canvas transition-transform duration-500 ease-luxe hover:bg-ink focus-visible:translate-y-0 group-hover:translate-y-0 disabled:opacity-80 [@media(hover:hover)]:flex'
+                            >
+                                <BagIcon />
+                                {quickLabel}
+                            </button>
+                            {/* Touch: a bag button that is always there (options open the product). */}
+                            {quickAction === 'add' && (
+                                <button
+                                    type='button'
+                                    onClick={quickAdd}
+                                    disabled={adding}
+                                    aria-label={`Add ${product.name} to bag`}
+                                    className='absolute bottom-3 right-3 grid h-10 w-10 place-items-center rounded-full bg-canvas/90 text-ink shadow-sm backdrop-blur transition-colors active:bg-brass active:text-canvas disabled:opacity-60 [@media(hover:hover)]:hidden'
+                                >
+                                    <BagIcon />
+                                </button>
+                            )}
+                        </>
+                    ) : (
+                        <span className='pointer-events-none absolute bottom-0 left-0 right-0 hidden translate-y-full bg-ink/90 py-3 text-center font-sans text-[0.7rem] uppercase tracking-luxe text-canvas transition-transform duration-500 ease-luxe group-hover:translate-y-0 [@media(hover:hover)]:block'>
+                            View Piece
+                        </span>
+                    )}
                 </div>
 
                 {/* Meta: category, name, real options, price and stock */}

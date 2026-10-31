@@ -12,6 +12,9 @@ const notFound = res => res.status(404).json({ success: false, message: 'Invoice
 
 const sendPdf = async (res, invoice) => {
     const pdf = await renderInvoicePdf(invoice);
+    // The strict API policy is for JSON; a PDF opened in the browser's viewer
+    // shouldn't be subject to it.
+    res.removeHeader('Content-Security-Policy');
     res.set({
         'Content-Type': 'application/pdf',
         'Content-Length': pdf.length,

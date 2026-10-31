@@ -14,7 +14,10 @@ import { formatAddress } from '../../utils/indiaRegions';
 const ConfirmOrder = () => {
     const { shippingInfo, cartItems } = useSelector(state => state.cart);
     const { user } = useSelector(state => state.user);
-    const coupons = useSelector(state => state.coupon?.coupons) || [];
+    // The API lists only coupons still running; this also drops any that
+    // ran out while the page was open.
+    const coupons = (useSelector(state => state.coupon?.coupons) || [])
+        .filter(c => !c.expiresAt || new Date(c.expiresAt).getTime() > Date.now());
 
     const navigate = useNavigate();
     const dispatch = useDispatch();

@@ -1,3 +1,4 @@
+const fs = require("fs");
 const path = require("path");
 // Load env before anything that reads process.env at require time. Resolved
 // from this file so it works regardless of the working directory.
@@ -576,12 +577,20 @@ adminProducts.delete("/admin/categories/:id/image", adminOnly, async (req, res) 
 app.use(adminProducts);
 app.use("/api/v1", adminProducts);
 
+// Unknown API paths answer in JSON like every other API error, instead of
+// Express's default "Cannot GET …" HTML page (which names the framework).
+app.use("/api", (req, res) => {
+  res.status(404).json({ success: false, message: "Not found" });
+});
+
 // --- Serve the built React app (same-origin deployment) ---------------------
 // In production the backend serves the compiled frontend, so the whole app is
 // one origin: no CORS, no cross-site cookies, relative /api/v1 calls just work.
 // Guarded by NODE_ENV so local dev (CRA dev server + proxy) is unaffected.
-if (process.env.NODE_ENV === "production") {
-  const buildPath = path.join(__dirname, "../frontend/build");
+const buildPath = path.join(__dirname, "../frontend/build");
+// Only when the build is actually there: an API-only host (no frontend
+// build) must not try to send a missing index.html for every unknown path.
+if (process.env.NODE_ENV === "production" && fs.existsSync(path.join(buildPath, "index.html"))) {
   // Vite fingerprints everything in /assets, so those can be cached for a year;
   // index.html must always be revalidated so new deploys are picked up.
   app.use(express.static(buildPath, {
@@ -602,9 +611,14 @@ if (process.env.NODE_ENV === "production") {
   });
 } else {
   app.get("/", (req, res) => {
-    res.send("Hello, welcome to my API!");
+    res.json({ success: true, message: "Maison API" });
   });
 }
+
+// Anything else: a plain JSON 404.
+app.use((req, res) => {
+  res.status(404).json({ success: false, message: "Not found" });
+});
 
 // Error handler goes LAST so it catches errors from every route above
 // (including multer's "Invalid file type" and oversized uploads).

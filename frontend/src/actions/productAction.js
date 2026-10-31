@@ -256,9 +256,10 @@ export const deleteReviews = (reviewId, productId) => async dispatch => {
     try {
         dispatch({ type: DELETE_REVIEW_REQUEST });
 
-        const { data } = await axios.delete(
-            `/api/v1/reviews?id=${reviewId}&productId=${productId}`
-        );
+        // The API's route is DELETE /review/:reviewId?id=<productId>.
+        const { data } = await axios.delete(`/api/v1/review/${encodeURIComponent(reviewId)}`, {
+            params: { id: productId },
+        });
 
         dispatch({
             type: DELETE_REVIEW_SUCCESS,
@@ -267,7 +268,7 @@ export const deleteReviews = (reviewId, productId) => async dispatch => {
     } catch (error) {
         dispatch({
             type: DELETE_REVIEW_FAIL,
-            payload: error.response.data.message
+            payload: error.response?.data?.message || 'Could not delete the review'
         });
     }
 };

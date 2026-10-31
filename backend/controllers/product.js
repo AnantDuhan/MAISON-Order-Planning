@@ -111,6 +111,19 @@ exports.getAdminProducts = async (req, res, next) => {
   });
 };
 
+// Fields kept on the product record for the admin side only: who created it,
+// demo seeding, stock-alert bookkeeping and Mongoose's version key. The public
+// product page never needs them.
+const INTERNAL_PRODUCT_FIELDS = ['user', 'isDemo', 'lowStockThreshold', 'lowStockAlertedAt', '__v'];
+
+/** A product as shoppers may see it (works on documents and cached plain objects). */
+const publicProduct = (product) => {
+  const plain = product && typeof product.toObject === 'function' ? product.toObject() : { ...product };
+  INTERNAL_PRODUCT_FIELDS.forEach((field) => delete plain[field]);
+  return plain;
+};
+exports.publicProduct = publicProduct;
+
 // get product details
 exports.getProductDetails = async (req, res, next) => {
   const productId = req.params.id;
@@ -122,7 +135,8 @@ exports.getProductDetails = async (req, res, next) => {
       maybeAutoSummarize(cachedProduct, req.app);
       return res.status(200).json({
         success: true,
-        product: cachedProduct,
+        // Entries cached before these fields were stripped still carry them.
+        product: publicProduct(cachedProduct),
       });
     }
 
@@ -139,13 +153,14 @@ exports.getProductDetails = async (req, res, next) => {
       });
     }
     // --- 3. Store in Cache ---
-    cache.setJSON(cacheKey, product, DETAIL_CACHE_TTL); // not awaited; never throws
+    const shown = publicProduct(product);
+    cache.setJSON(cacheKey, shown, DETAIL_CACHE_TTL); // not awaited; never throws
 
     maybeAutoSummarize(product, req.app);
 
     res.status(200).json({
       success: true,
-      product,
+      product: shown,
     });
   } catch (error) {
     console.error("Get product details error:", error);

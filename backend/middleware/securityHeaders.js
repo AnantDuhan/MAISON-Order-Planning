@@ -70,15 +70,26 @@ const baseHeaders = helmet({
 
 let cspMiddleware;
 
+// API responses are JSON (and the sitemap XML): nothing in them should ever
+// load or run, so the strictest policy is safe to enforce outright, whatever
+// CSP_ENFORCE says about the page policy above.
+const API_POLICY = "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'";
+const isApiPath = p => p.startsWith('/api/') || p === '/sitemap.xml';
+
 module.exports = function securityHeaders(req, res, next) {
     baseHeaders(req, res, err => {
         if (err) return next(err);
         // Swagger UI relies on inline scripts; it is a developer tool, so it
         // is left out of the CSP rather than weakening the policy for the app.
         if (req.path.startsWith('/api-docs')) return next();
+        if (isApiPath(req.path)) {
+            res.setHeader('Content-Security-Policy', API_POLICY);
+            return next();
+        }
         cspMiddleware = cspMiddleware || helmet.contentSecurityPolicy(contentSecurityPolicy());
         return cspMiddleware(req, res, next);
     });
 };
 
 module.exports.contentSecurityPolicy = contentSecurityPolicy;
+module.exports.API_POLICY = API_POLICY;

@@ -1,4 +1,17 @@
 # Netlify response headers.
+
+# Every page. The app must never be framed by another site (clickjacking on
+# sign-in, checkout and admin), must not have its content types sniffed, and
+# should not send full URLs to other sites as the referrer.
+# The CSP only sets directives that can't break the app; a full script/style
+# policy needs testing against Google sign-in, Cashfree and analytics first.
+/*
+  X-Frame-Options: DENY
+  Content-Security-Policy: frame-ancestors 'none'; base-uri 'self'; object-src 'none'; upgrade-insecure-requests
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=()
+
 # Vite gives every built file under /assets a content hash in its name, so
 # browsers can keep them for a year without asking again. index.html is not
 # listed here and stays revalidated, so a deploy is picked up straight away.

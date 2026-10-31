@@ -71,6 +71,10 @@ const CouponList = () => {
     const [searchParams, setSearchParams] = useSearchParams();
     const tab = TABS.find(t => t.key === searchParams.get('tab')) || TABS[0];
     const created = searchParams.get('created') || '';
+    // Just created or just edited: shown first and marked.
+    const updated = searchParams.get('updated') || '';
+    const marked = created || updated;
+    const markLabel = created ? 'New' : 'Updated';
 
     const [coupons, setCoupons] = useState(null);
     useEffect(() => {
@@ -97,8 +101,8 @@ const CouponList = () => {
     const rows = list
         .filter(tab.test)
         .map(c => ({ ...c, id: c._id }))
-        // The coupon just created comes first so it's easy to spot.
-        .sort((a, b) => (b.code === created) - (a.code === created));
+        // The coupon just created or edited comes first so it's easy to spot.
+        .sort((a, b) => (b.code === marked) - (a.code === marked));
 
     const columns = [
         {
@@ -108,7 +112,7 @@ const CouponList = () => {
             render: row => (
                 <span className='flex flex-wrap items-center gap-2'>
                     <CopyCode code={row.code} />
-                    {row.code === created && <span className='font-sans text-[0.6rem] uppercase tracking-luxe text-success'>New</span>}
+                    {row.code === marked && <span className='font-sans text-[0.6rem] uppercase tracking-luxe text-success'>{markLabel}</span>}
                 </span>
             ),
         },
@@ -134,6 +138,17 @@ const CouponList = () => {
         { key: 'revenue', label: 'Revenue', align: 'right', width: '0.8fr', render: row => (row.orders ? formatINR(row.revenue) : '—') },
         { key: 'discountGiven', label: 'Discount given', align: 'right', width: '0.8fr', render: row => (row.orders ? formatINR(row.discountGiven) : '—') },
         { key: 'createdAt', label: 'Created', align: 'right', width: '0.8fr', render: row => date(row.createdAt) },
+        {
+            key: 'edit',
+            label: '',
+            align: 'right',
+            width: '0.5fr',
+            render: row => (
+                <Link to={`/admin/coupon/${row._id}`} className='font-sans text-xs uppercase tracking-luxe text-brass hover:text-ink' aria-label={`Edit ${row.code}`}>
+                    Edit
+                </Link>
+            ),
+        },
     ];
 
     const renderCard = row => (
@@ -143,10 +158,13 @@ const CouponList = () => {
                     <CopyCode code={row.code} />
                     <span className='flex items-center gap-2 font-sans text-xs'>
                         <Audience coupon={row} />
-                        {row.code === created && <span className='uppercase tracking-luxe text-success'>New</span>}
+                        {row.code === marked && <span className='uppercase tracking-luxe text-success'>{markLabel}</span>}
                     </span>
                 </div>
-                <span className='font-display text-3xl text-ink'>{row.discount}%</span>
+                <span className='flex flex-col items-end gap-1'>
+                    <span className='font-display text-3xl text-ink'>{row.discount}%</span>
+                    <Link to={`/admin/coupon/${row._id}`} className='font-sans text-xs uppercase tracking-luxe text-brass' aria-label={`Edit ${row.code}`}>Edit</Link>
+                </span>
             </div>
             <div className='mt-3 flex items-end justify-between gap-3 font-sans text-sm'>
                 <Status coupon={row} />

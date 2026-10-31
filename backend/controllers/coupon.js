@@ -73,14 +73,13 @@ exports.generateCoupon = async (req, res, next) => {
 // Get all coupon codes
 exports.getAllCoupons = async (req, res, next) => {
     try {
-        const isAdmin = req.user?.role === 'admin' && (req.auth?.mfaVerified || req.user.isDemo);
-
-        const coupons = isAdmin
-            // Real admin: real coupons only (the demo seed's are isDemo).
-            ? await Coupon.find(req.user.isDemo ? { isDemo: true } : realOnly()).sort({ createdAt: -1 })
-            : await Coupon.find({ expiresAt: { $gt: new Date() }, isDemo: { $ne: true } })
-                .select('code discount expiresAt membersOnly')
-                .sort({ discount: -1 });
+        // Checkout's coupon picker: only coupons that can still be used, for
+        // everyone (admins included; Admin > Coupons lists the expired ones).
+        // The demo admin sees demo coupons; everyone else, real ones.
+        const scope = req.user?.isDemo ? { isDemo: true } : realOnly();
+        const coupons = await Coupon.find({ ...scope, expiresAt: { $gt: new Date() } })
+            .select('code discount expiresAt membersOnly')
+            .sort({ discount: -1 });
 
         res.status(200).json({
             success: true,
@@ -142,5 +141,68 @@ exports.getAdminCoupons = async (req, res) => {
         });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Could not load coupons' });
+    }
+};
+
+// PUT /api/v1/admin/coupon/:id
+// Change a coupon's discount, expiry, audience or (while unused) its code.
+// Setting the expiry to now or earlier ends the coupon straight away. The code
+// is locked once orders have used it, because usage is matched by code.
+exports.updateCoupon = async (req, res) => {
+    try {
+        const coupon = await Coupon.findOne({ _id: req.params.id, ...realOnly() });
+        if (!coupon) {
+            return res.status(404).json({ success: false, message: 'Coupon not found' });
+        }
+        const before = { code: coupon.code, discount: coupon.discount, expiresAt: coupon.expiresAt, membersOnly: coupon.membersOnly };
+        const { code, discount, expiresAt, membersOnly } = req.body || {};
+
+        if (discount !== undefined) {
+            const value = Number(discount);
+            if (discount === '' || discount === null || Number.isNaN(value) || value <= 0 || value > 100) {
+                return res.status(400).json({ success: false, message: 'Discount must be a percentage between 0 and 100' });
+            }
+            coupon.discount = value;
+        }
+
+        if (expiresAt !== undefined) {
+            const parsed = new Date(expiresAt);
+            if (expiresAt === null || expiresAt === '' || Number.isNaN(parsed.getTime())) {
+                return res.status(400).json({ success: false, message: 'Invalid expiry date' });
+            }
+            coupon.expiresAt = parsed;
+        }
+
+        if (membersOnly !== undefined) {
+            coupon.membersOnly = membersOnly === true || membersOnly === 'true';
+        }
+
+        if (code !== undefined) {
+            const next = typeof code === 'string' ? code.trim().toUpperCase() : '';
+            if (!next) {
+                return res.status(400).json({ success: false, message: 'Coupon code is required' });
+            }
+            if (next !== coupon.code) {
+                const used = await Order.countDocuments({ couponUsed: true, couponCode: coupon.code });
+                if (used > 0) {
+                    return res.status(409).json({
+                        success: false,
+                        message: `${coupon.code} has been used on ${used} ${used === 1 ? 'order' : 'orders'}, so its code can't change. Create a new coupon instead.`,
+                    });
+                }
+                coupon.code = next;
+            }
+        }
+
+        await coupon.save();
+        const after = { code: coupon.code, discount: coupon.discount, expiresAt: coupon.expiresAt, membersOnly: coupon.membersOnly };
+        res.locals.audit = { before, after, summary: `Coupon ${coupon.code} updated` };
+        res.status(200).json({ success: true, coupon });
+    } catch (error) {
+        if (error && error.code === 11000) {
+            return res.status(409).json({ success: false, message: 'A coupon with that code already exists' });
+        }
+        console.error('Update coupon error:', error);
+        res.status(500).json({ success: false, message: 'Could not update the coupon' });
     }
 };

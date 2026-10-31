@@ -1,3 +1,14 @@
-/sitemap.xml https://api.maisonorderplanning.in/sitemap.xml 200
-/api/* https://api.maisonorderplanning.in/api/:splat 200
-/*      /index.html                                          200
+# Netlify redirects and rewrites. First match wins; files that exist in the
+# build (assets, robots.txt, favicon...) are served before any rule here.
+
+# Backend, proxied so the app and API share one origin.
+/sitemap.xml  https://api.maisonorderplanning.in/sitemap.xml  200
+/api/*        https://api.maisonorderplanning.in/api/:splat   200
+
+# App pages: every route in src/App.jsx is inserted here at build time
+# (netlifySpaRoutes in vite.config.mjs) and answers 200 with the app.
+# @spa-routes
+
+# Anything else still gets the app (which shows its "not found" page), but
+# with a real 404 status, so crawlers and scanners see a missing page.
+/*  /index.html  404

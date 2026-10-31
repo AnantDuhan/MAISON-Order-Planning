@@ -570,6 +570,9 @@ exports.packingSlip = async (req, res) => {
         return res.status(404).json({ success: false, message: 'Order📦 not found with this Id' });
     }
     const pdf = await renderPackingSlip(order);
+    // The strict API policy is for JSON; a PDF opened in the browser's viewer
+    // shouldn't be subject to it.
+    res.removeHeader('Content-Security-Policy');
     res.set({
         'Content-Type': 'application/pdf',
         'Content-Length': pdf.length,

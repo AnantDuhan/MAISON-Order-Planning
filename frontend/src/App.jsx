@@ -389,6 +389,15 @@ function App() {
                 }
                 exact
               />
+              <Route
+                path="/admin/coupon/:id"
+                element={
+                  <ProtectedAdminRoute>
+                    <CreateCoupon />
+                  </ProtectedAdminRoute>
+                }
+                exact
+              />
 
               {/* Catch-all Not Found Route - MUST BE LAST */}
               {/* Signed-in pages only exist once the session check finishes;
