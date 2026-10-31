@@ -19,6 +19,7 @@ const cartRecovery = require('../services/cartRecoveryService');
 const { hasVariants, findVariant, variantLabel } = require('../utils/productVariants');
 const { renderPackingSlip } = require('../utils/packingSlipPdf');
 const logger = require('../config/logger');
+const { realOnly } = require('../utils/demoFilter');
 
 // Valid forward transitions for an order. Anything else is rejected.
 const NEXT_STATUS = {
@@ -277,7 +278,8 @@ exports.getAllOrders = async (req, res, next) => {
         orders = await cache.getJSON('orders');
         if (!orders) {
             // Customer name and email for the admin list (Customer column).
-            orders = await Order.find().populate('user', 'name email').sort({ createdAt: -1 }).lean();
+            // Real orders only; the demo seed script's orders are isDemo.
+            orders = await Order.find(realOnly()).populate('user', 'name email').sort({ createdAt: -1 }).lean();
             await cache.setJSON('orders', orders);
         }
 

@@ -7,6 +7,7 @@ const cache = require('../utils/cache');
 // Used through the module object so tests can stub them.
 const invoiceService = require('../services/invoiceService');
 const inventory = require('../services/inventoryService');
+const { realOnly } = require('../utils/demoFilter');
 
 exports.initiateRefund = async (req, res) => {
     try {
@@ -298,7 +299,8 @@ exports.getAllRefunds = async (req, res) => {
         let refunds = await cache.getJSON('refunds');
 
         if (!refunds) {
-            refunds = await Refund.find()
+            // Real refunds only; the demo seed script's are isDemo.
+            refunds = await Refund.find(realOnly())
                 .populate({
                     path: 'order',
                     // orderItems: what was refunded (name, image, variant, quantity).

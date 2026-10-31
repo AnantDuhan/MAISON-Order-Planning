@@ -12,6 +12,7 @@ const ejs = require('ejs');
 const path = require('path');
 const speakeasy = require('speakeasy');
 const QRCode = require('qrcode');
+const { realOnly } = require('../utils/demoFilter');
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID
 const client = new OAuth2Client(GOOGLE_CLIENT_ID);
@@ -594,8 +595,9 @@ exports.updatePassword = async (req, res, next) => {
 
 // get all users --admin
 exports.getAllUsers = async (req, res, next) => {
-    // The demo admin must never see real customers.
-    const filter = req.user?.isDemo ? { isDemo: true } : {};
+    // The demo admin must never see real customers, and the real admin's
+    // list leaves out the demo accounts the seed script creates.
+    const filter = req.user?.isDemo ? { isDemo: true } : realOnly();
     const users = await User.find(filter).sort({ createdAt: -1 });
 
     res.status(200).json({

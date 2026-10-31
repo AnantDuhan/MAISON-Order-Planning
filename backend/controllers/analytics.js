@@ -7,6 +7,7 @@ const Subscription = require('../models/plusMembership');
 
 const demoAnalytics = require('../data/demoAnalytics');
 const { planLabel } = require('../utils/membershipPlans');
+const { realOnly } = require('../utils/demoFilter');
 
 /**
  * Admin analytics.
@@ -61,7 +62,8 @@ exports.getAnalytics = async (req, res, next) => {
     // Monthly buckets for the long window, daily otherwise.
     const groupByMonth = range === '12m' || range === 'all';
 
-    const dateMatch = since ? { createdAt: { $gte: since } } : {};
+    // Real admin: real orders only (the demo seed script's orders are isDemo).
+    const dateMatch = realOnly(since ? { createdAt: { $gte: since } } : {});
 
     const dateKey = groupByMonth
         ? { $dateToString: { format: '%Y-%m', date: '$createdAt' } }
@@ -188,7 +190,7 @@ exports.getAnalytics = async (req, res, next) => {
 
         // ── Top return reasons ───────────────────────────────
         Return.aggregate([
-            ...(since ? [{ $match: { requestedAt: { $gte: since } } }] : []),
+            { $match: realOnly(since ? { requestedAt: { $gte: since } } : {}) },
             { $group: { _id: '$reason', count: { $sum: 1 } } },
             { $sort: { count: -1 } },
             { $limit: 8 },
@@ -289,17 +291,18 @@ exports.getAdminStats = async (req, res, next) => {
             outOfStock,
             twoFactorEnabled
         ] = await Promise.all([
-            Product.estimatedDocumentCount(),
-            Order.estimatedDocumentCount(),
-            User.estimatedDocumentCount(),
-            Return.estimatedDocumentCount(),
-            Refund.estimatedDocumentCount(),
-            Product.countDocuments({ Stock: 0 }),
+            Product.countDocuments(realOnly()),
+            // Real records only: the demo seed script's are isDemo.
+            Order.countDocuments(realOnly()),
+            User.countDocuments(realOnly()),
+            Return.countDocuments(realOnly()),
+            Refund.countDocuments(realOnly()),
+            Product.countDocuments(realOnly({ Stock: 0 })),
 
             // Users who have enabled 2FA
-            User.countDocuments({
+            User.countDocuments(realOnly({
                 'twoFactorAuth.enabled': true
-            })
+            }))
         ]);
 
         const twoFactorDisabled = Math.max(0, users - twoFactorEnabled);
@@ -345,8 +348,12 @@ exports.getMembershipAnalytics = async (req, res) => {
             });
         }
 
+        // Real memberships only: the demo seed script adds isDemo memberships
+        // on made-up plans ("essential", "premium", "elite").
+        const real = { $match: realOnly() };
         const [totals, statusBreakdown, planBreakdown, recentMembers] = await Promise.all([
             Subscription.aggregate([
+                real,
                 {
                     $group: {
                         _id: null,
@@ -366,11 +373,13 @@ exports.getMembershipAnalytics = async (req, res) => {
                 { $project: { _id: 0, total: 1, active: 1, recurringRevenue: 1 } },
             ]),
             Subscription.aggregate([
+                real,
                 { $group: { _id: '$status', count: { $sum: 1 } } },
                 { $project: { _id: 0, status: '$_id', count: 1 } },
                 { $sort: { count: -1 } },
             ]),
             Subscription.aggregate([
+                real,
                 {
                     $group: {
                         _id: '$planId',
@@ -382,7 +391,7 @@ exports.getMembershipAnalytics = async (req, res) => {
                 { $project: { _id: 0, planId: '$_id', members: 1, active: 1, amount: 1 } },
                 { $sort: { active: -1, members: -1 } },
             ]),
-            Subscription.find()
+            Subscription.find(realOnly())
                 .sort({ createdAt: -1 })
                 .limit(12)
                 .populate('user', 'name email')

@@ -56,13 +56,14 @@ const tierOf = membership => {
 
 /**
  * Readable name for a stored planId: "Maison Plus · Monthly". Handles ids
- * from earlier prices ("maison-plus-monthly-149") too; anything unrecognised
- * is returned as-is.
+ * from earlier prices ("maison-plus-monthly-149") and from before tiers
+ * existed ("maison-yearly", which was Plus, like tierOf says); anything
+ * unrecognised is returned as-is.
  */
 const planLabel = planId => {
     const id = String(planId || '');
     const known = Object.values(PLANS).find(p => p.planId === id);
-    const m = known ? [null, known.tier, known.interval] : /^maison-(essential|plus)-(monthly|yearly)(?:-\d+)?$/.exec(id);
+    const m = known ? [null, known.tier, known.interval] : /^maison-(?:(essential|plus)-)?(monthly|yearly)(?:-\d+)?$/.exec(id);
     if (!m) return id || 'Unknown plan';
     const tier = m[1] === 'essential' ? 'Maison Essential' : 'Maison Plus';
     return `${tier} · ${m[2] === 'monthly' ? 'Monthly' : 'Yearly'}`;

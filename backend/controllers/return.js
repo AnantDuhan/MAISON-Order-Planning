@@ -4,6 +4,7 @@ const generateId = require('../utils/generateId');
 const cache = require('../utils/cache');
 const returnEmails = require('../services/returnEmails');
 const { windowDaysFor, returnDeadline, isWithinReturnWindow } = require('../utils/returnWindow');
+const { realOnly } = require('../utils/demoFilter');
 
 exports.requestReturn = async (req, res) => {
     try {
@@ -138,7 +139,8 @@ exports.getAllReturns = async (req, res) => {
         let returns = await cache.getJSON('returns');
 
         if (!returns) {
-            returns = await Return.find()
+            // Real returns only; the demo seed script's are isDemo.
+            returns = await Return.find(realOnly())
                 .populate({
                     path: 'order',
                     // orderItems: name, image and variant of each piece, as bought.
