@@ -9,6 +9,11 @@ updates:
     labels:
       - "dependencies"
       - "automated"
+    ignore:
+      # The 9.x client only talks to Elasticsearch 9 servers (an 8.x server
+      # answers 400). Remove this once the cluster is upgraded to 9.
+      - dependency-name: "@elastic/elasticsearch"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "npm"
     directory: "/frontend"

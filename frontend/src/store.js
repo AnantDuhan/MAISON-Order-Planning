@@ -1,6 +1,8 @@
-import { applyMiddleware, combineReducers, createStore } from 'redux';
+// Redux 5 keeps createStore under this name (configureStore lives in Redux
+// Toolkit, which this app doesn't use).
+import { applyMiddleware, combineReducers, legacy_createStore as createStore } from 'redux';
 import { composeWithDevTools } from '@redux-devtools/extension';
-import thunk from 'redux-thunk';
+import { thunk } from 'redux-thunk'; // a named export since redux-thunk 3
 
 import { cartReducer } from './reducers/cartReducer';
 import {

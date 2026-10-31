@@ -10,8 +10,10 @@
  * guarantee of no collision (e.g. the migration script) should still check
  * the target collection before insert.
  *
- * CommonJS on purpose: every backend module `require`s it. `nanoid` is pinned
- * to v3 for the same reason (v4+ ship ESM-only).
+ * CommonJS on purpose: every backend module `require`s it. nanoid v4+ is
+ * ESM-only; Node 22.12+ can `require` ES modules, which is why package.json
+ * asks for Node >= 22.12 (the Dockerfile's node:22 image and CI's 22.x/24.x
+ * all qualify).
  */
 
 const { customAlphabet } = require('nanoid');

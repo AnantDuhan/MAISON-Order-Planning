@@ -22,12 +22,12 @@
     "author": "Anant Duhan",
     "license": "ISC",
     "dependencies": {
-        "@aws-sdk/client-s3": "^3.609.0",
+        "@aws-sdk/client-s3": "^3.1161.0",
         "@aws-sdk/credential-provider-env": "^3.972.71",
         "@elastic/elasticsearch": "^8.19.2",
-        "@google/genai": "^2.22.0",
+        "@google/genai": "^2.32.0",
         "@google/generative-ai": "^0.24.1",
-        "@simplewebauthn/server": "^13.3.3",
+        "@simplewebauthn/server": "^14.0.3",
         "@socket.io/redis-adapter": "^8.3.0",
         "@upstash/redis": "^1.38.0",
         "bcryptjs": "^2.4.3",
@@ -43,9 +43,9 @@
         "helmet": "^8.3.0",
         "ioredis": "^5.4.2",
         "jsonwebtoken": "^9.0.2",
-        "mongoose": "^9.10.1",
+        "mongoose": "^9.11.4",
         "multer": "^2.0.2",
-        "nanoid": "^3.3.18",
+        "nanoid": "^6.0.2",
         "pdfkit": "^0.17.2",
         "pino": "^9.5.0",
         "qrcode": "^1.5.4",
@@ -61,5 +61,8 @@
     "devDependencies": {
         "nodemon": "^3.1.4",
         "pino-pretty": "^13.0.0"
+    },
+    "engines": {
+        "node": ">=22.12"
     }
 }
