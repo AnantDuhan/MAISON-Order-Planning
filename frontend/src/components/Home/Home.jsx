@@ -1,4 +1,4 @@
-import axios from 'axios';
+import { loadMembershipPlans } from '../../utils/membershipTiers';
 import React, { Fragment, useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
@@ -33,9 +33,9 @@ const useEntryPrice = () => {
     const [price, setPrice] = useState(FALLBACK_ESSENTIAL_PRICE);
     useEffect(() => {
         let alive = true;
-        axios.get('/api/v1/membership/plans')
-            .then(({ data }) => {
-                const essential = (data.plans || []).find(p => p.key === 'essential-yearly');
+        loadMembershipPlans()
+            .then(plans => {
+                const essential = plans.find(p => p.key === 'essential-yearly');
                 if (alive && essential?.amount) setPrice(essential.amount);
             })
             .catch(() => {});

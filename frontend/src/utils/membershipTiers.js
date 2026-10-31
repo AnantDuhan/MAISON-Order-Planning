@@ -1,3 +1,5 @@
+import axios from 'axios';
+
 // What each membership includes. Keep in step with backend/utils/membership.js
 // (BENEFITS) and backend/utils/membershipPlans.js (prices come from the API).
 
@@ -33,3 +35,19 @@ export const TIERS = {
 };
 
 export const tierName = tier => (TIERS[tier] ? `Maison ${TIERS[tier].name}` : null);
+
+// The plan list (names, prices, plan ids) is the same for everyone and only
+// changes on a deploy, so the store asks for it once per visit and every page
+// that shows prices (home, membership) shares that answer.
+let plansRequest = null;
+export const loadMembershipPlans = () => {
+    if (!plansRequest) {
+        plansRequest = axios.get('/api/v1/membership/plans')
+            .then(({ data }) => data?.plans || [])
+            .catch(error => {
+                plansRequest = null; // let the next page try again
+                throw error;
+            });
+    }
+    return plansRequest;
+};

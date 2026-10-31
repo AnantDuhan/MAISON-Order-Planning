@@ -2,6 +2,15 @@
 // loaded thanks to Node 22's require(esm) support).
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
+// Built on first use and reused: one client and model for the process.
+let embeddingModel = null;
+const getEmbeddingModel = apiKey => {
+    if (!embeddingModel) {
+        embeddingModel = new GoogleGenerativeAI(apiKey).getGenerativeModel({ model: 'gemini-embedding-001' });
+    }
+    return embeddingModel;
+};
+
 const generateEmbedding = async (text) => {
     const apiKey = process.env.GEMINI_API_KEY;
 
@@ -14,11 +23,7 @@ const generateEmbedding = async (text) => {
     }
 
     try {
-        const genAI = new GoogleGenerativeAI(apiKey);
-
-        const model = genAI.getGenerativeModel({
-            model: 'gemini-embedding-001'
-        });
+        const model = getEmbeddingModel(apiKey);
 
         const result = await model.embedContent(text);
 

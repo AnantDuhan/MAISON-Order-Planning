@@ -14,4 +14,14 @@ const isDev = import.meta.env.DEV;
 
 export const API_BASE_URL = isDev ? '' : import.meta.env.REACT_APP_BACKEND_URL || '';
 
-export const SOCKET_URL = isDev ? undefined : import.meta.env.REACT_APP_SOCKET_URL || undefined;
+// Netlify can forward /api requests but not socket connections, so on the
+// live site the socket goes straight to the API host. Anywhere else (a local
+// `vite preview`, say) it stays same-origin, so it never reaches production
+// by accident.
+const LIVE_SITE_HOSTS = ['maisonorderplanning.in', 'www.maisonorderplanning.in', 'maisonorderplanning.netlify.app'];
+const LIVE_SOCKET_URL = 'https://api.maisonorderplanning.in';
+const onLiveSite = typeof window !== 'undefined' && LIVE_SITE_HOSTS.includes(window.location.hostname);
+
+export const SOCKET_URL = isDev
+    ? undefined
+    : import.meta.env.REACT_APP_SOCKET_URL || (onLiveSite ? LIVE_SOCKET_URL : undefined);

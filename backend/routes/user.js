@@ -75,6 +75,13 @@ const upload = multer({
 const { requireFeature } = require('../services/featureFlags');
 const router = express.Router();
 
+// Short-lived token that identifies the user to the live-update socket.
+router.get('/socket-token', isAuthUser, (req, res) => {
+    const { issueSocketToken } = require('../utils/socketToken');
+    res.set('Cache-Control', 'no-store');
+    res.json({ success: true, token: issueSocketToken(req.user, req.auth) });
+});
+
 router.route('/register').post(authLimiter, upload.single('image'), registerUser);
 
 router.route('/login').post(authLimiter, loginUser);

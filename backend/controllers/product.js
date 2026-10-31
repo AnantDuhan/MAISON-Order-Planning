@@ -333,8 +333,11 @@ ${reviewsText}
 ---`;
 }
 
+let summaryClient = null;
 async function generateStructuredSummary(reviews) {
-  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+  // One client for the process (built on first use), not one per summary.
+  summaryClient = summaryClient || new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+  const ai = summaryClient;
 
   const response = await ai.models.generateContent({
     model: GEMINI_MODEL,

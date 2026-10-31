@@ -3,8 +3,7 @@ const User = require('../models/user');
 const { sendEmailInBackground } = require('../utils/sendEmail');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
-const { S3Client, PutObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
-const { fromEnv } = require('@aws-sdk/credential-provider-env');
+const { PutObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
 const generateId = require('../utils/generateId');
 const { OAuth2Client } = require('google-auth-library');
 const validator = require('validator'); 
@@ -19,10 +18,9 @@ const client = new OAuth2Client(GOOGLE_CLIENT_ID);
 
 const normalizeEmail = email => (typeof email === 'string' ? email.trim().toLowerCase() : '');
 
-const s3 = () => new S3Client({
-    region: process.env.AWS_BUCKET_REGION,
-    credentials: fromEnv()
-});
+// The server's one S3 client (config/s3.js), not a new one per upload.
+const sharedS3 = require('../config/s3');
+const s3 = () => sharedS3;
 
 // Unique per upload so two users' "avatar.jpg" never overwrite each other.
 const uploadAvatar = async (userId, file) => {

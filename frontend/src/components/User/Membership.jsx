@@ -5,7 +5,7 @@ import axios from 'axios';
 import MetaData from '../layout/MetaData';
 import { useFeature } from '../../context/FeatureFlagsContext';
 import { formatINR } from '../../utils/priceLabel';
-import { TIERS, tierName } from '../../utils/membershipTiers';
+import { TIERS, loadMembershipPlans, tierName } from '../../utils/membershipTiers';
 import { loadCashfree, preloadCashfree } from '../../utils/loadCashfree';
 import { loadMembership, primeMembership, useMembershipOwner } from '../../utils/useIsMember';
 
@@ -46,7 +46,7 @@ const Membership = () => {
     }, [owner]);
 
     useEffect(() => {
-        axios.get('/api/v1/membership/plans').then(({ data }) => setPlans(data.plans)).catch(error => {
+        loadMembershipPlans().then(setPlans).catch(error => {
             toast.error(error.response?.data?.message || 'Could not load membership plans.');
         });
 

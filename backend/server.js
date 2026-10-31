@@ -16,6 +16,8 @@ const runWishlistReminders = require('./wishlistJob');
 const { resolveSession } = require('./middleware/auth');
 const Order = require('./models/order');
 const Product = require('./models/product');
+const User = require('./models/user');
+const { readSocketToken } = require('./utils/socketToken');
 
 // Handling Uncaught Exceptions
 // process.on('uncaughtException', (err) => {
@@ -60,11 +62,21 @@ const readCookie = (header, name) => {
 
 // Identify the socket's user from the same httpOnly session cookie the API
 // uses. Anonymous sockets are allowed, but can only join public product rooms.
+// In production the socket comes from another host without the cookie, so it
+// presents a short-lived socket token instead (utils/socketToken.js).
 io.use(async (socket, next) => {
     try {
-        const session = await resolveSession(readCookie(socket.handshake.headers.cookie, 'token'));
-        socket.data.user = session ? session.user : null;
-        socket.data.mfaVerified = Boolean(session?.decoded?.mfaVerified);
+        const fromToken = readSocketToken(socket.handshake.auth?.token);
+        if (fromToken) {
+            const user = await User.findById(fromToken.id).select('+passwordChangedAt');
+            const revoked = user?.passwordChangedAt && fromToken.iat * 1000 < user.passwordChangedAt.getTime() - 1000;
+            socket.data.user = user && !revoked ? user : null;
+            socket.data.mfaVerified = Boolean(socket.data.user && fromToken.mfa);
+        } else {
+            const session = await resolveSession(readCookie(socket.handshake.headers.cookie, 'token'));
+            socket.data.user = session ? session.user : null;
+            socket.data.mfaVerified = Boolean(session?.decoded?.mfaVerified);
+        }
     } catch {
         socket.data.user = null;
     }

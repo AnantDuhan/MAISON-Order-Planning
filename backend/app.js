@@ -10,11 +10,9 @@ const express = require("express");
 const cors = require("cors");
 const multer = require("multer");
 const {
-  S3Client,
   PutObjectCommand,
   DeleteObjectsCommand,
 } = require("@aws-sdk/client-s3");
-const { fromEnv } = require("@aws-sdk/credential-provider-env");
 const swaggerUi = require("swagger-ui-express");
 
 const errorMiddleware = require("./middleware/error");
@@ -114,10 +112,7 @@ app.use((req, res, next) => {
   next();
 });
 
-const s3 = new S3Client({
-  region: process.env.AWS_BUCKET_REGION,
-  credentials: fromEnv(),
-});
+const s3 = require("./config/s3"); // shared with the user controller
 
 const sharp = require("sharp");
 

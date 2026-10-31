@@ -41,10 +41,9 @@ import {
   RelatedProducts,
 } from "./ProductExtras";
 
-import io from "socket.io-client";
+import { joinSocketRoom, leaveSocketRoom } from "../../utils/socket";
 import { useFeature } from '../../context/FeatureFlagsContext';
 import { useMembershipTier } from "../../utils/useIsMember";
-import { SOCKET_URL } from '../../utils/apiBase';
 
 const ProductDetails = () => {
   const dispatch = useDispatch();
@@ -211,10 +210,9 @@ const ProductDetails = () => {
   }, [dispatch, id, error, isSummarized]);
 
   useEffect(() => {
-    // Same origin by default: in dev the Vite server proxies /socket.io to
-    // the local backend, in production the backend serves the app.
-    const socket = io(SOCKET_URL);
-    socket.emit("joinProductRoom", id);
+    // The app's one shared socket (utils/socket.js); this page only joins
+    // the product's room, and it is rejoined after any reconnect.
+    const socket = joinSocketRoom(id, { kind: "product", userId: user?._id });
 
     const handleProductUpdate = (updatedProduct) => {
       toast.info("This product's details have been updated!");
@@ -234,13 +232,12 @@ const ProductDetails = () => {
     socket.on("summaryUpdate", handleSummaryUpdate);
 
     return () => {
-      socket.emit("leaveProductRoom", id);
       socket.off("productUpdate", handleProductUpdate);
       socket.off("reviewUpdate", handleReviewUpdate);
       socket.off("summaryUpdate", handleSummaryUpdate);
-      socket.disconnect();
+      leaveSocketRoom(id);
     };
-  }, [dispatch, id]);
+  }, [dispatch, id, user?._id]);
 
   // With options, stock and price follow the chosen combination.
   const inStock = selectedVariant ? selectedVariant.Stock >= 1 : product?.Stock >= 1;

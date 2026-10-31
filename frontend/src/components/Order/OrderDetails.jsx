@@ -2,7 +2,7 @@ import React, { Fragment, useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import io from 'socket.io-client';
+import { joinSocketRoom, leaveSocketRoom } from '../../utils/socket';
 
 
 import { clearErrors, getOrderDetails, returnRequest, reorder } from '../../actions/orderAction';
@@ -18,7 +18,6 @@ import { useFeature } from '../../context/FeatureFlagsContext';
 import { isWithinReturnWindow, windowDaysFor } from '../../utils/returnWindow';
 import { tierName } from '../../utils/membershipTiers';
 import { countryName, stateName } from '../../utils/indiaRegions';
-import { SOCKET_URL } from '../../utils/apiBase';
 
 const formatDate = value => (value
     ? new Date(value).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
@@ -28,6 +27,7 @@ const formatShortDate = value => new Date(value).toLocaleDateString('en-IN', { d
 
 const OrderDetails = ({ startReturn = false }) => {
     const { order, error, loading } = useSelector(state => state.orderDetails);
+    const { user } = useSelector(state => state.user);
 
     const dispatch = useDispatch();
     const navigate = useNavigate();
@@ -93,10 +93,9 @@ const OrderDetails = ({ startReturn = false }) => {
     // admin advances the status, so the page reflects Processing -> Shipped ->
     // Delivered without a manual refresh.
     useEffect(() => {
-        // Same origin by default (Vite proxies /socket.io to the local backend in dev).
-        const socket = io(SOCKET_URL);
+        // The app's one shared socket (utils/socket.js); rejoined after reconnects.
         const room = `order:${id}`;
-        socket.emit('joinRoom', room);
+        const socket = joinSocketRoom(room, { userId: user?._id });
 
         const onStatus = ({ orderStatus, shipment }) => {
             toast.info(`Order update: ${shipment?.lastStatus || orderStatus}`);
@@ -105,11 +104,10 @@ const OrderDetails = ({ startReturn = false }) => {
         socket.on('orderStatusUpdate', onStatus);
 
         return () => {
-            socket.emit('leaveRoom', room);
             socket.off('orderStatusUpdate', onStatus);
-            socket.disconnect();
+            leaveSocketRoom(room);
         };
-    }, [dispatch, id]);
+    }, [dispatch, id, user?._id]);
 
     // Cashfree orders are stored as 'PAID'; 'succeeded' covers legacy orders.
     const isPaid = ['PAID', 'succeeded'].includes(order?.paymentInfo?.status);
