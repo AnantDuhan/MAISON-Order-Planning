@@ -2,19 +2,25 @@ import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 
 /*
- * Where the frontend's /api, /admin, /socket.io and /sitemap.xml requests go.
+ * Where the frontend's /api, /socket.io and /sitemap.xml requests go.
  *
+ *   npm run dev / npm start:     http://localhost:4000 (your local backend)
+ *   npm run dev:remote:          https://api.maisonorderplanning.in (no local backend)
+ *   npm run preview:             http://localhost:4000, serving the production build
  *   Production (Netlify build):  same-origin /api/..., forwarded by
  *                                public/_redirects to https://api.maisonorderplanning.in
- *   npm run dev:                 http://localhost:4000 (your local backend)
- *   npm run dev:remote:          https://api.maisonorderplanning.in (no local backend)
  *
- * Override for one run:  VITE_API_PROXY_TARGET=http://localhost:5000 npm run dev
+ * .env files can't change this: a VITE_API_PROXY_TARGET, REACT_APP_BACKEND_URL
+ * or REACT_APP_SOCKET_URL in them is ignored locally (see src/utils/apiBase.js),
+ * so local development never talks to production by accident. For a one-off
+ * different backend, set it on the command line:
+ *     VITE_API_PROXY_TARGET=http://localhost:5000 npm run dev
  *
  * The app always calls relative URLs (/api/...), so the session cookie stays
  * first-party on every setup instead of becoming a cross-site cookie.
  */
 const LOCAL_API = 'http://localhost:4000';
+const REMOTE_API = 'https://api.maisonorderplanning.in';
 
 // Production cookies are `Secure; SameSite=None`. Rewrite them so the browser
 // keeps them on http://localhost — otherwise login works but /me says logged out.
@@ -31,15 +37,36 @@ const rewriteCookies = proxy => {
     });
 };
 
-export default defineConfig(({ mode }) => {
+// When the local backend isn't running, say so once instead of a stack trace
+// per request.
+let warnedDown = false;
+const explainProxyErrors = target => proxy => {
+    proxy.on('error', err => {
+        if (err?.code !== 'ECONNREFUSED' || warnedDown) return;
+        warnedDown = true;
+        // eslint-disable-next-line no-console
+        console.warn(`\n  Can't reach the backend at ${target}. Start it with "npm run dev" in backend/,\n  or use "npm run dev:remote" to work against the live API.\n`);
+    });
+};
+
+export default defineConfig(({ mode, command, isPreview }) => {
     const env = loadEnv(mode, process.cwd(), '');
-    const target = process.env.VITE_API_PROXY_TARGET || env.VITE_API_PROXY_TARGET || LOCAL_API;
+    // Only an explicit command-line override can move this; .env files can't.
+    const target = process.env.VITE_API_PROXY_TARGET || (mode === 'remote' ? REMOTE_API : LOCAL_API);
+
+    // `vite preview` serves a production build, which still honours the
+    // REACT_APP_ URLs baked in at build time; only the proxy target is local.
+    const ignored = (isPreview ? ['VITE_API_PROXY_TARGET'] : ['VITE_API_PROXY_TARGET', 'REACT_APP_BACKEND_URL', 'REACT_APP_SOCKET_URL'])
+        .filter(key => env[key] && !process.env[key]);
 
     const proxyOptions = {
         target,
         changeOrigin: true,
         secure: target.startsWith('https://'),
-        configure: rewriteCookies,
+        configure: proxy => {
+            rewriteCookies(proxy);
+            explainProxyErrors(target)(proxy);
+        },
     };
     const proxy = {
         '/api': proxyOptions,
@@ -50,9 +77,15 @@ export default defineConfig(({ mode }) => {
         '/socket.io': { ...proxyOptions, ws: true },
     };
 
-    if (mode !== 'production') {
+    if (command === 'serve') {
         // eslint-disable-next-line no-console
-        console.log(`\n  API → ${target}\n`);
+        console.log(`\n  API → ${target}${mode === 'remote' ? '  (live API)' : ''}`);
+        if (ignored.length) {
+            // eslint-disable-next-line no-console
+            console.log(`  Ignoring ${ignored.join(', ')} from .env files while running locally.`);
+        }
+        // eslint-disable-next-line no-console
+        console.log('');
     }
 
     return {

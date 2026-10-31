@@ -11,6 +11,9 @@ import MetaData from '../layout/MetaData';
 import AdminPage from './shared/AdminPage';
 import AdminTable from './shared/AdminTable';
 import { formatINR } from '../../utils/priceLabel';
+import OrderItems, { itemsFor } from './shared/OrderItems';
+
+const shortDate = value => (value ? new Date(value).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—');
 
 const RefundList = () => {
     const dispatch = useDispatch();
@@ -32,51 +35,76 @@ const RefundList = () => {
     const rows = (refunds || []).map(item => ({
         id: item._id,
         orderID: item.order?._id,
-        customer: item.order?.user?.name,
+        items: itemsFor({ order: item.order }),
+        customer: item.order?.user?.name || '—',
+        email: item.order?.user?.email || '',
+        method: item.method === 'store-credit' ? 'Store credit' : 'Original payment',
         status: item.status,
         requestDate: item.order?.refundRequestedAt || item.initiatedAt,
+        completedAt: item.completedAt,
         refundAmount: item.amount ?? item.order?.totalPrice,
     }));
 
+    const statusTone = status => (status === 'Completed' ? 'text-success' : /fail|reject/i.test(status || '') ? 'text-danger' : 'text-brass');
+
+    const orderLink = row => (row.orderID ? (
+        <Link to={`/admin/order/${row.orderID}`} className='inline-flex items-center gap-1 font-sans text-xs text-ink-soft hover:text-brass' title='Open order'>
+            #{row.orderID}
+            <LaunchIcon sx={{ fontSize: 14 }} />
+        </Link>
+    ) : '—');
+
     const columns = [
-        { key: 'id', label: 'Refund ID', width: '1.2fr' },
-        { key: 'orderID', label: 'Order ID', width: '1.2fr' },
-        { key: 'customer', label: 'Customer', width: '1fr' },
+        { key: 'items', label: 'Refunded', width: '2.4fr', render: row => <OrderItems items={row.items} /> },
+        {
+            key: 'customer',
+            label: 'Customer',
+            width: '1.2fr',
+            render: row => (
+                <span className='min-w-0'>
+                    <span className='block truncate text-ink'>{row.customer}</span>
+                    {row.email && <span className='block truncate text-xs text-ink-faint'>{row.email}</span>}
+                </span>
+            ),
+        },
+        { key: 'method', label: 'Refund to', width: '1fr' },
         {
             key: 'status',
             label: 'Status',
-            width: '0.8fr',
-            tone: row => (row.status === 'Completed' ? 'text-success' : 'text-danger'),
-        },
-        {
-            key: 'requestDate',
-            label: 'Requested',
-            width: '1fr',
-            render: row => (row.requestDate ? new Date(row.requestDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'),
-        },
-        {
-            key: 'refundAmount',
-            label: 'Amount',
-            align: 'right',
-            width: '0.8fr',
-            render: row => formatINR(row.refundAmount ?? 0),
-        },
-        {
-            key: 'actions',
-            label: 'Actions',
-            align: 'right',
-            width: '0.5fr',
+            width: '0.9fr',
             render: row => (
-                <Link to={`/order/${row.orderID}`} className='text-ink-soft hover:text-brass' title='View order'>
-                    <LaunchIcon fontSize='small' />
-                </Link>
+                <span>
+                    <span className={`block ${statusTone(row.status)}`}>{row.status || '—'}</span>
+                    {row.completedAt && <span className='block text-xs text-ink-faint'>{shortDate(row.completedAt)}</span>}
+                </span>
             ),
         },
+        { key: 'requestDate', label: 'Requested', width: '0.8fr', render: row => shortDate(row.requestDate) },
+        { key: 'refundAmount', label: 'Amount', align: 'right', width: '0.7fr', render: row => formatINR(row.refundAmount ?? 0) },
+        { key: 'actions', label: 'Order', align: 'right', width: '0.8fr', render: orderLink },
     ];
+
+    // Phones and tablets.
+    const renderCard = row => (
+        <div className='border-b border-line py-5'>
+            <div className='flex items-baseline justify-between gap-3'>
+                <p className='font-sans text-[0.68rem] uppercase tracking-luxe text-ink-faint'>{shortDate(row.requestDate)} · {row.customer}</p>
+                <p className='shrink-0 font-sans text-sm font-medium text-ink'>{formatINR(row.refundAmount ?? 0)}</p>
+            </div>
+            <div className='mt-3'><OrderItems items={row.items} max={3} /></div>
+            <div className='mt-3 flex items-center justify-between gap-3 font-sans text-sm'>
+                <span>
+                    <span className={statusTone(row.status)}>{row.status || '—'}</span>
+                    <span className='text-ink-faint'> · {row.method}</span>
+                </span>
+                {orderLink(row)}
+            </div>
+        </div>
+    );
 
     return (
         <Fragment>
-            <MetaData title='All Refunds · Admin' />
+            <MetaData title='All Refunds · Admin' noIndex />
             {loading ? (
                 <Fragment>
                     <LoadingBar color='#A07C4B' progress={progress} onLoaderFinished={onLoaderFinished} />
@@ -84,7 +112,7 @@ const RefundList = () => {
                 </Fragment>
             ) : (
                 <AdminPage title='All Refunds'>
-                    <AdminTable columns={columns} rows={rows} emptyMessage='No refunds requested.' />
+                    <AdminTable columns={columns} rows={rows} renderCard={renderCard} emptyMessage='No refunds requested.' />
                 </AdminPage>
             )}
         </Fragment>

@@ -18,6 +18,7 @@ import { useFeature } from '../../context/FeatureFlagsContext';
 import { isWithinReturnWindow, windowDaysFor } from '../../utils/returnWindow';
 import { tierName } from '../../utils/membershipTiers';
 import { countryName, stateName } from '../../utils/indiaRegions';
+import { SOCKET_URL } from '../../utils/apiBase';
 
 const formatDate = value => (value
     ? new Date(value).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
@@ -93,7 +94,7 @@ const OrderDetails = ({ startReturn = false }) => {
     // Delivered without a manual refresh.
     useEffect(() => {
         // Same origin by default (Vite proxies /socket.io to the local backend in dev).
-        const socket = io(import.meta.env.REACT_APP_SOCKET_URL || undefined);
+        const socket = io(SOCKET_URL);
         const room = `order:${id}`;
         socket.emit('joinRoom', room);
 

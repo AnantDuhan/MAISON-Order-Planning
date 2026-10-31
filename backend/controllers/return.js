@@ -112,7 +112,8 @@ exports.getAllReturns = async (req, res) => {
             const demoReturns = await Return.find({ isDemo: true })
                 .populate({
                     path: 'order',
-                    select: 'user returnRequestedAt totalPrice orderStatus',
+                    // orderItems: name, image and variant of each piece, as bought.
+                    select: 'user returnRequestedAt totalPrice orderStatus orderItems',
                     populate: {
                         path: 'user',
                         select: 'name email'
@@ -120,7 +121,7 @@ exports.getAllReturns = async (req, res) => {
                 })
                 .populate({
                     path: 'products.product',
-                    select: 'name price'
+                    select: 'name price images'
                 })
                 .sort('-requestedAt')
                 .limit(100)
@@ -140,7 +141,8 @@ exports.getAllReturns = async (req, res) => {
             returns = await Return.find()
                 .populate({
                     path: 'order',
-                    select: 'user returnRequestedAt totalPrice orderStatus',
+                    // orderItems: name, image and variant of each piece, as bought.
+                    select: 'user returnRequestedAt totalPrice orderStatus orderItems',
                     populate: {
                         path: 'user',
                         select: 'name email'
@@ -148,7 +150,7 @@ exports.getAllReturns = async (req, res) => {
                 })
                 .populate({
                     path: 'products.product',
-                    select: 'name price'
+                    select: 'name price images'
                 })
                 .sort('-requestedAt')
                 .lean();

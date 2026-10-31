@@ -13,9 +13,10 @@ import { FeatureFlagsProvider } from './context/FeatureFlagsContext';
 import MaisonToaster from './components/layout/Toast/MaisonToaster';
 
 import './styles/theme.css';
+import { API_BASE_URL } from './utils/apiBase';
 
 const GOOGLE_CLIENT_ID = import.meta.env.REACT_APP_GOOGLE_CLIENT_ID;
-axios.defaults.baseURL = import.meta.env.REACT_APP_BACKEND_URL || '';
+axios.defaults.baseURL = API_BASE_URL;
 axios.defaults.withCredentials = true;
 
 console.log("Google Client ID Status:", GOOGLE_CLIENT_ID ? "Loaded" : "MISSING");

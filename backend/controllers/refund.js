@@ -276,7 +276,8 @@ exports.getAllRefunds = async (req, res) => {
             const demoRefunds = await Refund.find({ isDemo: true })
                 .populate({
                     path: 'order',
-                    select: 'user refundRequestedAt totalPrice orderStatus',
+                    // orderItems: what was refunded (name, image, variant, quantity).
+                    select: 'user refundRequestedAt totalPrice orderStatus orderItems',
                     populate: {
                         path: 'user',
                         select: 'name email'
@@ -300,13 +301,15 @@ exports.getAllRefunds = async (req, res) => {
             refunds = await Refund.find()
                 .populate({
                     path: 'order',
-                    select: 'user refundRequestedAt totalPrice orderStatus',
+                    // orderItems: what was refunded (name, image, variant, quantity).
+                    select: 'user refundRequestedAt totalPrice orderStatus orderItems',
                     populate: {
                         path: 'user',
                         select: 'name email'
                     }
                 })
-                .sort('-requestedAt')
+                // Refunds have initiatedAt, not requestedAt (that sort did nothing).
+                .sort('-initiatedAt')
                 .lean();
 
             await cache.setJSON('refunds', refunds);

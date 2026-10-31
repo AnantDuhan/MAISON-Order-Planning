@@ -44,6 +44,7 @@ import {
 import io from "socket.io-client";
 import { useFeature } from '../../context/FeatureFlagsContext';
 import { useMembershipTier } from "../../utils/useIsMember";
+import { SOCKET_URL } from '../../utils/apiBase';
 
 const ProductDetails = () => {
   const dispatch = useDispatch();
@@ -212,7 +213,7 @@ const ProductDetails = () => {
   useEffect(() => {
     // Same origin by default: in dev the Vite server proxies /socket.io to
     // the local backend, in production the backend serves the app.
-    const socket = io(import.meta.env.REACT_APP_SOCKET_URL || undefined);
+    const socket = io(SOCKET_URL);
     socket.emit("joinProductRoom", id);
 
     const handleProductUpdate = (updatedProduct) => {
