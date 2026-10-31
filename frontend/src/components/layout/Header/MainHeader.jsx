@@ -4,13 +4,12 @@ import CardMembershipIcon from '@mui/icons-material/CardMembership';
 import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
 import React, { useEffect, useRef, useState } from 'react';
 import { FaSearch } from 'react-icons/fa';
-import { useDispatch, useSelector } from 'react-redux';
+import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router';
 import { Link } from 'react-router-dom';
-import { toast } from 'react-toastify';
 import axios from 'axios';
 
-import { logout } from '../../../actions/userAction';
+import { useLogout } from '../../../utils/useLogout';
 import ThemeToggle from '../ThemeToggle';
 import { useOverlay } from '../../../utils/useOverlay';
 import { formatINR } from '../../../utils/priceLabel';
@@ -36,7 +35,6 @@ const navLinks = [
 const MainHeader = () => {
     const { isAuthenticated, user } = useSelector(state => state.user);
     const { cartItems } = useSelector(state => state.cart);
-    const dispatch = useDispatch();
     const navigate = useNavigate();
 
     const [keyword, setKeyword] = useState('');
@@ -58,16 +56,8 @@ const MainHeader = () => {
     }, []);
 
 
-    const handleLogout = async () => {
-        setMenuOpen(false); // so the toast isn't drawn over the open menu
-        const signedOut = await dispatch(logout());
-        if (signedOut) {
-            navigate('/');
-            toast.success('Signed out');
-        } else {
-            toast.error('Could not sign out. Please try again.');
-        }
-    };
+    // Close the menu first so the toast isn't drawn over it.
+    const { signOut: handleLogout } = useLogout({ before: () => setMenuOpen(false) });
 
     const handleDropDownSuggestionClick = suggestion => {
         setKeyword(suggestion.name);

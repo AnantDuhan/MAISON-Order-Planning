@@ -1,11 +1,9 @@
 import React, { useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { useNavigate } from 'react-router';
+import { useSelector } from 'react-redux';
 import { Link, useLocation } from 'react-router-dom';
-import { toast } from 'react-toastify';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 
-import { logout } from '../../../actions/userAction';
+import { useLogout } from '../../../utils/useLogout';
 import ThemeToggle from '../ThemeToggle';
 
 const links = [
@@ -32,23 +30,13 @@ const secondaryLinks = links.filter(l => !PRIMARY.includes(l.to));
 
 const AdminHeader = () => {
     const { isAuthenticated, user } = useSelector(state => state.user);
-    const dispatch = useDispatch();
-    const navigate = useNavigate();
     const location = useLocation();
 
     const [menuOpen, setMenuOpen] = useState(false);
     const [moreOpen, setMoreOpen] = useState(false);
 
-    const handleLogout = async () => {
-        setMenuOpen(false); // so the toast isn't drawn over the open menu
-        const signedOut = await dispatch(logout());
-        if (signedOut) {
-            navigate('/');
-            toast.success('Signed out');
-        } else {
-            toast.error('Could not sign out. Please try again.');
-        }
-    };
+    // Close the menu first so the toast isn't drawn over it.
+    const { signOut: handleLogout } = useLogout({ before: () => setMenuOpen(false) });
 
     return (
         <header className='sticky top-0 z-50 border-b border-line bg-canvas/90 backdrop-blur-md'>

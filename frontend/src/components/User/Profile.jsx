@@ -2,6 +2,7 @@ import PasskeySettings from "./PasskeySettings";
 import React, { Fragment, useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Link, useNavigate } from "react-router-dom";
+import { useLogout } from "../../utils/useLogout";
 import axios from "axios";
 import LoadingBar from "react-top-loading-bar";
 import MetaData from "../layout/MetaData";
@@ -17,6 +18,7 @@ import TrustedDevices from "./TrustedDevices";
 import { useMembership } from "../../utils/useIsMember";
 const Profile = () => {
   const navigate = useNavigate();
+  const { signOut, signingOut } = useLogout();
   const dispatch = useDispatch();
 
   const {
@@ -263,6 +265,16 @@ const Profile = () => {
 
                   </div>
                 </div>
+
+                {/* SIGN OUT (same flow as the header's Logout) */}
+                <button
+                  type="button"
+                  onClick={signOut}
+                  disabled={signingOut}
+                  className="mt-6 w-full max-w-[320px] border border-line px-6 py-3 font-sans text-[0.72rem] uppercase tracking-luxe text-ink-soft transition-colors hover:border-danger hover:text-danger disabled:opacity-50"
+                >
+                  {signingOut ? "Logging out…" : "Logout"}
+                </button>
               </div>
 
               {/* ================================================== */}
