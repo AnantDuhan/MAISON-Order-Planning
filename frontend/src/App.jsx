@@ -43,6 +43,7 @@ const UpdateProduct = lazy(() => import("./components/Admin/UpdateProduct"));
 const UpdateUser = lazy(() => import("./components/Admin/UpdateUser"));
 const UsersList = lazy(() => import("./components/Admin/UsersList"));
 const CreateCoupon = lazy(() => import("./components/Admin/CreateCoupon"));
+const CouponList = lazy(() => import("./components/Admin/CouponList"));
 const Cart = lazy(() => import("./components/Cart/Cart"));
 const ConfirmOrder = lazy(() => import("./components/Cart/ConfirmOrder"));
 const OrderSuccess = lazy(() => import("./components/Cart/OrderSuccess"));
@@ -366,6 +367,15 @@ function App() {
                 element={
                   <ProtectedAdminRoute>
                     <RefundList />
+                  </ProtectedAdminRoute>
+                }
+                exact
+              />
+              <Route
+                path="/admin/coupons"
+                element={
+                  <ProtectedAdminRoute>
+                    <CouponList />
                   </ProtectedAdminRoute>
                 }
                 exact

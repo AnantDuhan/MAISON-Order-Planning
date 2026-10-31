@@ -18,7 +18,7 @@ const links = [
     { to: '/admin/users', label: 'Users' },
     { to: '/admin/returns', label: 'Returns' },
     { to: '/admin/refunds', label: 'Refunds' },
-    { to: '/admin/coupon', label: 'Coupons' },
+    { to: '/admin/coupons', label: 'Coupons' },
     { to: '/admin/memberships', label: 'Memberships' },
     { to: '/admin/inventory', label: 'Inventory' },
     { to: '/admin/cart-recovery', label: 'Cart Recovery' },

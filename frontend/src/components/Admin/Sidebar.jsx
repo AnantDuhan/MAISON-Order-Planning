@@ -66,7 +66,7 @@ const Sidebar = () => {
                 <Link to='/admin/reviews' className={itemClass('/admin/reviews')}>
                     <RateReviewIcon fontSize='small' /> Reviews
                 </Link>
-                <Link to='/admin/coupon' className={itemClass('/admin/coupon')}>
+                <Link to='/admin/coupons' className={itemClass('/admin/coupons')}>
                     <LocalOfferIcon fontSize='small' /> Coupons
                 </Link>
             </nav>

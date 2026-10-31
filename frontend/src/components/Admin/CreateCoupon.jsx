@@ -1,5 +1,6 @@
 import React, { Fragment, useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 
 import { clearErrors, generateCoupon, resetCouponState } from '../../actions/couponAction';
@@ -10,6 +11,7 @@ import ButtonSpinner from '../layout/ButtonSpinner';
 
 const CreateCoupon = () => {
     const dispatch = useDispatch();
+    const navigate = useNavigate();
     const { loading, error, success, coupon } = useSelector(state => state.coupon);
 
     const [code, setCode] = useState('');
@@ -24,12 +26,11 @@ const CreateCoupon = () => {
         }
         if (success && coupon) {
             toast.success(`Coupon ${coupon.code} created`);
-            setCode('');
-            setDiscount('');
-            setExpiresAt('');
             dispatch(resetCouponState());
+            // Straight to the list, with the new coupon at the top.
+            navigate(`/admin/coupons?created=${encodeURIComponent(coupon.code)}`);
         }
-    }, [dispatch, error, success, coupon]);
+    }, [dispatch, navigate, error, success, coupon]);
 
     const submitHandler = e => {
         e.preventDefault();
@@ -47,8 +48,8 @@ const CreateCoupon = () => {
 
     return (
         <Fragment>
-            <MetaData title='Create Coupon · Admin' />
-            <AdminPage eyebrow='Admin' title='Create Coupon'>
+            <MetaData title='New Coupon · Admin' noIndex />
+            <AdminPage eyebrow='Coupons' title='New coupon' action={<Link to='/admin/coupons' className='link-reveal font-sans text-xs uppercase tracking-luxe'>All coupons</Link>}>
                 <form
                     className='mx-auto max-w-lg border border-line bg-surface p-8 sm:p-10'
                     onSubmit={submitHandler}
