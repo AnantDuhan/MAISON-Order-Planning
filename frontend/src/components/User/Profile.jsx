@@ -180,143 +180,115 @@ const Profile = () => {
               {/* LEFT COLUMN */}
               {/* ================================================== */}
 
-              <div className="flex flex-col items-center">
+              <div className="flex w-full flex-col gap-6 lg:max-w-[320px]">
 
-                {/* PROFILE IMAGE */}
-                <div className="overflow-hidden rounded-full border border-line">
-                  <img
-                    src={
-                      user?.avatar?.url ||
-                      user?.avatar ||
-                      "/Profile.png"
-                    }
-                    alt={user?.name}
-                    className="h-56 w-56 object-cover"
-                  />
-                </div>
-
-                {/* EDIT PROFILE */}
-                <Link to="/me/update" className="btn-outline mt-8">
-                  Edit Profile
-                </Link>
-
-                {/* ================================================== */}
-                {/* ACCOUNT OVERVIEW */}
-                {/* ================================================== */}
-
-                <div className="mt-10 w-full max-w-[320px] border border-line bg-surface p-6">
-                  <p className="eyebrow">Account Overview</p>
-
-                  <div className="mt-5 space-y-4">
-
-                    {/* MEMBERSHIP */}
-                    <div className="flex items-center justify-between border-b border-line pb-3">
-                      <span className="font-sans text-sm text-ink-soft">
-                        Membership
-                      </span>
-
-                      <span className="font-sans text-xs uppercase tracking-wider text-ink">
-                        {isMember ? "Active" : "Inactive"}
-                      </span>
-                    </div>
-
-                    {/* SECURITY */}
-                    <div className="flex items-center justify-between border-b border-line pb-3">
-                      <span className="font-sans text-sm text-ink-soft">
-                        Security
-                      </span>
-
-                      <span
-                        className={`font-sans text-xs uppercase tracking-wider ${
-                          is2FAEnabled
-                            ? "text-green-700"
-                            : "text-ink-faint"
-                        }`}
-                      >
-                        {is2FAEnabled
-                          ? "2FA Enabled"
-                          : "2FA Disabled"}
-                      </span>
-                    </div>
-
-                    {/* ACCOUNT TYPE */}
-                    <div className="flex items-center justify-between border-b border-line pb-3">
-                      <span className="font-sans text-sm text-ink-soft">
-                        Account
-                      </span>
-
-                      <span className="font-sans text-xs uppercase tracking-wider text-ink">
-                        {user?.role === "admin"
-                          ? "Administrator"
-                          : "Customer"}
-                      </span>
-                    </div>
-
-                    {/* MEMBER SINCE */}
-                    <div className="flex items-center justify-between">
-                      <span className="font-sans text-sm text-ink-soft">
-                        Customer since
-                      </span>
-
-                      <span className="font-sans text-xs uppercase tracking-wider text-ink">
-                        {joinedOn}
-                      </span>
-                    </div>
-
+                {/* WHO YOU ARE: photo, name and email together, so on a */}
+                {/* phone they come first instead of after Logout */}
+                <div className="flex items-center gap-5">
+                  <div className="h-24 w-24 shrink-0 overflow-hidden rounded-full border border-line">
+                    <img
+                      src={user?.avatar?.url || user?.avatar || "/Profile.png"}
+                      alt=""
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate font-display text-2xl text-ink">{user?.name}</p>
+                    {/* Long addresses wrap after the "@", not mid-domain. */}
+                    <p className="mt-1 font-sans text-sm text-ink-soft [overflow-wrap:anywhere]">
+                      {String(user?.email || "").split("@").map((part, i) => (
+                        <Fragment key={i}>{i > 0 && <>@<wbr /></>}{part}</Fragment>
+                      ))}
+                    </p>
+                    <Link to="/me/update" className="mt-2 inline-block font-sans text-[0.68rem] uppercase tracking-luxe text-brass hover:text-ink">
+                      Edit profile
+                    </Link>
                   </div>
                 </div>
 
-                {/* SIGN OUT (same flow as the header's Logout) */}
-                <button
-                  type="button"
-                  onClick={signOut}
-                  disabled={signingOut}
-                  className="mt-6 w-full max-w-[320px] border border-line px-6 py-3 font-sans text-[0.72rem] uppercase tracking-luxe text-ink-soft transition-colors hover:border-danger hover:text-danger disabled:opacity-50"
-                >
-                  {signingOut ? "Logging out…" : "Logout"}
-                </button>
+                {/* ACCOUNT OVERVIEW */}
+                <div className="border border-line bg-surface p-6">
+                  <p className="eyebrow">Account Overview</p>
+                  <dl className="mt-5 divide-y divide-line font-sans text-sm">
+                    <div className="flex items-center justify-between gap-4 pb-3">
+                      <dt className="text-ink-soft">Membership</dt>
+                      <dd className="text-right text-xs uppercase tracking-wider text-ink">
+                        {isMember ? (
+                          membership?.name || "Member"
+                        ) : (
+                          <Link to="/membership" className="text-brass hover:text-ink">
+                            Not a member · Join
+                          </Link>
+                        )}
+                      </dd>
+                    </div>
+                    <div className="flex items-center justify-between gap-4 py-3">
+                      <dt className="text-ink-soft">Security</dt>
+                      <dd className={`text-xs uppercase tracking-wider ${is2FAEnabled ? "text-success" : "text-ink-faint"}`}>
+                        {is2FAEnabled ? "2FA on" : "2FA off"}
+                      </dd>
+                    </div>
+                    <div className="flex items-center justify-between gap-4 py-3">
+                      <dt className="text-ink-soft">Account</dt>
+                      <dd className="text-xs uppercase tracking-wider text-ink">
+                        {user?.role === "admin" ? "Administrator" : "Customer"}
+                      </dd>
+                    </div>
+                    <div className="flex items-center justify-between gap-4 pt-3">
+                      <dt className="text-ink-soft">Joined</dt>
+                      <dd className="text-xs uppercase tracking-wider text-ink">{joinedOn}</dd>
+                    </div>
+                  </dl>
+                </div>
+
+                {/* ACCOUNT ACTIONS: one list card, then admin, then Logout */}
+                <nav aria-label="Account" className="flex flex-col gap-3">
+                  <ul className="divide-y divide-line border border-line bg-surface">
+                    {[
+                      ["/orders", "My Orders"],
+                      ["/account/addresses", "Address Book"],
+                      ["/password/update", "Change Password"],
+                    ].map(([to, label]) => (
+                      <li key={to}>
+                        <Link
+                          to={to}
+                          className="group flex items-center justify-between px-6 py-4 font-sans text-[0.72rem] uppercase tracking-luxe text-ink transition-colors hover:text-brass"
+                        >
+                          {label}
+                          <span aria-hidden="true" className="text-ink-faint transition-transform group-hover:translate-x-1 group-hover:text-brass">→</span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+
+                  {user?.role === "admin" && (
+                    <Link
+                      to="/admin/dashboard"
+                      className="btn-luxe w-full justify-center bg-brass px-8 py-4 text-white hover:bg-brass-soft"
+                    >
+                      Admin Dashboard
+                    </Link>
+                  )}
+
+                  {/* Same flow as the header's Logout */}
+                  <button
+                    type="button"
+                    onClick={signOut}
+                    disabled={signingOut}
+                    className="mt-3 w-full border border-line px-6 py-3 font-sans text-[0.72rem] uppercase tracking-luxe text-ink-soft transition-colors hover:border-danger hover:text-danger disabled:opacity-50"
+                  >
+                    {signingOut ? "Logging out…" : "Logout"}
+                  </button>
+                </nav>
               </div>
 
               {/* ================================================== */}
               {/* RIGHT COLUMN */}
               {/* ================================================== */}
 
-              <div className="flex flex-col justify-center">
+              <div className="flex flex-col">
 
                 <div className="space-y-8">
-
-                  {/* FULL NAME */}
-                  <div>
-                    <p className="eyebrow">Full Name</p>
-
-                    <p className="mt-2 font-display text-2xl text-ink">
-                      {user?.name}
-                    </p>
-                  </div>
-
-                  <div className="rule-luxe" />
-
-                  {/* EMAIL */}
-                  <div>
-                    <p className="eyebrow">Email</p>
-
-                    <p className="mt-2 font-display text-2xl text-ink">
-                      {user?.email}
-                    </p>
-                  </div>
-
-                  <div className="rule-luxe" />
-
-                  {/* JOINED ON */}
-                  <div>
-                    <p className="eyebrow">Joined On</p>
-
-                    <p className="mt-2 font-display text-2xl text-ink">
-                      {joinedOn}
-                    </p>
-                  </div>
-
-                  <div className="rule-luxe" />
 
                   {/* ================================================== */}
                   {/* MEMBERSHIP */}
@@ -387,7 +359,7 @@ const Profile = () => {
 
                         <p className="mt-2 max-w-xl font-sans text-sm leading-6 text-ink-soft">
                           {isAdmin
-                            ? "Two-factor authentication is required for administrator accounts."
+                            ? "Required for administrator accounts, so it can't be turned off."
                             : "Add an extra layer of security to your Maison account using an authenticator app."}
                         </p>
                       </div>
@@ -577,12 +549,6 @@ const Profile = () => {
                     {/* DISABLE 2FA */}
                     {/* ================================================== */}
 
-                    {is2FAEnabled && isAdmin && (
-                      <p className="mt-6 font-sans text-sm text-ink-soft">
-                        2FA is mandatory for administrators and cannot be disabled.
-                      </p>
-                    )}
-
                     {is2FAEnabled && !user?.isDemo && <TrustedDevices />}
 
                     {is2FAEnabled && !isAdmin && !showDisable && (
@@ -681,57 +647,6 @@ const Profile = () => {
                 </div>
 
                 <PasskeySettings isDemo={user?.isDemo === true} />
-
-                {/* ================================================== */}
-                {/* ACCOUNT ACTIONS */}
-                {/* ================================================== */}
-
-                <div className="mt-12 flex flex-wrap gap-4">
-
-                  <Link to="/orders" className="btn-solid">
-                    My Orders
-                  </Link>
-
-                  <Link
-                    to="/account/addresses"
-                    className="btn-outline"
-                  >
-                    Address Book
-                  </Link>
-
-                  <Link
-                    to="/password/update"
-                    className="btn-outline"
-                  >
-                    Change Password
-                  </Link>
-
-                </div>
-
-                {/* ================================================== */}
-                {/* ADMIN */}
-                {/* ================================================== */}
-
-                {user?.role === "admin" && (
-                  <div className="mt-10 border border-brass/50 bg-surface p-6">
-
-                    <p className="eyebrow">
-                      Administrator
-                    </p>
-
-                    <p className="mt-2 font-sans text-sm text-ink-soft">
-                      You have admin access to this store.
-                    </p>
-
-                    <Link
-                      to="/admin/dashboard"
-                      className="btn-luxe mt-5 inline-flex bg-brass px-8 py-4 text-white hover:bg-brass-soft"
-                    >
-                      Open Admin Dashboard
-                    </Link>
-
-                  </div>
-                )}
 
               </div>
             </div>
