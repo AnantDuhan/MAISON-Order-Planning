@@ -9,6 +9,7 @@ import { DELETE_PRODUCT_RESET } from '../../constants/productConstants';
 import MetaData from '../layout/MetaData';
 import AdminPage from './shared/AdminPage';
 import AdminTable from './shared/AdminTable';
+import { useLoadOnce } from './shared/useLoadOnce';
 import ConfirmDelete from './shared/ConfirmDelete';
 import { priceLabel } from '../../utils/priceLabel';
 import { UNLISTED_FILTER, categoryPlaces, useCategories } from '../../utils/useCategories';
@@ -53,9 +54,9 @@ const ProductList = () => {
 
     const deleteProductHandler = id => dispatch(deleteProduct(id));
 
-    useEffect(() => {
-        dispatch(getAdminProduct());
-    }, [dispatch]);
+    // Until this page's own request is back, show placeholders: the store may
+    // still hold the shop's product list, or nothing yet.
+    const { loaded, reload } = useLoadOnce(() => dispatch(getAdminProduct()));
 
     useEffect(() => {
         if (error) {
@@ -70,11 +71,11 @@ const ProductList = () => {
             // Stay on the list (and the current filter); just reload it.
             toast.success('Product deleted');
             dispatch({ type: DELETE_PRODUCT_RESET });
-            dispatch(getAdminProduct());
+            reload();
         }
-    }, [dispatch, error, deleteError, isDeleted]);
+    }, [dispatch, error, deleteError, isDeleted, reload]);
 
-    const allRows = useMemo(() => (products || []).map(item => {
+    const allRows = useMemo(() => (loaded ? products || [] : []).map(item => {
         const categoryName = String(item.category || '').trim();
         return {
             id: item._id,
@@ -85,7 +86,7 @@ const ProductList = () => {
             place: places.get(categoryName.toLowerCase()) || null,
             image: (item.images || []).find(img => img?.url)?.url || null,
         };
-    }), [products, places]);
+    }), [products, places, loaded]);
 
     // Filter options: departments with their categories, each with a count.
     const counts = useMemo(() => {
@@ -244,6 +245,7 @@ const ProductList = () => {
                     columns={columns}
                     rows={rows}
                     renderCard={renderCard}
+                    loading={!loaded}
                     emptyMessage={filter ? 'No products in this category.' : 'No products yet.'}
                 />
             </AdminPage>

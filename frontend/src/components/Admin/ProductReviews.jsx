@@ -29,7 +29,7 @@ const ProductReviews = () => {
     const productId = searchParams.get('product') || '';
 
     const { error: deleteError, isDeleted } = useSelector(state => state.review);
-    const { error, reviews, loading } = useSelector(state => state.productReviews);
+    const { error, reviews } = useSelector(state => state.productReviews);
 
     // Own fetch, so the shared products list (Admin > Products) isn't touched.
     const [products, setProducts] = useState([]);
@@ -47,9 +47,17 @@ const ProductReviews = () => {
     );
     const selected = products.find(p => p._id === productId);
 
+    // Which product's reviews have arrived. Until the chosen product's are
+    // back, the table shows placeholders, not the previous product's reviews
+    // or "No reviews".
+    const [loadedFor, setLoadedFor] = useState(null);
     useEffect(() => {
-        if (productId) dispatch(getAllReviews(productId));
+        if (!productId) return undefined;
+        let alive = true;
+        Promise.resolve(dispatch(getAllReviews(productId))).finally(() => { if (alive) setLoadedFor(productId); });
+        return () => { alive = false; };
     }, [dispatch, productId]);
+    const reviewsLoaded = Boolean(productId) && loadedFor === productId;
 
     useEffect(() => {
         if (error) {
@@ -67,7 +75,7 @@ const ProductReviews = () => {
         }
     }, [dispatch, error, deleteError, isDeleted, productId]);
 
-    const rows = productId
+    const rows = reviewsLoaded
         ? (reviews || []).map(item => ({ id: item._id, user: item.name, comment: item.comment, rating: Number(item.rating) || 0 }))
         : [];
 
@@ -127,13 +135,12 @@ const ProductReviews = () => {
 
                 {!productId ? (
                     <p className='py-16 text-center font-display text-2xl italic text-ink-faint'>Choose a product to see its reviews.</p>
-                ) : loading && !rows.length ? (
-                    <p className='py-16 text-center font-sans text-sm text-ink-faint'>Loading reviews…</p>
                 ) : (
                     <AdminTable
                         columns={columns}
                         rows={rows}
                         renderCard={renderCard}
+                        loading={!reviewsLoaded}
                         emptyMessage='No reviews for this product yet.'
                     />
                 )}

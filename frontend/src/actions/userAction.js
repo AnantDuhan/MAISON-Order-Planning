@@ -173,7 +173,7 @@ export const register = formData => async dispatch => {
     } catch (error) {
         dispatch({
             type: REGISTER_USER_FAIL,
-            payload: error.response ? error.response.data.message : error.message
+            payload: error.response ? (error.response?.data?.message || error.message) : error.message
         });
     }
 };
@@ -263,7 +263,7 @@ export const updatePassword = passwords => async dispatch => {
     } catch (error) {
         dispatch({
             type: UPDATE_PASSWORD_FAIL,
-            payload: error.response.data.message
+            payload: (error.response?.data?.message || error.message)
         });
     }
 };
@@ -281,7 +281,7 @@ export const forgotPassword = email => async dispatch => {
     } catch (error) {
         dispatch({
             type: FORGOT_PASSWORD_FAIL,
-            payload: error.response.data.message
+            payload: (error.response?.data?.message || error.message)
         });
     }
 };
@@ -303,7 +303,7 @@ export const resetPassword = (token, passwords) => async dispatch => {
     } catch (error) {
         dispatch({
             type: RESET_PASSWORD_FAIL,
-            payload: error.response.data.message
+            payload: (error.response?.data?.message || error.message)
         });
     }
 };
@@ -318,7 +318,7 @@ export const getAllUsers = () => async dispatch => {
     } catch (error) {
         dispatch({
             type: ALL_USERS_FAIL,
-            payload: error.response.data.message
+            payload: (error.response?.data?.message || error.message)
         });
     }
 };
@@ -333,7 +333,7 @@ export const getUserDetails = id => async dispatch => {
     } catch (error) {
         dispatch({
             type: USER_DETAILS_FAIL,
-            payload: error.response.data.message
+            payload: (error.response?.data?.message || error.message)
         });
     }
 };
@@ -357,7 +357,7 @@ export const updateUser = (id, userData) => async dispatch => {
     } catch (error) {
         dispatch({
             type: UPDATE_USER_FAIL,
-            payload: error.response.data.message
+            payload: (error.response?.data?.message || error.message)
         });
 
         console.log('ERROR', error);
@@ -375,7 +375,7 @@ export const deleteUser = id => async dispatch => {
     } catch (error) {
         dispatch({
             type: DELETE_USER_FAIL,
-            payload: error.response.data.message
+            payload: (error.response?.data?.message || error.message)
         });
     }
 };
@@ -412,7 +412,7 @@ export const loginWithGoogle = (googleToken) => async (dispatch) => {
     } catch (error) {
         dispatch({
             type: GOOGLE_LOGIN_FAIL,
-            payload: error.response.data.message,
+            payload: (error.response?.data?.message || error.message),
         });
     }
 };

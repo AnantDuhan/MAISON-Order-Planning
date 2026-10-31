@@ -24,7 +24,7 @@ export const submitContactForm = myForm => async dispatch => {
         console.log('error', error);
         dispatch({
             type: CONTACT_FAIL,
-            payload: error.response.data.message
+            payload: (error.response?.data?.message || error.message)
         });
     }
 };

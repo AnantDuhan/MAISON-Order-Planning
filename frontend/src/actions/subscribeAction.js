@@ -30,7 +30,7 @@ export const newsletter = email => async dispatch => {
     } catch (error) {
         dispatch({
             type: SUBSCRIBE_FAIL,
-            payload: error.response.data.message
+            payload: (error.response?.data?.message || error.message)
         });
     }
 };

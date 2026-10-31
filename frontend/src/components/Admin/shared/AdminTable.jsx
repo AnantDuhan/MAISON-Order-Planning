@@ -10,10 +10,53 @@ import React, { Fragment, useMemo, useState } from 'react';
  *
  * renderCard(row) -> optional compact card for phones and tablets; without it,
  *                    rows stack into labelled fields there.
+ * loading         -> true until the page's data has arrived: shows placeholder
+ *                    rows instead of the empty message.
  *
  * Renders as a grid on desktop (lg and up).
  */
-const AdminTable = ({ columns, rows, pageSize = 10, emptyMessage = 'Nothing to show yet.', renderCard }) => {
+const Bar = ({ className = '' }) => <span className={`block h-3 animate-pulse rounded-sm bg-surface-2 ${className}`} />;
+
+/** Placeholder rows in the table's own layout while the data loads. */
+const LoadingRows = ({ columns, gridTemplate, count = 6 }) => (
+    <div role='status' aria-live='polite'>
+        <span className='sr-only'>Loading…</span>
+        {/* Phones and tablets */}
+        <ul className='divide-y divide-line border-y border-line lg:hidden' aria-hidden='true'>
+            {Array.from({ length: count }, (_, i) => (
+                <li key={i} className='flex gap-4 py-5'>
+                    <span className='h-20 w-16 shrink-0 animate-pulse bg-surface-2' />
+                    <span className='flex flex-1 flex-col gap-3 pt-1'>
+                        <Bar className='w-1/3' />
+                        <Bar className='w-3/4' />
+                        <Bar className='w-1/2' />
+                    </span>
+                </li>
+            ))}
+        </ul>
+        {/* Desktop */}
+        <div className='hidden lg:block' aria-hidden='true'>
+            <div className='grid gap-4 border-b border-line pb-4' style={{ gridTemplateColumns: gridTemplate }}>
+                {columns.map(col => (
+                    <span key={col.key} className={`eyebrow ${col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : ''}`}>{col.label}</span>
+                ))}
+            </div>
+            <div className='divide-y divide-line'>
+                {Array.from({ length: count }, (_, i) => (
+                    <div key={i} className='grid items-center gap-4 py-6' style={{ gridTemplateColumns: gridTemplate }}>
+                        {columns.map((col, c) => (
+                            <span key={col.key} className={`flex ${col.align === 'right' ? 'justify-end' : col.align === 'center' ? 'justify-center' : ''}`}>
+                                <Bar className={c === 0 ? 'w-4/5' : (i + c) % 3 === 0 ? 'w-1/2' : 'w-2/3'} />
+                            </span>
+                        ))}
+                    </div>
+                ))}
+            </div>
+        </div>
+    </div>
+);
+
+const AdminTable = ({ columns, rows, pageSize = 10, emptyMessage = 'Nothing to show yet.', renderCard, loading = false }) => {
     const [page, setPage] = useState(1);
 
     const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
@@ -25,6 +68,10 @@ const AdminTable = ({ columns, rows, pageSize = 10, emptyMessage = 'Nothing to s
     );
 
     const gridTemplate = columns.map(c => c.width || '1fr').join(' ');
+
+    if (loading) {
+        return <LoadingRows columns={columns} gridTemplate={gridTemplate} />;
+    }
 
     if (!rows.length) {
         return (

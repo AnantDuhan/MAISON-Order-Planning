@@ -1,15 +1,14 @@
-import React, { Fragment, useEffect, useState } from 'react';
+import React, { Fragment, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import LaunchIcon from '@mui/icons-material/Launch';
-import LoadingBar from 'react-top-loading-bar';
-import Loader from '../layout/Loader/Loader';
 
 import { clearErrors, allReturns, updateReturnStatus } from '../../actions/orderAction';
 import MetaData from '../layout/MetaData';
 import AdminPage from './shared/AdminPage';
 import AdminTable from './shared/AdminTable';
+import { useLoadOnce } from './shared/useLoadOnce';
 import { formatINR } from '../../utils/priceLabel';
 import OrderItems, { itemsFor } from './shared/OrderItems';
 
@@ -17,10 +16,10 @@ const shortDate = value => (value ? new Date(value).toLocaleDateString('en-IN', 
 
 const ReturnList = () => {
     const dispatch = useDispatch();
-    const { loading, error, returns } = useSelector(state => state.allReturns);
+    const { error, returns } = useSelector(state => state.allReturns);
+    // Fetched once on opening; the page and its header stay put while it loads.
+    const { loaded } = useLoadOnce(() => dispatch(allReturns()));
 
-    const [progress, setProgress] = useState(0);
-    const onLoaderFinished = () => setProgress(0);
 
     const changeReturnStatus = (id, status) => {
         dispatch(updateReturnStatus(id, status))
@@ -28,17 +27,16 @@ const ReturnList = () => {
             .catch(error => toast.error(error.response?.data?.message || error.message));
     };
 
+    // Errors show a toast; they used to trigger another fetch, which looped
+    // while the API failed.
     useEffect(() => {
         if (error) {
             toast.error(error);
             dispatch(clearErrors());
         }
-        dispatch(allReturns());
-        setProgress(100);
-        setTimeout(() => setProgress(0), 5000);
     }, [dispatch, error]);
 
-    const rows = (returns || []).map(item => ({
+    const rows = (loaded ? returns || [] : []).map(item => ({
         id: item._id,
         orderID: item.order?._id,
         items: itemsFor({ order: item.order, products: item.products }),
@@ -122,16 +120,9 @@ const ReturnList = () => {
     return (
         <Fragment>
             <MetaData title='All Returns · Admin' noIndex />
-            {loading ? (
-                <Fragment>
-                    <LoadingBar color='#A07C4B' progress={progress} onLoaderFinished={onLoaderFinished} />
-                    <Loader label='Loading returns' />
-                </Fragment>
-            ) : (
-                <AdminPage title='All Returns'>
-                    <AdminTable columns={columns} rows={rows} renderCard={renderCard} emptyMessage='No returns requested.' />
-                </AdminPage>
-            )}
+            <AdminPage title='All Returns'>
+                <AdminTable columns={columns} rows={rows} renderCard={renderCard} loading={!loaded} emptyMessage='No returns requested.' />
+            </AdminPage>
         </Fragment>
     );
 };

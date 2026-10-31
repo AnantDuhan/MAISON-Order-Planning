@@ -36,7 +36,7 @@ export const getAllPrices = () => async dispatch => {
     } catch (error) {
         dispatch({
             type: ALL_PRICES_FAIL,
-            payload: error.response.data.message
+            payload: (error.response?.data?.message || error.message)
         });
     }
 };
@@ -63,7 +63,7 @@ export const createSubscription = (myForm) => async dispatch => {
     } catch (error) {
         dispatch({
             type: CREATE_SUBSCRIPTION_FAIL,
-            payload: error.response.data.message
+            payload: (error.response?.data?.message || error.message)
         });
     }
 };
@@ -82,7 +82,7 @@ export const getAllSubscription = () => async dispatch => {
     } catch (error) {
         dispatch({
             type: SUBSCRIPTION_FAIL,
-            payload: error.response.data.message
+            payload: (error.response?.data?.message || error.message)
         });
     }
 };
@@ -100,7 +100,7 @@ export const getSubscriptionDetails = (id) => async dispatch => {
     } catch (error) {
         dispatch({
             type: GET_SUBSCRIPTION_DETAIL_FAIL,
-            payload: error.response.data.message
+            payload: (error.response?.data?.message || error.message)
         });
     }
 };
@@ -132,7 +132,7 @@ export const updateSubscriptionById = (id, myForm) => async dispatch => {
     } catch (error) {
         dispatch({
             type: UPDATE_SUBSCRIPTION_FAIL,
-            payload: error.response.data.message
+            payload: (error.response?.data?.message || error.message)
         });
     }
 };
@@ -151,7 +151,7 @@ export const deleteSubscription = (id) => async dispatch => {
     } catch (error) {
         dispatch({
             type: DELETE_SUBSCRIPTION_FAIL,
-            payload: error.response.data.message
+            payload: (error.response?.data?.message || error.message)
         });
     }
 };
@@ -170,7 +170,7 @@ export const cancelSubscription = (id) => async dispatch => {
     } catch (error) {
         dispatch({
             type: CANCEL_SUBSCRIPTION_FAIL,
-            payload: error.response.data.message
+            payload: (error.response?.data?.message || error.message)
         });
     }
 };

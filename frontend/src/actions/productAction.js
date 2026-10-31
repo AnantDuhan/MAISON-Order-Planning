@@ -141,7 +141,7 @@ export const createProduct = productData => async dispatch => {
     } catch (error) {
         dispatch({
             type: NEW_PRODUCT_FAIL,
-            payload: error.response.data.message
+            payload: (error.response?.data?.message || error.message)
         });
     }
 };
@@ -160,7 +160,7 @@ export const updateProduct = (id, productData) => async dispatch => {
     } catch (error) {
         dispatch({
             type: UPDATE_PRODUCT_FAIL,
-            payload: error.response.data.message
+            payload: (error.response?.data?.message || error.message)
         });
     }
 };
@@ -179,7 +179,7 @@ export const deleteProduct = id => async dispatch => {
     } catch (error) {
         dispatch({
             type: DELETE_PRODUCT_FAIL,
-            payload: error.response.data.message
+            payload: (error.response?.data?.message || error.message)
         });
     }
 };
@@ -198,7 +198,7 @@ export const getProductDetails = id => async dispatch => {
     } catch (error) {
         dispatch({
             type: PRODUCT_DETAILS_FAIL,
-            payload: error.response.data.message
+            payload: (error.response?.data?.message || error.message)
         });
     }
 };
@@ -227,7 +227,7 @@ export const newReview = reviewData => async dispatch => {
     } catch (error) {
         dispatch({
             type: NEW_REVIEW_FAIL,
-            payload: error.response.data.message
+            payload: (error.response?.data?.message || error.message)
         });
     }
 };
@@ -246,7 +246,7 @@ export const getAllReviews = id => async dispatch => {
     } catch (error) {
         dispatch({
             type: ALL_REVIEW_FAIL,
-            payload: error.response.data.message
+            payload: (error.response?.data?.message || error.message)
         });
     }
 };
@@ -326,8 +326,8 @@ export const removeProductFromWishlist = id => async dispatch => {
                dispatch({
                    type: REMOVE_PRODUCT_FROM_WISHLIST_FAIL,
                    payload:
-                       error.response && error.response.data.message
-                           ? error.response.data.message
+                       error.response && (error.response?.data?.message || error.message)
+                           ? (error.response?.data?.message || error.message)
                            : error.message
                });
            }
@@ -346,7 +346,7 @@ export const removeProductFromWishlist = id => async dispatch => {
 //     } catch (error) {
 //         dispatch({
 //             type: RECOMMENDED_PRODUCTS_FAIL,
-//             payload: error.response.data.message
+//             payload: (error.response?.data?.message || error.message)
 //         });
 //         return [];
 //     }
@@ -377,7 +377,7 @@ export const summarizeProductReviews = (id) => async (dispatch) => {
     } catch (error) {
         dispatch({
             type: SUMMARIZE_REVIEWS_FAIL,
-            payload: error.response.data.message,
+            payload: (error.response?.data?.message || error.message),
         });
     }
 };

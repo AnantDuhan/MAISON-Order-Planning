@@ -1,15 +1,14 @@
-import React, { Fragment, useEffect, useState } from 'react';
+import React, { Fragment, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import LaunchIcon from '@mui/icons-material/Launch';
-import LoadingBar from 'react-top-loading-bar';
-import Loader from '../layout/Loader/Loader';
 
 import { clearErrors, allRefunds } from '../../actions/orderAction';
 import MetaData from '../layout/MetaData';
 import AdminPage from './shared/AdminPage';
 import AdminTable from './shared/AdminTable';
+import { useLoadOnce } from './shared/useLoadOnce';
 import { formatINR } from '../../utils/priceLabel';
 import OrderItems, { itemsFor } from './shared/OrderItems';
 
@@ -17,22 +16,21 @@ const shortDate = value => (value ? new Date(value).toLocaleDateString('en-IN', 
 
 const RefundList = () => {
     const dispatch = useDispatch();
-    const { loading, error, refunds } = useSelector(state => state.allRefunds);
+    const { error, refunds } = useSelector(state => state.allRefunds);
+    // Fetched once on opening; the page and its header stay put while it loads.
+    const { loaded } = useLoadOnce(() => dispatch(allRefunds()));
 
-    const [progress, setProgress] = useState(0);
-    const onLoaderFinished = () => setProgress(0);
 
+    // Errors show a toast; they used to trigger another fetch, which looped
+    // while the API failed.
     useEffect(() => {
         if (error) {
             toast.error(error);
             dispatch(clearErrors());
         }
-        dispatch(allRefunds());
-        setProgress(100);
-        setTimeout(() => setProgress(0), 5000);
     }, [dispatch, error]);
 
-    const rows = (refunds || []).map(item => ({
+    const rows = (loaded ? refunds || [] : []).map(item => ({
         id: item._id,
         orderID: item.order?._id,
         items: itemsFor({ order: item.order }),
@@ -105,16 +103,9 @@ const RefundList = () => {
     return (
         <Fragment>
             <MetaData title='All Refunds · Admin' noIndex />
-            {loading ? (
-                <Fragment>
-                    <LoadingBar color='#A07C4B' progress={progress} onLoaderFinished={onLoaderFinished} />
-                    <Loader label='Loading refunds' />
-                </Fragment>
-            ) : (
-                <AdminPage title='All Refunds'>
-                    <AdminTable columns={columns} rows={rows} renderCard={renderCard} emptyMessage='No refunds requested.' />
-                </AdminPage>
-            )}
+            <AdminPage title='All Refunds'>
+                <AdminTable columns={columns} rows={rows} renderCard={renderCard} loading={!loaded} emptyMessage='No refunds requested.' />
+            </AdminPage>
         </Fragment>
     );
 };

@@ -1,7 +1,7 @@
 import EditIcon from '@mui/icons-material/Edit';
 import React, { Fragment, useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 
 import { clearErrors, deleteOrder, getAllOrders } from '../../actions/orderAction';
@@ -9,6 +9,7 @@ import { DELETE_ORDER_RESET } from '../../constants/orderConstants';
 import MetaData from '../layout/MetaData';
 import AdminPage from './shared/AdminPage';
 import AdminTable from './shared/AdminTable';
+import { useLoadOnce } from './shared/useLoadOnce';
 import ConfirmDelete from './shared/ConfirmDelete';
 import { formatINR } from '../../utils/priceLabel';
 
@@ -47,12 +48,15 @@ const daysLate = order => {
 const OrderList = () => {
     const [lateOnly, setLateOnly] = useState(false);
     const dispatch = useDispatch();
-    const navigate = useNavigate();
 
     const { error, orders } = useSelector(state => state.allOrders);
     const { error: deleteError, isDeleted } = useSelector(state => state.order);
 
     const deleteOrderHandler = id => dispatch(deleteOrder(id));
+
+    // Fetched once on opening (and after a delete). Errors only show a toast;
+    // they used to trigger another fetch, which looped while the API failed.
+    const { loaded, reload } = useLoadOnce(() => dispatch(getAllOrders()));
 
     useEffect(() => {
         if (error) {
@@ -65,13 +69,12 @@ const OrderList = () => {
         }
         if (isDeleted) {
             toast.success('Order Deleted Successfully');
-            navigate('/admin/orders');
             dispatch({ type: DELETE_ORDER_RESET });
+            reload();
         }
-        dispatch(getAllOrders());
-    }, [dispatch, error, deleteError, navigate, isDeleted]);
+    }, [dispatch, error, deleteError, isDeleted, reload]);
 
-    const allRows = (orders || []).map(item => ({
+    const allRows = (loaded ? orders || [] : []).map(item => ({
         id: item._id,
         name: item.orderItems?.[0]?.name || '—',
         itemsQty: item.orderItems?.length || 0,
@@ -243,7 +246,7 @@ const OrderList = () => {
                         </button>
                     </div>
                 )}
-                <AdminTable columns={columns} rows={rows} renderCard={renderCard} emptyMessage={lateOnly ? 'No late orders.' : 'No orders yet.'} />
+                <AdminTable columns={columns} rows={rows} renderCard={renderCard} loading={!loaded} emptyMessage={lateOnly ? 'No late orders.' : 'No orders yet.'} />
             </AdminPage>
         </Fragment>
     );

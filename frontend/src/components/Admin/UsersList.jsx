@@ -1,7 +1,7 @@
 import EditIcon from '@mui/icons-material/Edit';
 import React, { Fragment, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 
 import { clearErrors, deleteUser, getAllUsers } from '../../actions/userAction';
@@ -9,16 +9,19 @@ import { DELETE_USER_RESET } from '../../constants/userConstants';
 import MetaData from '../layout/MetaData';
 import AdminPage from './shared/AdminPage';
 import AdminTable from './shared/AdminTable';
+import { useLoadOnce } from './shared/useLoadOnce';
 import ConfirmDelete from './shared/ConfirmDelete';
 
 const UsersList = () => {
     const dispatch = useDispatch();
-    const navigate = useNavigate();
 
     const { error, users } = useSelector(state => state.allUsers);
     const { error: deleteError, isDeleted, message } = useSelector(state => state.profile);
 
     const deleteUserHandler = id => dispatch(deleteUser(id));
+
+    // Fetched once on opening (and after a delete); errors no longer refetch.
+    const { loaded, reload } = useLoadOnce(() => dispatch(getAllUsers()));
 
     useEffect(() => {
         if (error) {
@@ -31,13 +34,12 @@ const UsersList = () => {
         }
         if (isDeleted) {
             toast.success(message);
-            navigate('/admin/users');
             dispatch({ type: DELETE_USER_RESET });
+            reload();
         }
-        dispatch(getAllUsers());
-    }, [dispatch, error, deleteError, navigate, isDeleted, message]);
+    }, [dispatch, error, deleteError, isDeleted, message, reload]);
 
-    const rows = (users || []).map(item => ({
+    const rows = (loaded ? users || [] : []).map(item => ({
         id: item._id,
         email: item.email,
         name: item.name,
@@ -145,7 +147,7 @@ const UsersList = () => {
         <Fragment>
             <MetaData title='All Users · Admin' noIndex />
             <AdminPage title='All Users'>
-                <AdminTable columns={columns} rows={rows} renderCard={renderCard} emptyMessage='No users found.' />
+                <AdminTable columns={columns} rows={rows} renderCard={renderCard} loading={!loaded} emptyMessage='No users found.' />
             </AdminPage>
         </Fragment>
     );
