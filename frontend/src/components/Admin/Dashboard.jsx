@@ -1,5 +1,5 @@
-import React, { Fragment, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import React, { Fragment, useEffect, useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import "chart.js/auto";
 import { Bar, Doughnut, Line } from "react-chartjs-2";
 import { useSelector, useDispatch } from "react-redux";
@@ -13,6 +13,66 @@ import {
 } from "../../actions/analyticsAction";
 import MetaData from "../layout/MetaData";
 import { useTheme } from "../../context/ThemeContext";
+import {
+  UNLISTED_FILTER,
+  adminProductsLink,
+  categoryFilter,
+  categoryPlaces,
+  departmentFilter,
+  useCategories,
+} from "../../utils/useCategories";
+
+const DELETED = "Uncategorised"; // the backend's name for lines whose product no longer exists
+
+/**
+ * Revenue rows (one per product category name, at whatever level the
+ * product was filed) rolled up into departments, each with its categories:
+ * [{ name, revenue, units, filter, children: [{ name, revenue, units, filter }] }]
+ * `filter` is the Admin > All Products filter to open; null when there is
+ * nothing to open (deleted products).
+ */
+const rollUpByDepartment = (rows, places) => {
+  const byDept = new Map();
+  rows.forEach((row) => {
+    const name = String(row.category || "");
+    const place = places.get(name.toLowerCase());
+    const key = place ? place.department : "Other";
+    const dept = byDept.get(key) || {
+      name: key,
+      revenue: 0,
+      units: 0,
+      filter: place ? departmentFilter(place.department) : null,
+      children: [],
+      own: { revenue: 0, units: 0 },
+    };
+    dept.revenue += row.revenue || 0;
+    dept.units += row.units || 0;
+    if (place?.category) {
+      dept.children.push({ name: place.category, revenue: row.revenue, units: row.units, filter: categoryFilter(place.category) });
+    } else if (place) {
+      // Filed under the department itself, not one of its categories.
+      dept.own.revenue += row.revenue || 0;
+      dept.own.units += row.units || 0;
+    } else {
+      const deleted = name === DELETED;
+      dept.children.push({
+        name: deleted ? "Deleted products" : `${name} (not in categories)`,
+        revenue: row.revenue,
+        units: row.units,
+        filter: deleted ? null : UNLISTED_FILTER,
+      });
+    }
+    byDept.set(key, dept);
+  });
+  return [...byDept.values()]
+    .map(({ own, ...d }) => {
+      const children = d.children.sort((a, b) => b.revenue - a.revenue);
+      // So the lines under a department add up to its total.
+      if (own.revenue > 0 && children.length) children.push({ name: "No sub-category", revenue: own.revenue, units: own.units, filter: null });
+      return { ...d, children };
+    })
+    .sort((a, b) => (a.name === "Other") - (b.name === "Other") || b.revenue - a.revenue);
+};
 
 /** "2026-10" -> "Oct 2026", "2026-10-28" -> "28 Oct"; anything else unchanged. */
 const periodLabel = (p) => {
@@ -37,6 +97,9 @@ const inr = (n) =>
 
 const Dashboard = () => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
+  // Hidden categories too, so past sales still find their department.
+  const { categories: categoryTree, loading: categoriesLoading } = useCategories({ admin: true });
   const { theme } = useTheme();
   const isDark = theme === "dark";
 
@@ -138,11 +201,20 @@ const Dashboard = () => {
   const summary = analytics?.summary;
   const series = analytics?.revenueSeries || [];
   const topProducts = analytics?.topProducts || [];
-  const categoryRevenue = analytics?.categoryRevenue || [];
+  const categoryRevenue = analytics?.categoryRevenue;
   const returnReasons = analytics?.returnReasons || [];
   const statusBreakdown = analytics?.statusBreakdown || [];
   const couponUsage = analytics?.couponUsage || [];
   const membershipSummary = membershipAnalytics?.summary || {};
+
+  const departments = useMemo(() => {
+    const rows = categoryRevenue || [];
+    if (categoriesLoading) return [];
+    return rollUpByDepartment(rows, categoryPlaces(categoryTree));
+  }, [categoryRevenue, categoryTree, categoriesLoading]);
+  const categoryTotal = departments.reduce((a, d) => a + d.revenue, 0);
+  const departmentCount = departments.filter((d) => d.filter).length;
+  const openProducts = (filter) => filter && navigate(adminProductsLink(filter));
   // const twoFactorSummary = twoFactorAnalytics?.summary || {};
 
   const twoFactorEnabled = stats?.twoFactorEnabled ?? 0;
@@ -184,23 +256,41 @@ const Dashboard = () => {
     ],
   };
 
+  const categoryColors = [brass, dim, brassSoft, "#7E6440", "#E0D2BC", "#4F6E54", "#9C7B52"];
+  const colorOf = (i) => categoryColors[i % categoryColors.length];
   const categoryChart = {
-    labels: categoryRevenue.map((c) => c.category),
+    labels: departments.map((d) => d.name),
     datasets: [
       {
-        data: categoryRevenue.map((c) => c.revenue),
-        backgroundColor: [
-          brass,
-          dim,
-          brassSoft,
-          "#7E6440",
-          "#E0D2BC",
-          "#4F6E54",
-          "#9C7B52",
-        ],
+        data: departments.map((d) => d.revenue),
+        backgroundColor: departments.map((_, i) => colorOf(i)),
         borderWidth: 0,
       },
     ],
+  };
+  // A slice opens that department's products; the list below does the same.
+  const categoryChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    cutout: "62%",
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          label: (ctx) => {
+            const pct = categoryTotal ? Math.round((ctx.parsed / categoryTotal) * 100) : 0;
+            return ` ${inr(ctx.parsed)} · ${pct}%`;
+          },
+        },
+      },
+    },
+    onHover: (event, elements) => {
+      const target = event?.native?.target;
+      if (target) target.style.cursor = elements.length && departments[elements[0].index]?.filter ? "pointer" : "default";
+    },
+    onClick: (_, elements) => {
+      if (elements.length) openProducts(departments[elements[0].index]?.filter);
+    },
   };
 
   const returnReasonsChart = {
@@ -235,6 +325,7 @@ const Dashboard = () => {
   ];
 
   const hasData = series.length > 0 || topProducts.length > 0;
+  const share = (n) => (categoryTotal ? `${Math.round((n / categoryTotal) * 100)}%` : "0%");
 
   return (
     <Fragment>
@@ -448,11 +539,69 @@ const Dashboard = () => {
             </div>
           )}
 
-          {categoryRevenue.length > 0 && (
+          {departments.length > 0 && (
             <div>
-              <p className="eyebrow">Revenue by Category</p>
-              <div className="mt-5 h-80 border border-line bg-surface p-6">
-                <Doughnut data={categoryChart} options={doughnutOptions} />
+              <div className="flex items-end justify-between gap-4">
+                <p className="eyebrow">Revenue by Category</p>
+                <Link
+                  to="/admin/categories"
+                  className="font-sans text-[0.68rem] uppercase tracking-luxe text-brass hover:text-ink"
+                >
+                  Manage categories
+                </Link>
+              </div>
+              <div className="mt-5 border border-line bg-surface p-6">
+                <div className="relative mx-auto h-48 max-w-[12rem]">
+                  <Doughnut data={categoryChart} options={categoryChartOptions} />
+                  <div className="pointer-events-none absolute inset-0 grid place-items-center text-center">
+                    <span>
+                      <span className="block font-display text-xl text-ink">{inr(categoryTotal)}</span>
+                      <span className="block font-sans text-[0.62rem] uppercase tracking-luxe text-ink-faint">
+                        {departmentCount} {departmentCount === 1 ? "department" : "departments"}
+                      </span>
+                    </span>
+                  </div>
+                </div>
+
+                <ul className="mt-6 divide-y divide-line border-t border-line">
+                  {departments.map((d, i) => {
+                    const Row = d.filter ? Link : "div";
+                    return (
+                      <li key={d.name} className="py-3">
+                        <Row
+                          {...(d.filter ? { to: adminProductsLink(d.filter) } : {})}
+                          className={`group flex items-center gap-3 font-sans text-sm ${d.filter ? "cursor-pointer" : ""}`}
+                        >
+                          <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: colorOf(i) }} aria-hidden="true" />
+                          <span className={`min-w-0 flex-1 truncate text-ink ${d.filter ? "group-hover:text-brass" : ""}`}>{d.name}</span>
+                          <span className="text-ink-faint">{share(d.revenue)}</span>
+                          <span className="w-24 text-right text-ink">{inr(d.revenue)}</span>
+                          <span className={`w-4 text-ink-faint ${d.filter ? "group-hover:text-brass" : "invisible"}`} aria-hidden="true">›</span>
+                        </Row>
+                        {d.children.length > 0 && (
+                          <ul className="mt-1.5 flex flex-col">
+                            {d.children.map((c) => {
+                              const Sub = c.filter ? Link : "div";
+                              return (
+                                <li key={c.name}>
+                                  <Sub
+                                    {...(c.filter ? { to: adminProductsLink(c.filter) } : {})}
+                                    className="group flex items-center gap-3 py-1 pl-5 font-sans text-xs"
+                                  >
+                                    <span className={`min-w-0 flex-1 truncate text-ink-soft ${c.filter ? "group-hover:text-brass" : ""}`}>{c.name}</span>
+                                    <span className="text-ink-faint">{c.units} sold</span>
+                                    <span className="w-24 text-right text-ink-soft">{inr(c.revenue)}</span>
+                                    <span className={`w-4 text-ink-faint ${c.filter ? "group-hover:text-brass" : "invisible"}`} aria-hidden="true">›</span>
+                                  </Sub>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
               </div>
             </div>
           )}

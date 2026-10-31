@@ -4,12 +4,13 @@ import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined';
 import axios from 'axios';
 import React, { Fragment, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 
 import MetaData from '../layout/MetaData';
 import Loader from '../layout/Loader/Loader';
 import AdminPage from './shared/AdminPage';
-import { useCategories } from '../../utils/useCategories';
+import { adminProductsLink, categoryFilter, departmentFilter, useCategories } from '../../utils/useCategories';
 
 const EMPTY = { _id: null, name: '', description: '', parent: '', sortOrder: 0, isActive: true };
 const errorOf = (error, fallback) => error?.response?.data?.message || fallback;
@@ -124,7 +125,14 @@ const Row = ({ item, depth, onEdit, onDelete }) => {
                     {!item.isActive && <span className='ml-2 border border-line px-1.5 py-0.5 align-middle font-sans text-[0.6rem] uppercase tracking-luxe text-ink-faint'>Hidden</span>}
                 </p>
                 <p className='truncate font-sans text-xs text-ink-faint'>
-                    {item.productCount} {item.productCount === 1 ? 'product' : 'products'}
+                    {item.productCount > 0 ? (
+                        <Link
+                            to={adminProductsLink(depth ? categoryFilter(item.name) : departmentFilter(item.name))}
+                            className='text-brass hover:underline'
+                        >
+                            {item.productCount} {item.productCount === 1 ? 'product' : 'products'}
+                        </Link>
+                    ) : '0 products'}
                     {!depth && item.children?.length ? ` · ${item.children.length} inside` : ''}
                     {item.description ? ` · ${item.description}` : ''}
                 </p>

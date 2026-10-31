@@ -11,29 +11,9 @@ import AdminPage from './shared/AdminPage';
 import AdminTable from './shared/AdminTable';
 import ConfirmDelete from './shared/ConfirmDelete';
 import { priceLabel } from '../../utils/priceLabel';
-import { useCategories } from '../../utils/useCategories';
+import { UNLISTED_FILTER, categoryPlaces, useCategories } from '../../utils/useCategories';
 
-/**
- * Where each category name sits in the store: name (lower case) ->
- * { department, category, hidden }. A department maps to itself with no
- * category. Matching is case-insensitive, like the backend's.
- */
-const placesFrom = tree => {
-    const map = new Map();
-    tree.forEach(d => {
-        map.set(d.name.toLowerCase(), { department: d.name, category: null, hidden: d.isActive === false });
-        (d.children || []).forEach(c => {
-            map.set(c.name.toLowerCase(), {
-                department: d.name,
-                category: c.name,
-                hidden: c.isActive === false || d.isActive === false,
-            });
-        });
-    });
-    return map;
-};
-
-const UNLISTED = '__unlisted';
+const UNLISTED = UNLISTED_FILTER;
 
 /** "Accessories › Necklaces", plus a note when the category is hidden or not in Admin > Categories. */
 const CategoryCell = ({ row, compact = false }) => {
@@ -69,7 +49,7 @@ const ProductList = () => {
     const { error: deleteError, isDeleted } = useSelector(state => state.product);
     // Hidden categories too, so every product finds its place.
     const { categories: tree } = useCategories({ admin: true });
-    const places = useMemo(() => placesFrom(tree), [tree]);
+    const places = useMemo(() => categoryPlaces(tree), [tree]);
 
     const deleteProductHandler = id => dispatch(deleteProduct(id));
 
