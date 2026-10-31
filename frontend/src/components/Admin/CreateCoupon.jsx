@@ -1,12 +1,10 @@
-import LocalOfferIcon from '@mui/icons-material/LocalOffer';
-import PercentIcon from '@mui/icons-material/Percent';
-import EventIcon from '@mui/icons-material/Event';
 import React, { Fragment, useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { toast } from 'react-toastify';
 
 import { clearErrors, generateCoupon, resetCouponState } from '../../actions/couponAction';
 import MetaData from '../layout/MetaData';
+import Field from '../layout/Field';
 import AdminPage from './shared/AdminPage';
 import ButtonSpinner from '../layout/ButtonSpinner';
 
@@ -56,39 +54,35 @@ const CreateCoupon = () => {
                     onSubmit={submitHandler}
                 >
                     <div className='flex flex-col gap-6'>
-                        <div className='field-row'>
-                            <LocalOfferIcon />
+                        <Field label='Coupon code'>
                             <input
                                 type='text'
-                                placeholder='Coupon Code (e.g. WELCOME10)'
+                                placeholder='e.g. WELCOME10'
                                 required
                                 value={code}
                                 onChange={e => setCode(e.target.value)}
                             />
-                        </div>
+                        </Field>
 
-                        <div className='field-row'>
-                            <PercentIcon />
+                        <Field label='Discount' hint='% off'>
                             <input
                                 type='number'
                                 min='1'
-                                placeholder='Discount (%)'
+                                placeholder='10'
                                 required
                                 value={discount}
                                 onChange={e => setDiscount(e.target.value)}
                             />
-                        </div>
+                        </Field>
 
                         <div>
-                            <label className='eyebrow'>Expires (optional)</label>
-                            <div className='field-row mt-3'>
-                                <EventIcon />
+                            <Field label='Expires (optional)'>
                                 <input
                                     type='date'
                                     value={expiresAt}
                                     onChange={e => setExpiresAt(e.target.value)}
                                 />
-                            </div>
+                            </Field>
                             <p className='mt-2 font-sans text-[0.7rem] text-ink-faint'>
                                 Leave blank to expire 7 days from now.
                             </p>

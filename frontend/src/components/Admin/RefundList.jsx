@@ -10,6 +10,7 @@ import { clearErrors, allRefunds } from '../../actions/orderAction';
 import MetaData from '../layout/MetaData';
 import AdminPage from './shared/AdminPage';
 import AdminTable from './shared/AdminTable';
+import { formatINR } from '../../utils/priceLabel';
 
 const RefundList = () => {
     const dispatch = useDispatch();
@@ -33,8 +34,8 @@ const RefundList = () => {
         orderID: item.order?._id,
         customer: item.order?.user?.name,
         status: item.status,
-        requestDate: item.order?.refundRequestedAt,
-        refundAmount: item.order?.totalPrice,
+        requestDate: item.order?.refundRequestedAt || item.initiatedAt,
+        refundAmount: item.amount ?? item.order?.totalPrice,
     }));
 
     const columns = [
@@ -51,14 +52,14 @@ const RefundList = () => {
             key: 'requestDate',
             label: 'Requested',
             width: '1fr',
-            render: row => (row.requestDate ? String(row.requestDate).substring(0, 10) : '—'),
+            render: row => (row.requestDate ? new Date(row.requestDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'),
         },
         {
             key: 'refundAmount',
             label: 'Amount',
             align: 'right',
             width: '0.8fr',
-            render: row => `₹${row.refundAmount ?? 0}`,
+            render: row => formatINR(row.refundAmount ?? 0),
         },
         {
             key: 'actions',

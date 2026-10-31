@@ -43,7 +43,9 @@ export default defineConfig(({ mode }) => {
     };
     const proxy = {
         '/api': proxyOptions,
-        '/admin': proxyOptions,
+        // No '/admin' entry: those are the admin *pages* (React routes). All
+        // admin API calls go through /api/v1/admin, and proxying /admin made a
+        // refresh or deep link on any admin page return the backend's 404.
         '/sitemap.xml': proxyOptions,
         '/socket.io': { ...proxyOptions, ws: true },
     };

@@ -10,6 +10,7 @@ import { clearErrors, allReturns, updateReturnStatus } from '../../actions/order
 import MetaData from '../layout/MetaData';
 import AdminPage from './shared/AdminPage';
 import AdminTable from './shared/AdminTable';
+import { formatINR } from '../../utils/priceLabel';
 
 const ReturnList = () => {
     const dispatch = useDispatch();
@@ -87,14 +88,14 @@ const ReturnList = () => {
             key: 'requestDate',
             label: 'Requested',
             width: '0.9fr',
-            render: row => (row.requestDate ? String(row.requestDate).substring(0, 10) : '—'),
+            render: row => (row.requestDate ? new Date(row.requestDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'),
         },
         {
             key: 'refundAmount',
             label: 'Amount',
             align: 'right',
             width: '0.8fr',
-            render: row => `₹${row.refundAmount ?? 0}`,
+            render: row => formatINR(row.refundAmount ?? 0),
         },
         {
             key: 'actions',

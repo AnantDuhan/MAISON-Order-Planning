@@ -84,6 +84,9 @@ const OrderList = () => {
         more: Math.max(0, (item.orderItems?.length || 0) - 1),
         placedAt: item.createdAt,
         city: item.shippingInfo?.city || '',
+        // Populated by the API; older cached lists may still hold just the id.
+        customer: typeof item.user === 'object' && item.user ? item.user.name : '',
+        email: typeof item.user === 'object' && item.user ? item.user.email : '',
     }));
     const lateCount = allRows.filter(r => r.late > 0).length;
     // Late orders first so they can't hide on page 3, then Plus orders
@@ -138,8 +141,42 @@ const OrderList = () => {
     );
 
     const columns = [
-        { key: 'id', label: 'Order ID', width: '1.4fr' },
-        { key: 'name', label: 'Product', width: '1.2fr' },
+        {
+            key: 'id',
+            label: 'Order',
+            width: '1fr',
+            render: row => (
+                <span>
+                    <span className='block text-ink'>{row.id}</span>
+                    {row.placedAt && <span className='block text-xs text-ink-faint'>{shortDate(row.placedAt)}</span>}
+                </span>
+            ),
+        },
+        {
+            key: 'customer',
+            label: 'Customer',
+            width: '1.2fr',
+            render: row => (row.customer ? (
+                <span className='min-w-0'>
+                    <span className='block truncate text-ink'>{row.customer}</span>
+                    <span className='block truncate text-xs text-ink-faint'>{row.city || row.email}</span>
+                </span>
+            ) : <span className='text-ink-faint'>{row.city || '—'}</span>),
+        },
+        {
+            key: 'name',
+            label: 'Items',
+            width: '1.4fr',
+            render: row => (
+                <span className='flex min-w-0 items-center gap-3'>
+                    {row.image && <img src={row.image} alt='' loading='lazy' className='h-10 w-8 shrink-0 object-cover' />}
+                    <span className='min-w-0'>
+                        <span className='line-clamp-2'>{row.name}</span>
+                        {row.more > 0 && <span className='block text-xs text-ink-faint'>+ {row.more} more</span>}
+                    </span>
+                </span>
+            ),
+        },
         {
             key: 'status',
             label: 'Status',
@@ -168,7 +205,6 @@ const OrderList = () => {
             tone: row => refundTone(row.refundStatus),
             render: row => row.refundStatus || '—',
         },
-        { key: 'itemsQty', label: 'Items', align: 'center', width: '0.5fr' },
         {
             key: 'amount',
             label: 'Amount',
@@ -194,7 +230,7 @@ const OrderList = () => {
 
     return (
         <Fragment>
-            <MetaData title='All Orders · Admin' />
+            <MetaData title='All Orders · Admin' noIndex />
             <AdminPage title='All Orders'>
                 {lateCount > 0 && (
                     <div className='mb-6 flex flex-col gap-3 border border-danger/40 bg-danger/5 p-4 sm:flex-row sm:items-center sm:justify-between'>

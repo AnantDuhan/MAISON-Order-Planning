@@ -2,7 +2,6 @@ import React, { Fragment, useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import AccountTreeIcon from '@mui/icons-material/AccountTree';
 import {
     Button,
     Dialog,
@@ -25,10 +24,12 @@ import {
     updateRefundStatus,
 } from '../../actions/orderAction';
 import MetaData from '../layout/MetaData';
+import Field from '../layout/Field';
 import ShipmentPanel, { ShipFields } from './ShipmentPanel';
 import OrderItemsList from '../Order/OrderItemsList';
 import { EntityHistory } from './AuditLog';
 import { formatAddress } from '../../utils/indiaRegions';
+import { formatINR } from '../../utils/priceLabel';
 
 const refundOptions = ['Initiated', 'Pending', 'Approved', 'Rejected', 'Refunded'];
 
@@ -55,7 +56,7 @@ const OrderSummary = ({ order }) => {
                     </div>
                 ))}
             </div>
-            <p className='mt-4 text-sm'>Amount: ₹{order.totalPrice}</p>
+            <p className='mt-4 text-sm'>Amount: {formatINR(order.totalPrice)}</p>
         </div>
     );
 };
@@ -167,7 +168,7 @@ const ProcessOrder = () => {
                 </Fragment>
             ) : (
                 <Fragment>
-                    <MetaData title='Process Order · Admin' />
+                    <MetaData title='Process Order · Admin' noIndex />
 
                     <div className='editorial-shell py-12'>
                         <div className='mb-10'>
@@ -192,8 +193,7 @@ const ProcessOrder = () => {
                                     >
                                         <p className='eyebrow'>Advance Order Status</p>
                                         <div className='mt-5 flex flex-col gap-4 sm:flex-row sm:items-end'>
-                                            <div className='field-row flex-1'>
-                                                <AccountTreeIcon />
+                                            <Field label='Next status' className='flex-1'>
                                                 <select value={status} onChange={e => setStatus(e.target.value)}>
                                                     <option value=''>Choose Status</option>
                                                     {order.orderStatus === 'Processing' && (
@@ -203,7 +203,7 @@ const ProcessOrder = () => {
                                                         <option value='Delivered'>Delivered</option>
                                                     )}
                                                 </select>
-                                            </div>
+                                            </Field>
                                             <button
                                                 type='submit'
                                                 disabled={loading || status === ''}
@@ -244,7 +244,7 @@ const ProcessOrder = () => {
                                         <div className='flex justify-between gap-6'>
                                             <span className='font-sans text-sm text-ink-faint'>Phone</span>
                                             <span className='text-right font-sans text-sm text-ink'>
-                                                {order.shippingInfo && order.shippingInfo.phoneNumber}
+                                                {order.shippingInfo?.phoneNumber ? `+91 ${order.shippingInfo.phoneNumber}` : '—'}
                                             </span>
                                         </div>
                                         <div className='flex justify-between gap-6'>
@@ -261,7 +261,7 @@ const ProcessOrder = () => {
                                             {isPaid ? 'Paid' : 'Not Paid'}
                                         </span>
                                         <span className='font-display text-2xl font-medium text-ink'>
-                                            ₹{order.totalPrice}
+                                            {formatINR(order.totalPrice)}
                                         </span>
                                     </div>
                                 </div>

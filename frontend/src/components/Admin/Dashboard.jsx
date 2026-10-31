@@ -14,6 +14,16 @@ import {
 import MetaData from "../layout/MetaData";
 import { useTheme } from "../../context/ThemeContext";
 
+/** "2026-10" -> "Oct 2026", "2026-10-28" -> "28 Oct"; anything else unchanged. */
+const periodLabel = (p) => {
+  const m = /^(\d{4})-(\d{2})(?:-(\d{2}))?$/.exec(String(p || ""));
+  if (!m) return p;
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3] || 1));
+  return m[3]
+    ? d.toLocaleDateString("en-IN", { day: "numeric", month: "short" })
+    : d.toLocaleDateString("en-IN", { month: "short", year: "numeric" });
+};
+
 const ranges = [
   { key: "7d", label: "7 Days" },
   { key: "30d", label: "30 Days" },
@@ -89,6 +99,21 @@ const Dashboard = () => {
     },
   };
 
+  // Revenue line: rupee ticks ("₹40k") instead of bare numbers.
+  const revenueOptions = {
+    ...axisOptions,
+    scales: {
+      ...axisOptions.scales,
+      y: {
+        ...axisOptions.scales.y,
+        ticks: {
+          ...axisOptions.scales.y.ticks,
+          callback: (v) => `₹${Number(v).toLocaleString("en-IN", { notation: "compact", maximumFractionDigits: 1 })}`,
+        },
+      },
+    },
+  };
+
   const doughnutOptions = {
     responsive: true,
     maintainAspectRatio: false,
@@ -131,7 +156,7 @@ const Dashboard = () => {
 
   // ── chart data ───────────────────────────────────────
   const revenueChart = {
-    labels: series.map((p) => p.period),
+    labels: series.map((p) => periodLabel(p.period)),
     datasets: [
       {
         label: "Revenue",
@@ -407,7 +432,7 @@ const Dashboard = () => {
           <div className="mt-12">
             <p className="eyebrow">Revenue Over Time</p>
             <div className="mt-5 h-72 border border-line bg-surface p-6">
-              <Line data={revenueChart} options={axisOptions} />
+              <Line data={revenueChart} options={revenueOptions} />
             </div>
           </div>
         )}

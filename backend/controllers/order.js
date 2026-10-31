@@ -263,6 +263,7 @@ exports.getAllOrders = async (req, res, next) => {
 
         if (req.user?.isDemo) {
             const demoOrders = await Order.find({ isDemo: true })
+                .populate('user', 'name email')
                 .sort({ createdAt: -1 })
                 .limit(100);
 
@@ -275,7 +276,8 @@ exports.getAllOrders = async (req, res, next) => {
 
         orders = await cache.getJSON('orders');
         if (!orders) {
-            orders = await Order.find().sort({ createdAt: -1 }).lean();
+            // Customer name and email for the admin list (Customer column).
+            orders = await Order.find().populate('user', 'name email').sort({ createdAt: -1 }).lean();
             await cache.setJSON('orders', orders);
         }
 

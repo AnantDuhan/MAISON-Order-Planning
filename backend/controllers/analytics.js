@@ -6,6 +6,7 @@ const Refund = require('../models/refund');
 const Subscription = require('../models/plusMembership');
 
 const demoAnalytics = require('../data/demoAnalytics');
+const { planLabel } = require('../utils/membershipPlans');
 
 /**
  * Admin analytics.
@@ -49,9 +50,9 @@ exports.getAnalytics = async (req, res, next) => {
         return res.status(200).json({
             success: true,
             range,
-            granularity: 'month',
+            granularity: range === '12m' || range === 'all' ? 'month' : 'day',
             demoMode: true,
-            analytics: demoAnalytics
+            analytics: demoAnalytics(range)
         });
     }
 
@@ -340,78 +341,7 @@ exports.getMembershipAnalytics = async (req, res) => {
             return res.status(200).json({
                 success: true,
                 demoMode: true,
-                analytics: {
-                    summary: {
-                        total: 52,
-                        active: 46,
-                        recurringRevenue: 42800
-                    },
-
-                    statusBreakdown: [
-                        {
-                            status: 'Active',
-                            count: 46
-                        },
-                        {
-                            status: 'Expired',
-                            count: 6
-                        }
-                    ],
-
-                    planBreakdown: [
-                        {
-                            planId: 'MAISON Essential',
-                            members: 31,
-                            active: 28,
-                            amount: 600
-                        },
-                        {
-                            planId: 'MAISON Premium',
-                            members: 15,
-                            active: 13,
-                            amount: 1000
-                        },
-                        {
-                            planId: 'MAISON Elite',
-                            members: 6,
-                            active: 5,
-                            amount: 1800
-                        }
-                    ],
-
-                    recentMembers: [
-                        {
-                            _id: 'demo-membership-001',
-                            user: {
-                                name: 'Aarav Mehta',
-                                email: 'aarav.demo@example.com'
-                            },
-                            status: 'Active',
-                            planId: 'MAISON Premium',
-                            amount: 1000
-                        },
-                        {
-                            _id: 'demo-membership-002',
-                            user: {
-                                name: 'Isha Kapoor',
-                                email: 'isha.demo@example.com'
-                            },
-                            status: 'Active',
-                            planId: 'MAISON Essential',
-                            amount: 600
-                        },
-                        {
-                            _id: 'demo-membership-003',
-                            user: {
-                                name: 'Rohan Sharma',
-                                email: 'rohan.demo@example.com'
-                            },
-                            status: 'Active',
-                            planId: 'MAISON Elite',
-                            amount: 1800
-                        }
-                    ]
-                }
+                analytics: demoAnalytics.demoMembershipAnalytics(),
             });
         }
 
@@ -464,8 +394,9 @@ exports.getMembershipAnalytics = async (req, res) => {
             analytics: {
                 summary: totals[0] || { total: 0, active: 0, recurringRevenue: 0 },
                 statusBreakdown,
-                planBreakdown,
-                recentMembers,
+                // Readable plan names ("Maison Plus · Monthly") next to the raw ids.
+                planBreakdown: planBreakdown.map(p => ({ ...p, label: planLabel(p.planId) })),
+                recentMembers: recentMembers.map(m => ({ ...m, planLabel: planLabel(m.planId) })),
             },
         });
     } catch (error) {

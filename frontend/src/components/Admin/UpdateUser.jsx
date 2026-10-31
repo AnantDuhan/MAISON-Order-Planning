@@ -1,6 +1,3 @@
-import MailOutlineIcon from '@mui/icons-material/MailOutline';
-import PersonIcon from '@mui/icons-material/Person';
-import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
 import React, { Fragment, useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -10,6 +7,7 @@ import { clearErrors, getUserDetails, updateUser } from '../../actions/userActio
 import { UPDATE_USER_RESET } from '../../constants/userConstants';
 import Loader from '../layout/Loader/Loader';
 import MetaData from '../layout/MetaData';
+import Field from '../layout/Field';
 import AdminPage from './shared/AdminPage';
 
 const UpdateUser = () => {
@@ -65,34 +63,29 @@ const UpdateUser = () => {
                         onSubmit={updateUserSubmitHandler}
                     >
                         <div className='flex flex-col gap-6'>
-                            <div className='field-row'>
-                                <PersonIcon />
+                            <Field label='Full name'>
                                 <input
                                     type='text'
-                                    placeholder='Name'
                                     required
                                     value={name}
                                     onChange={e => setName(e.target.value)}
                                 />
-                            </div>
-                            <div className='field-row'>
-                                <MailOutlineIcon />
+                            </Field>
+                            <Field label='Email'>
                                 <input
                                     type='email'
-                                    placeholder='Email'
                                     required
                                     value={email}
                                     onChange={e => setEmail(e.target.value)}
                                 />
-                            </div>
-                            <div className='field-row'>
-                                <VerifiedUserIcon />
+                            </Field>
+                            <Field label='Role'>
                                 <select value={role} onChange={e => setRole(e.target.value)}>
                                     <option value=''>Choose Role</option>
                                     <option value='admin'>Admin</option>
                                     <option value='user'>User</option>
                                 </select>
-                            </div>
+                            </Field>
 
                             <button
                                 type='submit'

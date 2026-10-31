@@ -45,6 +45,8 @@ const UsersList = () => {
         // Avatars are stored as a URL string ('/Profile.png' until a photo is added).
         avatar: [item.avatar?.url, item.avatar].find(v => typeof v === 'string' && v && v !== '/Profile.png') || null,
         joinedAt: item.createdAt,
+        verified: Boolean(item.isEmailVerified),
+        twoFactor: Boolean(item.twoFactorAuth?.enabled),
     }));
 
     const joined = value => (value
@@ -83,9 +85,40 @@ const UsersList = () => {
     );
 
     const columns = [
-        { key: 'id', label: 'User ID', width: '1.4fr' },
-        { key: 'name', label: 'Name', width: '1fr' },
-        { key: 'email', label: 'Email', width: '1.6fr' },
+        {
+            key: 'name',
+            label: 'Customer',
+            width: '1.6fr',
+            render: row => (
+                <span className='flex min-w-0 items-center gap-3'>
+                    <span className='grid h-8 w-8 shrink-0 place-items-center overflow-hidden rounded-full border border-line bg-surface font-display text-sm text-ink-soft'>
+                        {row.avatar ? <img src={row.avatar} alt='' className='h-full w-full object-cover' /> : (row.name || '?').charAt(0).toUpperCase()}
+                    </span>
+                    <span className='min-w-0'>
+                        <span className='block truncate text-ink'>{row.name}</span>
+                        <span className='block truncate text-xs text-ink-faint'>{row.email}</span>
+                    </span>
+                </span>
+            ),
+        },
+        {
+            key: 'joinedAt',
+            label: 'Joined',
+            width: '0.8fr',
+            render: row => (row.joinedAt ? new Date(row.joinedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'),
+        },
+        {
+            key: 'security',
+            label: 'Email · 2FA',
+            width: '0.9fr',
+            render: row => (
+                <span className='text-xs'>
+                    <span className={row.verified ? 'text-success' : 'text-ink-faint'}>{row.verified ? 'Verified' : 'Unverified'}</span>
+                    <span className='text-line'> · </span>
+                    <span className={row.twoFactor ? 'text-success' : 'text-ink-faint'}>{row.twoFactor ? '2FA on' : '2FA off'}</span>
+                </span>
+            ),
+        },
         {
             key: 'role',
             label: 'Role',
@@ -110,7 +143,7 @@ const UsersList = () => {
 
     return (
         <Fragment>
-            <MetaData title='All Users · Admin' />
+            <MetaData title='All Users · Admin' noIndex />
             <AdminPage title='All Users'>
                 <AdminTable columns={columns} rows={rows} renderCard={renderCard} emptyMessage='No users found.' />
             </AdminPage>

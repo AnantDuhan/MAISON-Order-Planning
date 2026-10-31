@@ -4,6 +4,11 @@ import { toast } from 'react-toastify';
 
 import MetaData from '../layout/MetaData';
 
+// Cashfree statuses ("BANK_APPROVAL_PENDING") as words ("Bank approval pending").
+const statusLabel = value => {
+    const text = String(value || '').replace(/_/g, ' ').toLowerCase();
+    return text ? text.charAt(0).toUpperCase() + text.slice(1) : '—';
+};
 const inr = value => `₹${Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
 
 const MembershipAnalytics = () => {
@@ -51,7 +56,7 @@ const MembershipAnalytics = () => {
                         {plans.map(plan => (
                             <div key={plan.planId} className='flex items-center justify-between border-b border-line p-5 last:border-0'>
                                 <div>
-                                    <p className='font-sans text-sm text-ink'>{plan.planId}</p>
+                                    <p className='font-sans text-sm text-ink'>{plan.label || plan.planId}</p>
                                     <p className='mt-1 font-sans text-xs text-ink-faint'>{inr(plan.amount)} · {plan.members} members</p>
                                 </div>
                                 <span className='font-sans text-sm text-brass'>{plan.active} active</span>
@@ -65,7 +70,7 @@ const MembershipAnalytics = () => {
                         {statuses.length === 0 && <p className='p-6 font-sans text-sm text-ink-faint'>No membership activity yet.</p>}
                         {statuses.map(status => (
                             <div key={status.status} className='flex items-center justify-between border-b border-line p-5 last:border-0'>
-                                <span className='font-sans text-sm text-ink'>{status.status}</span>
+                                <span className='font-sans text-sm text-ink'>{statusLabel(status.status)}</span>
                                 <span className='font-sans text-sm text-ink-soft'>{status.count}</span>
                             </div>
                         ))}
@@ -89,8 +94,8 @@ const MembershipAnalytics = () => {
                             {members.map(member => (
                                 <tr key={member._id} className='border-b border-line last:border-0'>
                                     <td className='p-4 font-sans text-sm text-ink'>{member.user?.name || member.user?.email || 'Unknown customer'}</td>
-                                    <td className='p-4 font-sans text-sm text-ink-soft'>{member.planId}</td>
-                                    <td className='p-4 font-sans text-sm text-ink-soft'>{member.status}</td>
+                                    <td className='p-4 font-sans text-sm text-ink-soft'>{member.planLabel || member.planId}</td>
+                                    <td className='p-4 font-sans text-sm text-ink-soft'>{statusLabel(member.status)}</td>
                                     <td className='p-4 font-sans text-sm text-ink'>{inr(member.amount)}</td>
                                 </tr>
                             ))}

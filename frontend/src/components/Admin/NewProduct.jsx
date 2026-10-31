@@ -1,7 +1,3 @@
-import AccountTreeIcon from '@mui/icons-material/AccountTree';
-import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
-import SpellcheckIcon from '@mui/icons-material/Spellcheck';
-import StorageIcon from '@mui/icons-material/Storage';
 import React, { Fragment, useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useNavigate } from 'react-router-dom';
@@ -10,6 +6,7 @@ import { toast } from 'react-toastify';
 import { clearErrors, createProduct } from '../../actions/productAction';
 import { NEW_PRODUCT_RESET } from '../../constants/productConstants';
 import MetaData from '../layout/MetaData';
+import Field from '../layout/Field';
 import AdminPage from './shared/AdminPage';
 import ProductDetailsEditor, { toDetailFields } from './ProductDetailsEditor';
 import VariantEditor, { variantFormFields, variantTotalStock, withOptions } from './VariantEditor';
@@ -131,45 +128,42 @@ const NewProduct = () => {
                     onSubmit={createProductSubmitHandler}
                 >
                     <div className='flex flex-col gap-6'>
-                        <div className='field-row'>
-                            <SpellcheckIcon />
+                        <Field label='Product name'>
                             <input
                                 type='text'
-                                placeholder='Product Name'
+                                placeholder='e.g. Halo Cushion Pendant'
                                 required
                                 value={name}
                                 onChange={e => setName(e.target.value)}
                             />
-                        </div>
+                        </Field>
 
                         <div className='grid gap-6 sm:grid-cols-2'>
-                            <div className='field-row'>
-                                <AttachMoneyIcon />
+                            <Field label='Price'>
+                                <span className='shrink-0 font-sans text-ink-soft'>₹</span>
                                 <input
                                     type='number'
-                                    placeholder='Price'
+                                    placeholder='0'
                                     required
                                     value={price || ''}
                                     onChange={e => setPrice(e.target.value)}
                                 />
-                            </div>
-                            <div className='field-row'>
-                                <StorageIcon />
+                            </Field>
+                            <Field label='Stock' hint={hasOptions ? 'Set per variant below' : null}>
                                 <input
                                     type='number'
-                                    placeholder={hasOptions ? 'Stock is set per variant' : 'Stock'}
+                                    placeholder='0'
                                     required={!hasOptions}
                                     disabled={hasOptions}
                                     value={hasOptions ? variantTotalStock(variantData.variants) : (Stock || '')}
                                     onChange={e => setStock(e.target.value)}
                                 />
-                            </div>
+                            </Field>
                         </div>
 
-                        <div className='field-row'>
-                            <AccountTreeIcon />
+                        <Field label='Category'>
                             <select value={category} onChange={e => setCategory(e.target.value)} required>
-                                <option value=''>Choose Category</option>
+                                <option value=''>Choose a category</option>
                                 {categoryOptions.extra && <option value={categoryOptions.extra}>{categoryOptions.extra}</option>}
                                 {categoryOptions.groups.map(group => (
                                     <optgroup key={group.label} label={group.label}>
@@ -179,7 +173,7 @@ const NewProduct = () => {
                                     </optgroup>
                                 ))}
                             </select>
-                        </div>
+                        </Field>
                         <p className='-mt-2 font-sans text-xs text-ink-faint'>
                             Missing one? <Link to='/admin/categories' className='text-brass underline-offset-4 hover:underline'>Manage categories</Link>
                         </p>
