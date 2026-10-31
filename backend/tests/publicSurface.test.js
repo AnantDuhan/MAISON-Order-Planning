@@ -22,7 +22,7 @@ test('public product details drop admin-only fields', () => {
         user: 'admin123', isDemo: false, lowStockThreshold: 3, lowStockAlertedAt: new Date(), __v: 4,
         reviews: [{ user: { _id: 'u1', name: 'A', avatar: null }, rating: 5 }],
     };
-    const out = publicProduct({ toObject: () => ({ ...doc }) });
+    const out = publicProduct({ toJSON: () => ({ ...doc }) });
     ['user', 'isDemo', 'lowStockThreshold', 'lowStockAlertedAt', '__v'].forEach(k => assert.equal(k in out, false, k));
     assert.equal(out.name, 'Ring');
     assert.equal(out.Stock, 2);

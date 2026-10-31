@@ -60,6 +60,33 @@ const sendActivationEmailOnce = async membership => {
     });
 };
 
+// How often a membership is re-checked with Cashfree when it is read. The
+// webhook keeps the stored state current in between; this is a safety net,
+// not something every page view should pay for (each check is a Cashfree
+// round trip plus a save).
+const SYNC_EVERY_MS = 10 * 60 * 1000;
+const lastSynced = new Map(); // subscriptionId -> time of the last check
+const syncing = new Map(); // subscriptionId -> the check in flight
+
+/** syncMembership, at most once per SYNC_EVERY_MS per membership; concurrent callers share one check. */
+const syncMembershipIfDue = async (membership, { force = false } = {}) => {
+    const key = String(membership.subscriptionId || membership._id);
+    if (syncing.has(key)) {
+        await syncing.get(key);
+        // Another request just refreshed it; return the stored state.
+        return (await Subscription.findById(membership._id)) || membership;
+    }
+    const last = lastSynced.get(key) || 0;
+    if (!force && Date.now() - last < SYNC_EVERY_MS) return membership;
+    const run = syncMembership(membership).finally(() => {
+        lastSynced.set(key, Date.now());
+        syncing.delete(key);
+    });
+    syncing.set(key, run);
+    return run;
+};
+exports._syncState = { lastSynced, syncing, SYNC_EVERY_MS };
+
 const syncMembership = async membership => {
     try {
         const cashfreeSubscription = await cashfreeRequest(
@@ -136,12 +163,12 @@ exports.membershipReturn = (req, res) => {
 
 exports.getCurrentMembership = async (req, res) => {
     try {
-        const membership = await Subscription.findOne({ user: req.user._id, isActive: true })
+        let membership = await Subscription.findOne({ user: req.user._id, isActive: true })
             .sort({ createdAt: -1 })
             || await Subscription.findOne({ user: req.user._id }).sort({ createdAt: -1 });
 
         if (membership) {
-            await syncMembership(membership);
+            membership = await syncMembershipIfDue(membership);
         }
 
         res.status(200).json({ success: true, membership: membership ? withTier(membership) : null });

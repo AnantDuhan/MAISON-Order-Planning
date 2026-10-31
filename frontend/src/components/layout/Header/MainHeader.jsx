@@ -15,6 +15,7 @@ import ThemeToggle from '../ThemeToggle';
 import { useOverlay } from '../../../utils/useOverlay';
 import { formatINR } from '../../../utils/priceLabel';
 import { FREE_SHIPPING_THRESHOLD } from '../../../utils/delivery';
+import { useMembership } from '../../../utils/useIsMember';
 
 const useDebounce = (value, delay) => {
     const [debouncedValue, setDebouncedValue] = useState(value);
@@ -44,7 +45,8 @@ const MainHeader = () => {
     const [menuOpen, setMenuOpen] = useState(false);
     useOverlay(menuOpen);
     const [scrolled, setScrolled] = useState(false);
-    const [membership, setMembership] = useState(null);
+    // Shared with the rest of the app: one request, not one per component.
+    const membership = useMembership();
 
     const debouncedKeyword = useDebounce(keyword, 300);
     const searchRef = useRef(null);
@@ -55,24 +57,6 @@ const MainHeader = () => {
         return () => window.removeEventListener('scroll', onScroll);
     }, []);
 
-    useEffect(() => {
-        if (!isAuthenticated) {
-            setMembership(null);
-            return undefined;
-        }
-
-        let active = true;
-        axios.get('/api/v1/membership/current')
-            .then(({ data }) => {
-                if (active) setMembership(data.membership);
-            })
-            .catch(() => {
-                if (active) setMembership(null);
-            });
-        return () => {
-            active = false;
-        };
-    }, [isAuthenticated]);
 
     const handleLogout = async () => {
         setMenuOpen(false); // so the toast isn't drawn over the open menu

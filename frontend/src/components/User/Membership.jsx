@@ -7,6 +7,7 @@ import { useFeature } from '../../context/FeatureFlagsContext';
 import { formatINR } from '../../utils/priceLabel';
 import { TIERS, tierName } from '../../utils/membershipTiers';
 import { loadCashfree, preloadCashfree } from '../../utils/loadCashfree';
+import { loadMembership, primeMembership, useMembershipOwner } from '../../utils/useIsMember';
 
 const planKeyOf = membership => {
     const id = String(membership?.planId || '');
@@ -23,11 +24,26 @@ const Check = () => (
 
 const Membership = () => {
     const [plans, setPlans] = useState([]);
-    const [membership, setMembership] = useState(null);
+    const [membership, setLocalMembership] = useState(null);
+    // Keep the shared copy (header, checkout...) in step with this page.
+    const owner = useMembershipOwner();
+    const setMembership = m => {
+        setLocalMembership(m);
+        primeMembership(owner, m);
+    };
     const [loading, setLoading] = useState(false);
     const [invoices, setInvoices] = useState([]);
 
     useEffect(preloadCashfree, []);
+
+    // This page always checks afresh (once the user is known); the result
+    // updates the shared copy too. A return from Cashfree is handled below.
+    useEffect(() => {
+        if (!owner || new URLSearchParams(window.location.search).get('subscription_id')) return undefined;
+        let alive = true;
+        loadMembership(owner, { force: true }).then(m => { if (alive) setLocalMembership(m); });
+        return () => { alive = false; };
+    }, [owner]);
 
     useEffect(() => {
         axios.get('/api/v1/membership/plans').then(({ data }) => setPlans(data.plans)).catch(error => {
@@ -43,10 +59,6 @@ const Membership = () => {
                     toast.success('Membership authorization status updated.');
                 })
                 .catch(error => toast.error(error.response?.data?.message || 'Could not verify membership authorization.'));
-        } else {
-            axios.get('/api/v1/membership/current')
-                .then(({ data }) => setMembership(data.membership))
-                .catch(() => {});
         }
 
         axios.get('/api/v1/invoices/me', { params: { type: 'membership' } })

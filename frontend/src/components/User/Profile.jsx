@@ -14,6 +14,7 @@ import {
 
 import Loader from "../layout/Loader/Loader";
 import TrustedDevices from "./TrustedDevices";
+import { useMembership } from "../../utils/useIsMember";
 const Profile = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -28,7 +29,7 @@ const Profile = () => {
   } = useSelector((state) => state.user);
 
   const [progress, setProgress] = useState(0);
-  const [membership, setMembership] = useState(null);
+  const membership = useMembership();
   const [otp, setOtp] = useState("");
   const [showSetup, setShowSetup] = useState(false);
   const [showDisable, setShowDisable] = useState(false);
@@ -57,14 +58,7 @@ const Profile = () => {
   // MEMBERSHIP
   // --------------------------------------------------
 
-  useEffect(() => {
-    if (isAuthenticated) {
-      axios
-        .get("/api/v1/membership/current")
-        .then(({ data }) => setMembership(data.membership))
-        .catch(() => {});
-    }
-  }, [isAuthenticated]);
+  // Membership comes from the shared copy (useMembership above).
 
   // --------------------------------------------------
   // 2FA ACTIONS

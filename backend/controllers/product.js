@@ -116,13 +116,31 @@ exports.getAdminProducts = async (req, res, next) => {
 // product page never needs them.
 const INTERNAL_PRODUCT_FIELDS = ['user', 'isDemo', 'lowStockThreshold', 'lowStockAlertedAt', '__v'];
 
-/** A product as shoppers may see it (works on documents and cached plain objects). */
+/**
+ * A product as shoppers may see it (works on documents and cached plain objects).
+ * toJSON(), not toObject(): variants[].options is a Mongoose Map, and only
+ * toJSON flattens Maps to plain objects. A Map left in place serialises as {},
+ * which emptied every variant's options and made products look sold out.
+ */
 const publicProduct = (product) => {
-  const plain = product && typeof product.toObject === 'function' ? product.toObject() : { ...product };
+  const plain = product && typeof product.toJSON === 'function' ? product.toJSON() : { ...product };
   INTERNAL_PRODUCT_FIELDS.forEach((field) => delete plain[field]);
   return plain;
 };
 exports.publicProduct = publicProduct;
+
+/**
+ * A cached product whose variants lost their options (cached while the bug
+ * above was live): every variant has an empty options object although the
+ * product has options. Such entries are refetched instead of served.
+ */
+const hasBrokenVariants = (product) => {
+  const variants = Array.isArray(product?.variants) ? product.variants : [];
+  const hasOptions = Array.isArray(product?.options) && product.options.length > 0;
+  return hasOptions && variants.length > 0
+    && variants.every((v) => !v?.options || Object.keys(v.options).length === 0);
+};
+exports.hasBrokenVariants = hasBrokenVariants;
 
 // get product details
 exports.getProductDetails = async (req, res, next) => {
@@ -131,7 +149,7 @@ exports.getProductDetails = async (req, res, next) => {
 
   try {
     const cachedProduct = await cache.getJSON(cacheKey);
-    if (cachedProduct) {
+    if (cachedProduct && !hasBrokenVariants(cachedProduct)) {
       maybeAutoSummarize(cachedProduct, req.app);
       return res.status(200).json({
         success: true,
