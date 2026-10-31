@@ -91,6 +91,29 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
+const safeMethods = new Set(["GET", "HEAD", "OPTIONS"]);
+app.use((req, res, next) => {
+  if (safeMethods.has(req.method) || !req.cookies?.token) return next();
+
+  const origin = req.get("Origin");
+  let requestOrigin = origin;
+  if (!requestOrigin) {
+    const referer = req.get("Referer");
+    if (referer) {
+      try {
+        requestOrigin = new URL(referer).origin;
+      } catch {
+        requestOrigin = null;
+      }
+    }
+  }
+
+  if (!requestOrigin || !isAllowedOrigin(requestOrigin)) {
+    return res.status(403).json({ success: false, message: "Cross-origin request rejected" });
+  }
+  next();
+});
+
 const s3 = new S3Client({
   region: process.env.AWS_BUCKET_REGION,
   credentials: fromEnv(),
