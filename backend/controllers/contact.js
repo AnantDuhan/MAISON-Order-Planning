@@ -63,7 +63,7 @@ exports.contactUs = async (req, res) => {
         const tierLabel = tier === 'plus' ? 'Plus' : null;
 
         sendEmailInBackground({
-            email: 'duhananant@gmail.com',
+            email: 'support@maisonorderplanning.in',
             replyTo: email,
             subject: tierLabel ? `[Priority · ${tierLabel} member] ${subject}` : `New Contact Form Submission: ${subject}`,
             html: emailMessage,
