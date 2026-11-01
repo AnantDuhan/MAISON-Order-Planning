@@ -60,8 +60,4 @@ module.exports = {
     },
   },
   plugins: [],
-  // Keep MUI/Tailwind from fighting over base resets during the migration.
-  corePlugins: {
-    preflight: true,
-  },
 };

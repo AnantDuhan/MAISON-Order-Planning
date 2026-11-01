@@ -1,8 +1,16 @@
 /* Fonts are loaded via <link> + preconnect in index.html (faster than @import). */
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+@config "../../tailwind.config.js";
+
+@utility editorial-shell {
+  @apply mx-auto w-full max-w-editorial px-6 sm:px-8 lg:px-12;
+}
+
+@utility btn-luxe {
+  @apply inline-flex items-center justify-center gap-2 font-sans text-[0.78rem] font-medium uppercase tracking-luxe
+    transition-all duration-500 ease-luxe disabled:cursor-not-allowed disabled:opacity-50;
+}
 
 /* ============================================================
    LUXURY / EDITORIAL DESIGN TOKENS
@@ -83,10 +91,6 @@
    ============================================================ */
 @layer components {
   /* Section wrapper */
-  .editorial-shell {
-    @apply mx-auto w-full max-w-editorial px-6 sm:px-8 lg:px-12;
-  }
-
   /* Small caps eyebrow label */
   .eyebrow {
     @apply font-sans text-[0.7rem] font-medium uppercase tracking-luxe text-brass;
@@ -107,10 +111,6 @@
   }
 
   /* Buttons */
-  .btn-luxe {
-    @apply inline-flex items-center justify-center gap-2 font-sans text-[0.78rem] font-medium uppercase tracking-luxe
-      transition-all duration-500 ease-luxe disabled:cursor-not-allowed disabled:opacity-50;
-  }
   .btn-solid {
     @apply btn-luxe bg-ink px-8 py-4 text-canvas hover:bg-brass hover:text-white;
   }
