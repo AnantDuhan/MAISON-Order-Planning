@@ -47,7 +47,7 @@
         "multer": "^2.0.2",
         "nanoid": "^6.0.2",
         "pdfkit": "^0.17.2",
-        "pino": "^9.5.0",
+        "pino": "^10.4.0",
         "qrcode": "^1.5.4",
         "rate-limit-redis": "^4.2.0",
         "redis": "^5.6.1",
