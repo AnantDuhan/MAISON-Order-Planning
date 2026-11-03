@@ -37,7 +37,7 @@
         "cookie-parser": "^1.4.6",
         "cors": "^2.8.5",
         "dotenv": "^18.0.4",
-        "ejs": "^5.0.1",
+        "ejs": "^7.0.2",
         "express": "^5.2.1",
         "express-rate-limit": "^8.7.0",
         "google-auth-library": "^11.1.0",
