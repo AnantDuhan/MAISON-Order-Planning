@@ -17,14 +17,14 @@ const amountFrom = (name, fallback) => {
 };
 
 const essentialYearly = amountFrom('CASHFREE_ESSENTIAL_YEARLY_AMOUNT', 600);
-const plusMonthly = amountFrom('CASHFREE_PLUS_YEARLY_AMOUNT', 199);
+const plusMonthly = amountFrom('CASHFREE_PLUS_MONTHLY_AMOUNT', 199);
 const plusYearly = amountFrom('CASHFREE_PLUS_YEARLY_AMOUNT', 1799);
 
 // The names before Essential/Plus existed. They are not read any more; say so
 // rather than silently charging the defaults.
-['CASHFREE_PLUS_MONTHLY_AMOUNT', 'CASHFREE_PLUS_YEARLY_AMOUNT'].forEach(name => {
+['CASHFREE_MONTHLY_AMOUNT', 'CASHFREE_YEARLY_AMOUNT'].forEach(name => {
     if (process.env[name]) {
-        console.warn(`${name} is set but no longer used. Set CASHFREE_ESSENTIAL_YEARLY_AMOUNT, CASHFREE_PLUS_YEARLY_AMOUNT and CASHFREE_PLUS_YEARLY_AMOUNT instead.`);
+        console.warn(`${name} is set but no longer used. Set CASHFREE_ESSENTIAL_YEARLY_AMOUNT, CASHFREE_PLUS_MONTHLY_AMOUNT and CASHFREE_PLUS_YEARLY_AMOUNT instead.`);
     }
 });
 
