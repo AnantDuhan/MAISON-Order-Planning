@@ -31,7 +31,6 @@ import { EntityHistory } from './AuditLog';
 import { formatAddress } from '../../utils/indiaRegions';
 import { formatINR } from '../../utils/priceLabel';
 
-const refundOptions = ['Initiated', 'Pending', 'Approved', 'Rejected', 'Refunded'];
 
 /** Shared summary shown inside both refund dialogs. */
 const OrderSummary = ({ order }) => {
@@ -102,9 +101,12 @@ const ProcessOrder = () => {
         }
     };
 
+    // The latest refund and where it may go next (lifecycle/refundLifecycle.js).
+    const refundOptions = order?.refundState?.nextStatuses || [];
+
     const submitApproveRefund = async () => {
-        const refund = order?.refund?.[0];
-        const refundId = typeof refund === 'object' ? refund?._id : refund;
+        // The latest refund: after a rejected one, a new refund is the one to move.
+        const refundId = order?.refundState?.id;
 
         if (order && refundId) {
             if (refundBusy) return;
@@ -127,7 +129,7 @@ const ProcessOrder = () => {
     };
 
     const openApproveDialog = () => {
-        setSelectedRefundStatus(refundOptions[4]);
+        setSelectedRefundStatus(refundOptions.includes('Refunded') ? 'Refunded' : refundOptions[0] || '');
         setApproveOpen(true);
     };
 
@@ -289,7 +291,8 @@ const ProcessOrder = () => {
                                             !isDelivered ||
                                             !order.return?.length ||
                                             order.isRefunded === true ||
-                                            order.refundStatus === 'Processing'
+                                            // An open refund: move it rather than start another.
+                                            refundOptions.length > 0
                                         }
                                         className='btn-outline w-full disabled:opacity-40'
                                     >
@@ -308,7 +311,7 @@ const ProcessOrder = () => {
                                     </p>
                                     <button
                                         onClick={openApproveDialog}
-                                        disabled={!order.refund?.length || order.isRefunded === true}
+                                        disabled={!refundOptions.length || order.isRefunded === true}
                                         className='btn-solid w-full disabled:opacity-40'
                                     >
                                         Approve Refund

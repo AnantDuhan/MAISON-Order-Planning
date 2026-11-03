@@ -1,151 +1,42 @@
-const Return = require('../models/return');
 const Refund = require('../models/refund');
 const Order = require('../models/order');
-const Product = require('../models/product');
-const generateId = require('../utils/generateId');
 const cache = require('../utils/cache');
-// Used through the module object so tests can stub them.
-const invoiceService = require('../services/invoiceService');
-const inventory = require('../services/inventoryService');
+const refundService = require('../services/refundService');
+const { refundLifecycle } = require('../lifecycle/refundLifecycle');
 const { realOnly } = require('../utils/demoFilter');
+
+// Status changes follow lifecycle/refundLifecycle.js; what moves with them
+// (returns, stock, invoice, credit note) is in services/refundService.js.
+
+const sendFailure = (res, error, context) => {
+    if (!error.statusCode) console.error(context, error);
+    return res.status(error.statusCode || 500).json({
+        success: false,
+        ...(error.code && { code: error.code }),
+        message: error.statusCode ? error.message : 'Server error',
+    });
+};
 
 exports.initiateRefund = async (req, res) => {
     try {
         const order = await Order.findById(req.params.id);
-
         if (!order) {
-            return res.status(404).json({
-                success: false,
-                message: 'Order not found'
-            });
+            return res.status(404).json({ success: false, message: 'Order not found' });
         }
 
-        if (order.orderStatus !== 'Delivered') {
-            return res.status(400).json({
-                success: false,
-                message: 'Order has not been delivered yet'
-            });
-        }
-
-        if (!order.return || order.return.length === 0) {
-            return res.status(400).json({
-                success: false,
-                message: 'No returns found for this order'
-            });
-        }
-
-        if (
-            order.isRefunded ||
-            order.refundStatus === 'Processing'
-        ) {
-            return res.status(400).json({
-                success: false,
-                message: 'Order refund has already been initiated or processed'
-            });
-        }
-
-        /*
-         * Find return requests associated with this order.
-         * Only Pending/Approved returns are eligible for refund.
-         */
-        const returnRequests = await Return.find({
-            _id: { $in: order.return },
-            status: { $in: ['Pending', 'Approved'] }
-        });
-
-        if (returnRequests.length === 0) {
-            return res.status(400).json({
-                success: false,
-                message: 'No pending or approved return found for this order'
-            });
-        }
-
-        /*
-         * IMPORTANT:
-         * Create ONE refund per order, not one refund per return.
-         *
-         * The previous implementation created order.totalPrice
-         * for every eligible return document, which could result in
-         * multiple refunds for the same order.
-         */
-        const refundAmount = order.totalPrice;
-
-        const newRefund = new Refund({
-            _id: generateId(),
-            order: order._id,
-            amount: refundAmount,
-            initiatedAt: new Date(),
-            status: 'Initiated'
-        });
-
-        await newRefund.save();
-        res.locals.audit = { summary: `Refund of ₹${refundAmount} initiated for order ${order._id}` };
-
-        /*
-         * Attach the single refund to the order.
-         */
-        if (!Array.isArray(order.refund)) {
-            order.refund = [];
-        }
-
-        order.refund.push(newRefund._id);
-
-        /*
-         * Mark all eligible return requests as Initiated.
-         */
-        const resolvedAt = new Date();
-
-        await Return.updateMany(
-            {
-                _id: {
-                    $in: returnRequests.map(returnDoc => returnDoc._id)
-                }
-            },
-            {
-                $set: {
-                    status: 'Initiated',
-                    resolvedAt
-                }
-            }
-        );
-
-        /*
-         * Update order refund state.
-         */
-        order.refundStatus = 'Processing';
-        order.refundRequestedAt = resolvedAt;
-
-        // Status fields only; don't re-validate the whole historical order.
-        await order.save({ validateBeforeSave: false });
-
-        /*
-         * Clear shared cache so the admin panel gets
-         * the latest refund/order information.
-         */
-        await cache.del(
-            'refunds',
-            'orders',
-            `order:${order._id}`,
-            `orders:${order.user}`
-        );
+        const refund = await refundService.startRefund(order);
+        res.locals.audit = { summary: `Refund of ₹${refund.amount} initiated for order ${order._id}` };
 
         return res.status(200).json({
             success: true,
             message: 'Refund initiation request sent',
-            refund: newRefund,
+            refund,
             order
         });
-
     } catch (error) {
-        console.error('Initiate refund error:', error);
-
-        return res.status(500).json({
-            success: false,
-            message: 'Server error'
-        });
+        return sendFailure(res, error, 'Initiate refund error:');
     }
 };
-
 
 exports.updateRefundStatus = async (req, res) => {
     try {
@@ -154,121 +45,37 @@ exports.updateRefundStatus = async (req, res) => {
         if (refundMethod !== undefined && refundMethod !== 'original') {
             return res.status(400).json({ success: false, message: 'Invalid refund method' });
         }
-        const refundId = req.params.refundId;
-        const orderId = req.params.orderId;
-
-        const refund = await Refund.findById(refundId);
-        const order = await Order.findById(orderId);
-
-        if (!refund || !order || String(refund.order) !== String(order._id)) {
-            return res.status(404).json({
-                success: false,
-                message: 'Refund or Order not found'
-            });
-        }
-
         if (!refundStatus) {
-            return res.status(400).json({
-                success: false,
-                message: 'Refund status is required'
-            });
+            return res.status(400).json({ success: false, message: 'Refund status is required' });
         }
 
-        const validStatuses = ['Initiated', 'Pending', 'Approved', 'Rejected', 'Refunded'];
-        if (!validStatuses.includes(refundStatus)) {
-            return res.status(400).json({
-                success: false,
-                message: 'Invalid refund status'
-            });
+        const refund = await Refund.findById(req.params.refundId);
+        const order = await Order.findById(req.params.orderId);
+        if (!refund || !order || String(refund.order) !== String(order._id)) {
+            return res.status(404).json({ success: false, message: 'Refund or Order not found' });
         }
 
-        // A completed refund is final: money has gone back to the customer.
-        if (order.isRefunded && refundStatus !== 'Refunded') {
-            return res.status(409).json({
-                success: false,
-                message: 'This order has already been refunded'
-            });
+        const before = refund.status;
+        const move = await refundService.moveRefund({ order, refund, to: refundStatus, by: 'admin' });
+        if (move.changed) {
+            res.locals.audit = {
+                before: { refundStatus: before },
+                after: { refundStatus },
+                summary: `Refund for order ${order._id} (₹${refund.amount}): ${before} → ${refundStatus}`,
+            };
         }
-
-        res.locals.audit = {
-            before: { refundStatus: refund.status },
-            after: { refundStatus },
-            summary: `Refund for order ${order._id} (₹${refund.amount}): ${refund.status} → ${refundStatus}`,
-        };
-
-        // MOCK GATEWAY: We removed Stripe. We just update the database directly.
-        if (refundStatus === 'Refunded' && !order.isRefunded) {
-            refund.method = 'original';
-        }
-        if (refundStatus === 'Refunded') {
-            order.isRefunded = true;
-            order.refundedAt = order.refundedAt || new Date();
-
-            // The refund covers the whole order, so every item goes back into
-            // stock — but only if stock was taken out (on Shipped), and only once.
-            const stockWasTaken = Boolean(order.stockCommittedAt)
-                || ['Shipped', 'Delivered'].includes(order.orderStatus);
-            if (stockWasTaken && !order.stockRestoredAt) {
-                await restoreStock(order.orderItems);
-                order.stockRestoredAt = new Date();
-            }
-        }
-
-        // Dynamically update based on what the Admin selected in the dropdown
-        order.refundStatus = refundStatus;
-        // Status fields only; don't re-validate the whole historical order.
-        await order.save({ validateBeforeSave: false });
-
-        refund.status = refundStatus;
-        if (refundStatus === 'Refunded') {
-            refund.completedAt = new Date();
-        }
-        await refund.save();
-
-        // The invoice stays genuine but now verifies as refunded, so it can't be
-        // presented as proof of an open purchase (or used for a second refund).
-        if (refundStatus === 'Refunded') {
-            await invoiceService.setOrderInvoiceStatus(order._id, 'refunded').catch(error =>
-                console.error(`Could not mark invoice refunded for order ${order._id}:`, error.message));
-            // Credit note reversing the invoice, emailed to the customer.
-            invoiceService.issueCreditNoteInBackground(order, refund, { refundMethod: refund.method || 'original' });
-        }
-
-        // CLEAR shared CACHE so the DataGrid in React updates immediately
-        await cache.del(
-            'refunds',
-            'orders',
-            `order:${order._id}`,
-            `orders:${order.user}`,
-            ...order.orderItems.map(item => `product:${item.product}`)
-        );
 
         res.status(200).json({
             success: true,
-            message: `Refund status updated to ${refundStatus}`,
+            message: move.changed ? `Refund status updated to ${refundStatus}` : `Refund is already ${refundStatus}`,
             refund,
-            order
+            order,
+            nextStatuses: refundLifecycle.next(refund.status, { by: 'admin' }),
         });
     } catch (error) {
-        console.error(error);
-        res.status(500).json({
-            success: false,
-            message: 'Server error'
-        });
+        return sendFailure(res, error, 'Update refund error:');
     }
 };
-
-// Restock goes through the inventory service so back-in-stock waiters are
-// notified and low-stock flags reset.
-async function restoreStock(orderItems = []) {
-    await inventory.restoreStock(orderItems.map(item => ({
-        product: String(item.product),
-        ...(item.variant && { variant: String(item.variant) }),
-        quantity: item.quantity,
-    })));
-}
-
-exports.restoreStock = restoreStock;
 
 exports.getAllRefunds = async (req, res) => {
     try {

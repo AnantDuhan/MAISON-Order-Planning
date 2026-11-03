@@ -45,23 +45,32 @@ const ReturnList = () => {
         returnReason: item.reason,
         details: item.details || '',
         status: item.status,
+        statusLabel: item.statusLabel || item.status,
+        // What the server allows next (lifecycle/returnLifecycle.js).
+        nextStatuses: item.nextStatuses || [],
         requestDate: item.requestedAt,
         // A return covers the whole order (Refunds policy), so the order total.
         refundAmount: item.order?.totalPrice,
     }));
 
-    const statusSelect = row => (
+    // Only the moves the server allows from here. Refund started and Refunded
+    // follow the refund, so those rows show their status without a menu.
+    const LABEL = { Pending: 'Requested', Approved: 'Approved', Rejected: 'Declined', Initiated: 'Refund started', Completed: 'Refunded' };
+    const statusSelect = row => (row.nextStatuses.length ? (
         <select
             value={row.status}
             onChange={event => changeReturnStatus(row.id, event.target.value)}
             aria-label={`Status of return ${row.id}`}
             className='border border-line bg-transparent px-2 py-1 font-sans text-xs text-ink'
         >
-            {['Pending', 'Approved', 'Rejected', 'Completed'].map(status => (
-                <option key={status} value={status}>{status}</option>
+            <option value={row.status}>{row.statusLabel}</option>
+            {row.nextStatuses.map(status => (
+                <option key={status} value={status}>{LABEL[status] || status}</option>
             ))}
         </select>
-    );
+    ) : (
+        <span className='font-sans text-xs text-ink-soft'>{row.statusLabel}</span>
+    ));
 
     const orderLink = row => (row.orderID ? (
         <Link to={`/admin/order/${row.orderID}`} className='inline-flex items-center gap-1 font-sans text-xs text-ink-soft hover:text-brass' title='Open order'>

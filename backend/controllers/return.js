@@ -5,6 +5,15 @@ const cache = require('../utils/cache');
 const returnEmails = require('../services/returnEmails');
 const { windowDaysFor, returnDeadline, isWithinReturnWindow } = require('../utils/returnWindow');
 const { realOnly } = require('../utils/demoFilter');
+const { returnLifecycle } = require('../lifecycle/returnLifecycle');
+
+// What an admin can move each return to, for the status menu. Computed per
+// request (not cached) so it always matches the rules in force.
+const withNextStatuses = returns => returns.map(ret => ({
+    ...ret,
+    statusLabel: returnLifecycle.label(ret.status),
+    nextStatuses: returnLifecycle.next(ret.status, { by: 'admin' }),
+}));
 
 exports.requestReturn = async (req, res) => {
     try {
@@ -71,7 +80,7 @@ exports.requestReturn = async (req, res) => {
             reason,
             ...(details && { details }),
             requestedAt: new Date(),
-            status: 'Pending'
+            status: returnLifecycle.initial
         });
 
         await newReturn.save();
@@ -131,7 +140,7 @@ exports.getAllReturns = async (req, res) => {
             return res.status(200).json({
                 success: true,
                 demoMode: true,
-                returns: demoReturns
+                returns: withNextStatuses(demoReturns)
             });
         }
 
@@ -162,7 +171,7 @@ exports.getAllReturns = async (req, res) => {
 
         return res.status(200).json({
             success: true,
-            returns
+            returns: withNextStatuses(returns)
         });
     } catch (error) {
         console.error('Error fetching returns:', error);
@@ -174,18 +183,11 @@ exports.getAllReturns = async (req, res) => {
     }
 };
 
+// Admins decide on a request (Approved / Rejected). Moves into and out of
+// "Refund started" and to Completed follow the refund (services/refundService.js).
 exports.updateReturnStatus = async (req, res) => {
     try {
         const { status } = req.body;
-        const validStatuses = ['Pending', 'Approved', 'Rejected', 'Completed'];
-
-        if (!validStatuses.includes(status)) {
-            return res.status(400).json({
-                success: false,
-                message: 'Invalid return status'
-            });
-        }
-
         const returnRequest = await Return.findById(req.params.id);
 
         if (!returnRequest) {
@@ -195,37 +197,38 @@ exports.updateReturnStatus = async (req, res) => {
             });
         }
 
-        const previousStatus = returnRequest.status;
-        res.locals.audit = {
-            before: { status: returnRequest.status },
-            after: { status },
-            summary: `Return ${returnRequest._id}: ${returnRequest.status} → ${status}`,
-        };
-        returnRequest.status = status;
-        returnRequest.resolvedAt = ['Rejected', 'Completed'].includes(status) ? new Date() : undefined;
-        // Approval time drives the customer's return tracker.
-        if (status === 'Approved' && !returnRequest.approvedAt) returnRequest.approvedAt = new Date();
-        await returnRequest.save();
+        const before = returnRequest.status;
+        const move = returnLifecycle.transition(returnRequest, status, { by: 'admin' });
 
-        await cache.del('returns', 'orders', `order:${returnRequest.order}`);
+        if (move.changed) {
+            res.locals.audit = {
+                before: { status: before },
+                after: { status },
+                summary: `Return ${returnRequest._id}: ${before} → ${status}`,
+            };
+            await returnRequest.save();
+            await cache.del('returns', 'orders', `order:${returnRequest.order}`);
 
-        // Tell the customer when a decision is made (once per decision).
-        const kind = { Approved: 'approved', Rejected: 'declined' }[status];
-        if (kind && previousStatus !== status) {
-            const order = await Order.findById(returnRequest.order).select('_id user totalPrice refundInfo').lean();
-            returnEmails.sendReturnEmail(kind, order, { reason: returnRequest.reason, details: returnRequest.details }).catch(() => {});
+            // Tell the customer when a decision is made (once per decision).
+            const kind = { Approved: 'approved', Rejected: 'declined' }[status];
+            if (kind) {
+                const order = await Order.findById(returnRequest.order).select('_id user guest totalPrice refundInfo').lean();
+                returnEmails.sendReturnEmail(kind, order, { reason: returnRequest.reason, details: returnRequest.details }).catch(() => {});
+            }
         }
 
         res.status(200).json({
             success: true,
-            message: `Return status updated to ${status}`,
-            returnRequest
+            message: move.changed ? `Return status updated to ${status}` : `Return is already ${status}`,
+            returnRequest,
+            nextStatuses: returnLifecycle.next(returnRequest.status, { by: 'admin' }),
         });
     } catch (error) {
-        console.error(error);
-        res.status(500).json({
+        if (!error.statusCode) console.error(error);
+        res.status(error.statusCode || 500).json({
             success: false,
-            message: 'Server error'
+            ...(error.code && { code: error.code }),
+            message: error.statusCode ? error.message : 'Server error'
         });
     }
 };

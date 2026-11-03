@@ -22,24 +22,13 @@ const logger = require('../config/logger');
 const { realOnly } = require('../utils/demoFilter');
 const guestOrders = require('../services/guestOrders');
 const { orderContact, signOrderViewToken, trackingLink } = require('../utils/orderAccess');
-
-// Valid forward transitions for an order. Anything else is rejected.
-const NEXT_STATUS = {
-    Processing: ['Shipped'],
-    Shipped: ['Delivered'],
-    Delivered: [],
-};
+// Which status may follow which: lifecycle/orderLifecycle.js.
+const { orderLifecycle, estimateDeliveryDate } = require('../lifecycle/orderLifecycle');
+const { refundLifecycle } = require('../lifecycle/refundLifecycle');
+const Refund = require('../models/refund');
 
 const invalidateOrderCaches = (orderId, userId) =>
     cache.del(orderId && `order:${orderId}`, 'orders', userId && `orders:${userId}`);
-
-// A fixed, honest estimate. The old random 0-7 days could promise same-day delivery.
-const DELIVERY_ESTIMATE_DAYS = 5;
-const estimateDeliveryDate = () => {
-    const d = new Date();
-    d.setDate(d.getDate() + DELIVERY_ESTIMATE_DAYS);
-    return d;
-};
 
 const canViewOrder = (order, user) =>
     user && (String(order.user?._id || order.user) === String(user._id) || user.role === 'admin');
@@ -330,9 +319,24 @@ exports.getSingleOrder = async (req, res, next) => {
         ? await Return.findById(returnId).select('status reason details requestedAt approvedAt resolvedAt').lean()
         : null;
 
+    // Admins: the latest refund and the statuses it may move to, so the
+    // refund menu offers only what the server will accept.
+    let refundState = null;
+    if (req.user?.role === 'admin' && order.refund?.length) {
+        const refundId = order.refund[order.refund.length - 1];
+        const refund = await Refund.findById(refundId).select('status').lean();
+        if (refund) {
+            refundState = { id: refund._id, status: refund.status, nextStatuses: refundLifecycle.next(refund.status, { by: 'admin' }) };
+        }
+    }
+
     res.status(200).json({
         success: true,
-        order: returnInfo ? { ...order, returnInfo } : order
+        order: {
+            ...order,
+            ...(returnInfo && { returnInfo }),
+            ...(refundState && { refundState }),
+        }
     });
 };
 
@@ -422,13 +426,8 @@ exports.updateOrder = async (req, res, next) => {
         }
 
         const auditBefore = { orderStatus: order.orderStatus, awb: order.shipment?.awb, courier: order.shipment?.courier };
-        const allowed = NEXT_STATUS[order.orderStatus] || [];
-        if (!allowed.includes(status)) {
-            return res.status(400).json({
-                success: false,
-                message: `Cannot change an order from ${order.orderStatus} to ${status}`
-            });
-        }
+        // Checked before anything changes (stock, shipment).
+        orderLifecycle.assertCan(order, status, { by: 'admin' });
 
         // Orders placed since checkout holds took their stock at payment time.
         // Older orders (no stockCommittedAt) still take it here, exactly once.
@@ -436,9 +435,6 @@ exports.updateOrder = async (req, res, next) => {
             await Promise.all(
                 order.orderItems.map(item => updateStock(item.product, item.quantity))
             );
-        }
-
-        if (status === 'Shipped' && !order.stockCommittedAt) {
             order.stockCommittedAt = new Date();
         }
 
@@ -454,15 +450,9 @@ exports.updateOrder = async (req, res, next) => {
             order.shipment.lastEventAt = new Date();
         }
 
-        order.orderStatus = status;
-        let estimatedDeliveryDate = null;
-        if (status === 'Delivered') {
-            order.DeliveredAt = Date.now();
-            order.estimatedDeliveryDate = null;
-        } else {
-            estimatedDeliveryDate = order.estimatedDeliveryDate || estimateDeliveryDate();
-            order.estimatedDeliveryDate = estimatedDeliveryDate;
-        }
+        // Sets the status plus DeliveredAt / the delivery estimate.
+        orderLifecycle.transition(order, status, { by: 'admin' });
+        const estimatedDeliveryDate = order.estimatedDeliveryDate || null;
 
         await order.save({ validateBeforeSave: false });
         res.locals.audit = {
@@ -483,7 +473,6 @@ exports.updateOrder = async (req, res, next) => {
 
         await invalidateOrderCaches(orderId, order.user);
 
-        // Notify the customer who placed the order (not the admin making the change).
         // Notify the customer who placed the order (not the admin making the change):
         // the account holder, or the guest's email for a guest order.
         const orderOwner = order.user ? await User.findById(order.user) : null;

@@ -18,6 +18,7 @@ const logger = require('../config/logger');
 const { sendEmail } = require('../utils/sendEmail');
 const { sendPushNotification } = require('../utils/pushNotifications');
 const { trackingLink } = require('../utils/orderAccess');
+const { orderLifecycle } = require('../lifecycle/orderLifecycle');
 
 const STATUSES = ['Shipped', 'In transit', 'Out for delivery', 'Delivery attempted',
     'Delayed', 'Delivered', 'Returning to sender'];
@@ -144,7 +145,7 @@ const addTrackingEvent = async (order, input, { source = 'admin', io, notify = t
         error.statusCode = 400;
         throw error;
     }
-    if (!['Shipped', 'Delivered'].includes(order.orderStatus)) {
+    if (!['Shipped', 'Delivered'].includes(orderLifecycle.current(order))) {
         const error = new Error('Mark the order as Shipped before adding tracking events');
         error.statusCode = 409;
         throw error;
@@ -177,11 +178,10 @@ const addTrackingEvent = async (order, input, { source = 'admin', io, notify = t
     order.shipment.lastStatus = latest.status;
     order.shipment.lastEventAt = latest.at;
 
+    // A 'Delivered' scan delivers the order (the lifecycle sets DeliveredAt).
     let delivered = false;
-    if (status === 'Delivered' && order.orderStatus === 'Shipped') {
-        order.orderStatus = 'Delivered';
-        order.DeliveredAt = at;
-        order.estimatedDeliveryDate = null;
+    if (status === 'Delivered' && orderLifecycle.can(order, 'Delivered', { by: 'system' })) {
+        orderLifecycle.transition(order, 'Delivered', { by: 'system', at });
         delivered = true;
     }
 
