@@ -7,6 +7,15 @@ const { computeContentHash, tokenMatches, fingerprint } = require('../utils/invo
 const isOwnerOrAdmin = (doc, user) =>
     user && (String(doc.user?._id || doc.user) === String(user._id) || user.role === 'admin');
 
+// Invoices for guest orders have no user (they are immutable, so claiming the
+// order can't change them). Whoever owns the order now may download them.
+const canSeeOrderDocument = async (doc, user) => {
+    if (isOwnerOrAdmin(doc, user)) return true;
+    if (doc.user || !doc.order || !user) return false;
+    const order = await Order.findById(doc.order).select('user').lean();
+    return Boolean(order) && isOwnerOrAdmin(order, user);
+};
+
 // 404 (not 403) for someone else's invoice, so ids can't be probed.
 const notFound = res => res.status(404).json({ success: false, message: 'Invoice not found' });
 
@@ -26,7 +35,11 @@ const sendPdf = async (res, invoice) => {
 
 // GET /api/v1/invoices/me?type=order|membership
 exports.myInvoices = async (req, res) => {
-    const filter = { user: String(req.user._id) };
+    // Plus the invoices of guest orders this account has since claimed.
+    const claimed = await Order.find({ user: String(req.user._id), 'guest.claimedAt': { $ne: null } }).distinct('_id');
+    const filter = claimed.length
+        ? { $or: [{ user: String(req.user._id) }, { user: null, order: { $in: claimed.map(String) } }] }
+        : { user: String(req.user._id) };
     if (['order', 'membership', 'credit-note'].includes(req.query.type)) filter.type = req.query.type;
 
     const invoices = await Invoice.find(filter)
@@ -41,7 +54,7 @@ exports.myInvoices = async (req, res) => {
 // GET /api/v1/invoice/:id/download
 exports.downloadInvoice = async (req, res) => {
     const invoice = await Invoice.findById(req.params.id);
-    if (!invoice || !isOwnerOrAdmin(invoice, req.user)) return notFound(res);
+    if (!invoice || !(await canSeeOrderDocument(invoice, req.user))) return notFound(res);
     await sendPdf(res, invoice);
 };
 
@@ -60,7 +73,7 @@ exports.downloadOrderInvoice = async (req, res) => {
         invoice = await createOrderInvoice(order, null, { emailStatus: 'skipped' });
     }
 
-    if (!isOwnerOrAdmin(invoice, req.user)) return notFound(res);
+    if (!(await canSeeOrderDocument(invoice, req.user))) return notFound(res);
     await sendPdf(res, invoice);
 };
 
@@ -147,7 +160,7 @@ exports.verifyInvoice = async (req, res) => {
 // GET /api/v1/order/:id/credit-note
 exports.downloadOrderCreditNote = async (req, res) => {
     const note = await Invoice.findOne({ type: 'credit-note', order: req.params.id }).sort({ issuedAt: -1 });
-    if (!note || !isOwnerOrAdmin(note, req.user)) {
+    if (!note || !(await canSeeOrderDocument(note, req.user))) {
         return res.status(404).json({ success: false, message: 'No credit note for this order' });
     }
     await sendPdf(res, note);

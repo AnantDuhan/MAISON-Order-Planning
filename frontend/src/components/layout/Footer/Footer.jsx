@@ -8,6 +8,7 @@ const columns = [
             { label: 'Shop All', to: '/products' },
             { label: 'Wishlist', to: '/wishlist' },
             { label: 'My Orders', to: '/orders' },
+            { label: 'Track an Order', to: '/track' },
             { label: 'Membership', to: '/membership' },
         ],
     },

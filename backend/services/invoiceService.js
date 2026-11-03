@@ -46,7 +46,10 @@ const createOnce = async (type, sourceId, build) => {
  */
 const createOrderInvoice = async (order, user, opts = {}) => {
     return createOnce('order', String(order._id), async () => {
-        const buyer = user || await User.findById(order.user).select('name email');
+        // Guest orders have no account: bill the details given at checkout.
+        const buyer = user
+            || (order.user ? await User.findById(order.user?._id || order.user).select('name email') : null)
+            || (order.guest?.email ? { name: order.guest.name, email: order.guest.email } : null);
         const s = order.shippingInfo || {};
         const isDemo = Boolean(order.isDemo);
 
@@ -56,7 +59,7 @@ const createOrderInvoice = async (order, user, opts = {}) => {
             type: 'order',
             sourceId: String(order._id),
             order: String(order._id),
-            user: String(order.user?._id || order.user),
+            user: order.user ? String(order.user?._id || order.user) : null,
             billedTo: {
                 name: buyer?.name,
                 email: buyer?.email,

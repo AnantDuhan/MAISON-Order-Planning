@@ -198,12 +198,91 @@ test('back-in-stock: subscribe only while out of stock, duplicates are fine', as
         creates += 1;
         if (creates > 1) throw Object.assign(new Error('dup'), { code: 11000 });
     });
+    s.set(StockAlert, 'updateOne', async () => ({ modifiedCount: 0 }));
     const user = { _id: 'u1', email: 'u@example.com' };
     assert.equal((await inventory.requestBackInStock({ productId: 'lamp', user })).status, 'subscribed');
     assert.equal((await inventory.requestBackInStock({ productId: 'lamp', user })).status, 'subscribed');
 
     s.set(Product, 'findById', () => lean({ _id: 'lamp', Stock: 4 }));
     assert.equal((await inventory.requestBackInStock({ productId: 'lamp', user })).status, 'in-stock');
+});
+
+test('back-in-stock: variant products wait per variant, not on the product total', async () => {
+    const product = {
+        _id: 'tee', Stock: 7, options: [{ name: 'Colour', values: [{ value: 'Black' }, { value: 'Sand' }] }],
+        variants: [
+            { _id: 'black', options: { Colour: 'Black' }, Stock: 0 },
+            { _id: 'sand', options: { Colour: 'Sand' }, Stock: 7 },
+        ],
+    };
+    s.set(Product, 'findById', () => lean(product));
+    const created = [];
+    s.set(StockAlert, 'create', async doc => { created.push(doc); });
+    const user = { _id: 'u1', email: 'U@Example.com' };
+
+    // Sand has stock, so the old "product has stock" check would have refused Black.
+    assert.equal((await inventory.requestBackInStock({ productId: 'tee', variantId: 'black', user })).status, 'subscribed');
+    assert.equal(created[0].variant, 'black');
+    assert.equal(created[0].email, 'u@example.com');
+    assert.equal((await inventory.requestBackInStock({ productId: 'tee', variantId: 'sand', user })).status, 'in-stock');
+    assert.equal((await inventory.requestBackInStock({ productId: 'tee', user })).status, 'choose-variant');
+    assert.equal((await inventory.requestBackInStock({ productId: 'tee', variantId: 'nope', user })).status, 'not-found');
+});
+
+test('back-in-stock: guests subscribe with a valid email and no account', async () => {
+    s.set(Product, 'findById', () => lean({ _id: 'lamp', Stock: 0 }));
+    const created = [];
+    s.set(StockAlert, 'create', async doc => { created.push(doc); });
+
+    assert.equal((await inventory.requestBackInStock({ productId: 'lamp', email: 'not-an-email' })).status, 'invalid-email');
+    assert.equal((await inventory.requestBackInStock({ productId: 'lamp', email: ' Guest@Mail.com ' })).status, 'subscribed');
+    assert.equal(created.length, 1);
+    assert.equal(created[0].user, null);
+    assert.equal(created[0].email, 'guest@mail.com');
+    assert.equal(created[0].variant, null);
+});
+
+test('back-in-stock: a restock emails only the people waiting for that variant', async t => {
+    s.set(Product, 'find', () => lean([{
+        _id: 'tee', name: 'Tee', price: 900, Stock: 3, images: [],
+        options: [{ name: 'Colour', values: [{ value: 'Black' }, { value: 'Sand' }] }],
+        variants: [
+            { _id: 'black', options: { Colour: 'Black' }, Stock: 0 },
+            { _id: 'sand', options: { Colour: 'Sand' }, Stock: 3 },
+        ],
+    }]));
+    const alerts = [
+        { _id: 'a1', user: 'u1', email: 'black@x.com', variant: 'black' },
+        { _id: 'a2', user: 'u2', email: 'sand@x.com', variant: 'sand' },
+        { _id: 'a3', user: null, email: 'guest@x.com', variant: 'sand' },
+    ];
+    s.set(StockAlert, 'find', () => ({ limit: async () => alerts }));
+    s.set(Subscription, 'distinct', async () => ['u1', 'u2']);
+    const updates = [];
+    s.set(StockAlert, 'updateOne', async (filter, update) => {
+        updates.push({ filter, update });
+        return { modifiedCount: 1 };
+    });
+    process.env.RESEND_API_KEY = 'k';
+    process.env.EMAIL_FROM_NOREPLY = 'n@x.com';
+    process.env.EMAIL_FROM_SUPPORT = 's@x.com';
+    const sent = [];
+    t.mock.method(global, 'fetch', async (url, init) => {
+        const body = JSON.parse(init.body);
+        if (body.to) sent.push(body); // feature-flag lookups also go through fetch
+        return { ok: true, json: async () => ({ id: 'e' }) };
+    });
+
+    const count = await inventory.notifyBackInStock(['tee']);
+    // The Plus member waiting for Sand is emailed now; Black is still out;
+    // the guest waits out the member head start.
+    assert.equal(count, 1);
+    assert.deepEqual(sent.map(m => m.to[0]), ['sand@x.com']);
+    assert.match(sent[0].subject, /Colour: Sand/);
+    assert.match(sent[0].html, /variant=sand/);
+    const guestUpdate = updates.find(u => u.filter._id === 'a3');
+    assert.ok(guestUpdate.update.notifyAfter instanceof Date);
+    assert.ok(!updates.some(u => u.filter._id === 'a1'));
 });
 
 test('back-in-stock: each waiting customer is emailed once', async t => {

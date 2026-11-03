@@ -6,6 +6,7 @@ const Refund = require('../models/refund');
 const Subscription = require('../models/plusMembership');
 
 const demoAnalytics = require('../data/demoAnalytics');
+const { demoMembershipAnalytics } = demoAnalytics;
 const { planLabel } = require('../utils/membershipPlans');
 const { realOnly } = require('../utils/demoFilter');
 
@@ -415,56 +416,17 @@ exports.getMembershipAnalytics = async (req, res) => {
 
 exports.getMemberships = async (req, res) => {
     try {
-                if (req.user?.isDemo) {
+        // Demo admin: the same sample members as the Memberships page, on the
+        // real plans and prices (the old inline list had a made-up "Elite").
+        if (req.user?.isDemo) {
             return res.status(200).json({
                 success: true,
                 demoMode: true,
-                memberships: [
-                    {
-                        _id: 'demo-membership-001',
-                        user: {
-                            name: 'Aarav Mehta',
-                            email: 'aarav.demo@example.com'
-                        },
-                        planId: 'MAISON Premium',
-                        status: 'Active',
-                        amount: 1000
-                    },
-                    {
-                        _id: 'demo-membership-002',
-                        user: {
-                            name: 'Isha Kapoor',
-                            email: 'isha.demo@example.com'
-                        },
-                        planId: 'MAISON Essential',
-                        status: 'Active',
-                        amount: 600
-                    },
-                    {
-                        _id: 'demo-membership-003',
-                        user: {
-                            name: 'Rohan Sharma',
-                            email: 'rohan.demo@example.com'
-                        },
-                        planId: 'MAISON Elite',
-                        status: 'Active',
-                        amount: 1800
-                    },
-                    {
-                        _id: 'demo-membership-004',
-                        user: {
-                            name: 'Meera Nair',
-                            email: 'meera.demo@example.com'
-                        },
-                        planId: 'MAISON Essential',
-                        status: 'Expired',
-                        amount: 600
-                    }
-                ]
+                memberships: demoMembershipAnalytics().recentMembers,
             });
         }
 
-        const memberships = await Subscription.find()
+        const memberships = await Subscription.find(realOnly())
             .sort({ createdAt: -1 })
             .limit(100)
             .populate('user', 'name email')

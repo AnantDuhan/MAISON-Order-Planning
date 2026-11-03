@@ -88,8 +88,8 @@ const OrderList = () => {
         placedAt: item.createdAt,
         city: item.shippingInfo?.city || '',
         // Populated by the API; older cached lists may still hold just the id.
-        customer: typeof item.user === 'object' && item.user ? item.user.name : '',
-        email: typeof item.user === 'object' && item.user ? item.user.email : '',
+        customer: typeof item.user === 'object' && item.user ? item.user.name : item.guest?.name ? `${item.guest.name} (guest)` : '',
+        email: typeof item.user === 'object' && item.user ? item.user.email : item.guest?.email || '',
     }));
     const lateCount = allRows.filter(r => r.late > 0).length;
     // Late orders first so they can't hide on page 3, then Plus orders

@@ -68,10 +68,20 @@ const orderSchema = new mongoose.Schema({
             }
         }
     ],
+    // The account that placed the order. null for a guest order until it is
+    // claimed (the guest signs in with the same, verified, email).
     user: {
         type: String,
         ref: 'User',
-        required: true
+        default: null
+    },
+    // Contact details for orders placed without an account.
+    guest: {
+        email: { type: String, lowercase: true, trim: true },
+        name: { type: String, trim: true },
+        phone: String,
+        // When the order joined an account (utils/claimGuestOrders.js).
+        claimedAt: Date,
     },
     paymentInfo: {
         id: {
@@ -250,7 +260,16 @@ const orderSchema = new mongoose.Schema({
 // Indexes for hot query paths (myOrders, admin filters, listings) and to
 // prevent duplicate orders per completed payment. The paymentInfo.id index is
 // partial so COD / null-payment orders are exempt from the unique constraint.
+// Every order belongs to someone: an account, or a guest's email.
+orderSchema.pre('validate', function () {
+    if (!this.user && !this.guest?.email) {
+        this.invalidate('user', 'An order needs an account or a guest email');
+    }
+});
+
 orderSchema.index({ user: 1, createdAt: -1 });
+// Finding unclaimed guest orders for an email when its owner signs in.
+orderSchema.index({ 'guest.email': 1, user: 1 }, { partialFilterExpression: { 'guest.email': { $type: 'string' } } });
 orderSchema.index({ orderStatus: 1 });
 orderSchema.index({ createdAt: -1 });
 orderSchema.index(

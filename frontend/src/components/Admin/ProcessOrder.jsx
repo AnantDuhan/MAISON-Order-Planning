@@ -238,9 +238,15 @@ const ProcessOrder = () => {
                                         <div className='flex justify-between gap-6'>
                                             <span className='font-sans text-sm text-ink-faint'>Name</span>
                                             <span className='text-right font-sans text-sm text-ink'>
-                                                {order.user && order.user.name}
+                                                {order.user?.name || (order.guest?.name ? `${order.guest.name} · guest` : '')}
                                             </span>
                                         </div>
+                                        {!order.user && order.guest?.email && (
+                                            <div className='flex justify-between gap-6'>
+                                                <span className='font-sans text-sm text-ink-faint'>Email</span>
+                                                <span className='break-all text-right font-sans text-sm text-ink'>{order.guest.email}</span>
+                                            </div>
+                                        )}
                                         <div className='flex justify-between gap-6'>
                                             <span className='font-sans text-sm text-ink-faint'>Phone</span>
                                             <span className='text-right font-sans text-sm text-ink'>

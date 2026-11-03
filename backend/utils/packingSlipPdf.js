@@ -34,7 +34,7 @@ const renderPackingSlip = async order => {
         doc.moveTo(left, 104).lineTo(right, 104).lineWidth(0.5).strokeColor(LINE).stroke();
 
         const s = order.shippingInfo || {};
-        const name = order.user?.name || '';
+        const name = order.user?.name || order.guest?.name || '';
         doc.font('Helvetica').fontSize(7).fillColor(FAINT).text('SHIP TO', left, 124, { characterSpacing: 2 });
         doc.font('Helvetica-Bold').fontSize(13).fillColor(INK).text(name || '—', left, 138, { width: 300 });
         doc.font('Helvetica').fontSize(11).fillColor(SOFT)

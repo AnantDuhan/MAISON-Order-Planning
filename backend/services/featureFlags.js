@@ -26,6 +26,11 @@ const FEATURES = [
         offMessage: 'We’re not taking new orders right now. Please check back soon.',
     },
     {
+        key: 'guestCheckout', group: 'Checkout', label: 'Guest checkout', default: true,
+        description: 'Customers can buy without an account, with just an email. Their orders join their account when they later sign in with that email.',
+        offMessage: 'Please sign in or create an account to check out.',
+    },
+    {
         key: 'coupons', group: 'Checkout', label: 'Coupons', default: true,
         description: 'Customers can apply coupon codes at checkout.',
         offMessage: 'Coupons can’t be used right now.',

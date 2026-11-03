@@ -3,6 +3,7 @@ const inventory = require('../services/inventoryService');
 const featureFlags = require('../services/featureFlags');
 const { priceOrder } = require('../utils/orderPricing');
 const { getMembershipTier } = require('../utils/membership');
+const guestOrders = require('../services/guestOrders');
 const {
     cashfreeRequest,
     getCashfreeOrder,
@@ -107,6 +108,99 @@ exports.verifyCashfreePayment = async (req, res) => {
             return res.status(403).json({ success: false, message: 'You cannot verify this payment' });
         }
 
+        const cashfreeOrder = await getCashfreeOrder(orderId);
+        res.status(200).json({
+            success: true,
+            orderId,
+            status: cashfreeOrder.order_status,
+            paymentId: cashfreeOrder.cf_order_id || orderId,
+        });
+    } catch (error) {
+        res.status(error.statusCode || 500).json({ success: false, message: error.message });
+    }
+};
+
+// ---- Guest checkout -----------------------------------------------------------
+
+// POST /api/v1/cashfree/guest/order   { orderItems, couponCode?, guest: { email, name, phone } }
+// Same as the account checkout, without membership benefits. Returns a
+// guestToken that the client sends back to verify and place the order.
+exports.createGuestCashfreeOrder = async (req, res) => {
+    try {
+        const { orderItems, couponCode } = req.body;
+        const guest = guestOrders.cleanGuestDetails(req.body?.guest);
+
+        if (couponCode && !(await featureFlags.isEnabled('coupons'))) {
+            return res.status(403).json({ success: false, code: 'FEATURE_DISABLED', feature: 'coupons', message: featureFlags.offMessage('coupons') });
+        }
+
+        inventory.releaseExpiredHolds({ limit: 20 }).catch(() => {});
+
+        // Guests aren't members: standard shipping, no members-only coupons
+        // and no Plus early access (priceOrder enforces the last two).
+        const { totalPrice: orderAmount, orderItems: pricedItems } = await priceOrder(orderItems, couponCode, { freeShipping: false, tier: null });
+        if (!(orderAmount > 0)) {
+            return res.status(400).json({ success: false, message: 'Order total must be greater than zero' });
+        }
+
+        const cashfreeOrderId = `${guestOrders.GUEST_PREFIX}${generateId()}${generateId()}`;
+        await inventory.reserveForCheckout({
+            userId: guestOrders.holdOwnerFor(cashfreeOrderId),
+            cashfreeOrderId,
+            items: pricedItems,
+        });
+
+        const payload = {
+            order_id: cashfreeOrderId,
+            order_amount: Number(orderAmount.toFixed(2)),
+            order_currency: 'INR',
+            customer_details: {
+                customer_id: cashfreeOrderId.replace(/^order_/, ''),
+                customer_name: guest.name,
+                customer_email: guest.email,
+                customer_phone: guest.phone,
+            },
+            order_meta: {
+                return_url: `${process.env.FRONTEND_URL}/payment?cashfree_order_id=${cashfreeOrderId}`,
+            },
+        };
+        if (process.env.CASHFREE_WEBHOOK_URL) {
+            payload.order_meta.notify_url = process.env.CASHFREE_WEBHOOK_URL;
+        }
+
+        let cashfreeOrder;
+        try {
+            cashfreeOrder = await cashfreeRequest('/orders', {
+                method: 'POST',
+                body: JSON.stringify(payload),
+            });
+        } catch (error) {
+            await inventory.releaseHoldForPayment(cashfreeOrderId, 'payment session failed').catch(() => {});
+            throw error;
+        }
+
+        res.status(200).json({
+            success: true,
+            orderId: cashfreeOrder.order_id,
+            paymentSessionId: cashfreeOrder.payment_session_id,
+            amount: payload.order_amount,
+            holdMinutes: inventory.HOLD_MINUTES,
+            guestToken: guestOrders.signGuestCheckoutToken({ cashfreeOrderId, guest }),
+        });
+    } catch (error) {
+        if (!error.statusCode) console.error(error);
+        res.status(error.statusCode || 500).json({ success: false, message: error.message });
+    }
+};
+
+// GET /api/v1/cashfree/guest/order/:orderId/verify   (X-Guest-Token header)
+exports.verifyGuestCashfreePayment = async (req, res) => {
+    try {
+        const { orderId } = req.params;
+        const checkout = guestOrders.readGuestCheckoutToken(req.get('x-guest-token'));
+        if (!checkout || checkout.cashfreeOrderId !== orderId) {
+            return res.status(403).json({ success: false, message: 'You cannot verify this payment' });
+        }
         const cashfreeOrder = await getCashfreeOrder(orderId);
         res.status(200).json({
             success: true,

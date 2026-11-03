@@ -1,5 +1,6 @@
 // const { s3 } = require('../app');
 const User = require('../models/user');
+const { claimGuestOrders } = require('../services/guestOrders');
 const { sendEmailInBackground } = require('../utils/sendEmail');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
@@ -299,9 +300,15 @@ exports.verifyEmail = async (req, res) => {
       validateBeforeSave: false,
     });
 
+    // Orders placed as a guest with this email now belong to the account.
+    const claimedOrders = await claimGuestOrders(user).catch(() => 0);
+
     return res.status(200).json({
       success: true,
-      message: "Email verified successfully. You can now login.",
+      claimedOrders,
+      message: claimedOrders
+        ? `Email verified. We added ${claimedOrders} earlier ${claimedOrders === 1 ? "order" : "orders"} to your account. You can now login.`
+        : "Email verified successfully. You can now login.",
     });
   } catch (error) {
     console.error("Email verification error:", error);

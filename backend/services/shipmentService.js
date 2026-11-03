@@ -17,6 +17,7 @@ const cache = require('../utils/cache');
 const logger = require('../config/logger');
 const { sendEmail } = require('../utils/sendEmail');
 const { sendPushNotification } = require('../utils/pushNotifications');
+const { trackingLink } = require('../utils/orderAccess');
 
 const STATUSES = ['Shipped', 'In transit', 'Out for delivery', 'Delivery attempted',
     'Delayed', 'Delivered', 'Returning to sender'];
@@ -100,15 +101,20 @@ const updateShipmentDetails = async (orderId, { courier, awb, trackingUrl }) => 
 };
 
 const notifyCustomer = async (order, event) => {
-    const user = await User.findById(order.user?._id || order.user).select('name email pushToken');
+    const userId = order.user?._id || order.user;
+    const account = userId ? await User.findById(userId).select('name email pushToken') : null;
+    // Guest orders: email the address given at checkout (no push, no account page).
+    const user = account || (order.guest?.email ? { name: order.guest.name, email: order.guest.email } : null);
     if (!user) return;
 
-    sendPushNotification(
-        user.pushToken,
-        event.status,
-        `Order ${order._id}: ${event.status}${event.location ? ` · ${event.location}` : ''}`,
-        { orderId: order._id, type: 'order-status' }
-    ).catch(() => {});
+    if (account) {
+        sendPushNotification(
+            account.pushToken,
+            event.status,
+            `Order ${order._id}: ${event.status}${event.location ? ` · ${event.location}` : ''}`,
+            { orderId: order._id, type: 'order-status' }
+        ).catch(() => {});
+    }
 
     const copy = NOTIFY[event.status];
     if (!copy || !user.email) return;
@@ -117,7 +123,9 @@ const notifyCustomer = async (order, event) => {
         order,
         event,
         copy,
-        orderLink: `${process.env.BACKEND_URL || process.env.FRONTEND_URL || ''}/go/order/${order._id}`,
+        orderLink: account
+            ? `${process.env.BACKEND_URL || process.env.FRONTEND_URL || ''}/go/order/${order._id}`
+            : trackingLink(order._id),
     });
     await sendEmail({ email: user.email, sender: 'support', subject: copy.subject, html });
 };

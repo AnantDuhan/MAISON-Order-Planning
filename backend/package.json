@@ -12,6 +12,7 @@
         "seed:products": "node scripts/seedProducts.js",
         "seed:reviews": "node scripts/Seedreviews.js",
         "seed:demo-account": "node scripts/seed-demo-account.js",
+        "cashfree:plans": "node scripts/syncCashfreePlans.js",
         "test": "node --test --test-force-exit \"tests/**/*.test.js\"",
         "backfill:invoices": "node scripts/backfillInvoices.js",
         "sign:invoices": "node scripts/signInvoices.js",

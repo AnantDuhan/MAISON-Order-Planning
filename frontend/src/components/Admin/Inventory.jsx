@@ -127,7 +127,17 @@ const Inventory = () => {
                                 <td className='px-5 py-3 text-right text-ink'>{row.stock}</td>
                                 <td className='px-5 py-3 text-right text-ink-soft'>{row.threshold}</td>
                                 <td className='px-5 py-3 text-right text-ink-soft'>{row.heldInCheckout || '—'}</td>
-                                <td className='px-5 py-3 text-right text-ink-soft'>{row.waitingForRestock || '—'}</td>
+                                <td className='px-5 py-3 text-right text-ink-soft'>
+                                    {row.waitingForRestock || '—'}
+                                    {/* Which options people want back, so the right ones get restocked. */}
+                                    {row.waitingByVariant?.length > 0 && (
+                                        <ul className='mt-1 space-y-0.5 text-xs text-ink-faint'>
+                                            {row.waitingByVariant.slice(0, 3).map(v => (
+                                                <li key={v.variant}>{v.label} · {v.waiting}{v.stock > 0 ? '' : ' · out'}</li>
+                                            ))}
+                                        </ul>
+                                    )}
+                                </td>
                                 <td className='px-5 py-3 text-right'>
                                     <Link to={`/admin/product/${row._id}`} className='text-[0.68rem] uppercase tracking-luxe text-brass'>
                                         Restock

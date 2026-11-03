@@ -1,7 +1,7 @@
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
 import CardMembershipIcon from '@mui/icons-material/CardMembership';
-import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
+import PersonOutlineIcon from '@mui/icons-material/PersonOutlineOutlined';
 import React, { useEffect, useRef, useState } from 'react';
 import { FaSearch } from 'react-icons/fa';
 import { useSelector } from 'react-redux';

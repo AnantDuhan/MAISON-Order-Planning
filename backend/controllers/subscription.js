@@ -6,13 +6,13 @@ const generateId = require('../utils/generateId');
 const { sendEmailInBackground } = require('../utils/sendEmail');
 const {
     cashfreeRequest,
-    getCashfreePlan,
     verifyCashfreeWebhook,
 } = require('../utils/cashfree');
 const logger = require('../config/logger');
 const { createMembershipInvoice, emailInvoice } = require('../services/invoiceService');
 
 const { PLANS, planFor, tierOf } = require('../utils/membershipPlans');
+const { ensurePlan } = require('../utils/cashfreePlans');
 
 // Membership as sent to the browser, with its tier spelled out.
 const withTier = membership => ({ ...(membership.toObject ? membership.toObject() : membership), tier: tierOf(membership) });
@@ -112,37 +112,8 @@ const syncMembership = async membership => {
     return membership;
 };
 
-const ensurePlan = async plan => {
-    try {
-        return await getCashfreePlan(plan.planId);
-    } catch (error) {
-        if (error.statusCode !== 404) {
-            throw error;
-        }
-    }
-
-    try {
-        return await cashfreeRequest('/plans', {
-            method: 'POST',
-            body: JSON.stringify({
-                plan_id: plan.planId,
-                plan_name: plan.name,
-                plan_type: 'PERIODIC',
-                plan_currency: 'INR',
-                plan_max_amount: plan.amount,
-                plan_recurring_amount: plan.amount,
-                plan_intervals: 1,
-                plan_interval_type: plan.intervalType,
-            }),
-        });
-    } catch (error) {
-        // A plan can already exist when the server restarts; reuse it.
-        if (error.statusCode !== 409) {
-            throw error;
-        }
-    }
-};
-
+// Creating a plan in Cashfree on first use lives in utils/cashfreePlans.js,
+// shared with scripts/syncCashfreePlans.js.
 // Public: the plans and prices. Plans are created in Cashfree when someone
 // first joins one (ensurePlan), so this never waits on Cashfree.
 exports.getMembershipPlans = (req, res) => {

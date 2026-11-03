@@ -103,7 +103,30 @@ const aiLimiter = rateLimit({
     store: makeStore('rl:ai:'),
 });
 
+// Public order lookup (order number + email). Tight per IP so order
+// numbers and emails can't be guessed in bulk.
+const trackLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: 20,
+    standardHeaders: 'draft-7',
+    legacyHeaders: false,
+    handler: json429('Too many lookups. Please try again in a few minutes.'),
+    store: makeStore('rl:track:'),
+});
+
+// Starting a guest checkout holds stock for HOLD_MINUTES without an account,
+// so cap how many one IP can start (it would otherwise lock up stock).
+const guestCheckoutLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: 10,
+    standardHeaders: 'draft-7',
+    legacyHeaders: false,
+    handler: json429('Too many checkout attempts. Please wait a few minutes and try again.'),
+    store: makeStore('rl:guest-checkout:'),
+});
+
 module.exports = {
+    guestCheckoutLimiter,
     aiLimiter,
     apiLimiter,
     authLimiter,
@@ -111,4 +134,5 @@ module.exports = {
     accountLimiter,
     otpSendLimiter,
     invoiceVerifyLimiter,
+    trackLimiter,
 };

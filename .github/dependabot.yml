@@ -23,6 +23,16 @@ updates:
     labels:
       - "dependencies"
       - "frontend"
+    # Packages that only work at matching versions arrive in ONE pull request.
+    # Merged one by one they broke main: react-dom 19 next to react 18, and
+    # @mui/material 9 next to @mui/icons-material 7.
+    groups:
+      react:
+        patterns: ["react", "react-dom"]
+      mui:
+        patterns: ["@mui/*", "@emotion/*"]
+      redux:
+        patterns: ["redux", "react-redux", "redux-thunk", "@redux-devtools/*"]
 
   - package-ecosystem: "github-actions"
     directory: "/"

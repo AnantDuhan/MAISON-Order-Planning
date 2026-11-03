@@ -5,9 +5,28 @@
 // creates a new plan instead of colliding with an existing one at the old
 // price. Existing members keep the plan they signed up on.
 
-const essentialYearly = Number(process.env.CASHFREE_ESSENTIAL_YEARLY_AMOUNT || 600);
-const plusMonthly = Number(process.env.CASHFREE_PLUS_MONTHLY_AMOUNT || 199);
-const plusYearly = Number(process.env.CASHFREE_PLUS_YEARLY_AMOUNT || 1799);
+// A whole number of rupees from env, or the default. A typo ("₹249",
+// "249.5", "") must not become a plan id like maison-plus-monthly-NaN.
+const amountFrom = (name, fallback) => {
+    const raw = process.env[name];
+    if (raw === undefined || String(raw).trim() === '') return fallback;
+    const value = Number(String(raw).trim());
+    if (Number.isInteger(value) && value > 0) return value;
+    console.error(`${name}="${raw}" is not a whole number of rupees; using ${fallback}.`);
+    return fallback;
+};
+
+const essentialYearly = amountFrom('CASHFREE_ESSENTIAL_YEARLY_AMOUNT', 600);
+const plusMonthly = amountFrom('CASHFREE_PLUS_YEARLY_AMOUNT', 199);
+const plusYearly = amountFrom('CASHFREE_PLUS_YEARLY_AMOUNT', 1799);
+
+// The names before Essential/Plus existed. They are not read any more; say so
+// rather than silently charging the defaults.
+['CASHFREE_PLUS_MONTHLY_AMOUNT', 'CASHFREE_PLUS_YEARLY_AMOUNT'].forEach(name => {
+    if (process.env[name]) {
+        console.warn(`${name} is set but no longer used. Set CASHFREE_ESSENTIAL_YEARLY_AMOUNT, CASHFREE_PLUS_YEARLY_AMOUNT and CASHFREE_PLUS_YEARLY_AMOUNT instead.`);
+    }
+});
 
 const PLANS = {
     'essential-yearly': {

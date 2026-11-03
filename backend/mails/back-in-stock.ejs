@@ -4,6 +4,9 @@
 <h1 style="margin:14px 0 0 0; font-family:Georgia,'Times New Roman',serif; font-size:32px; font-weight:500; line-height:1.2; color:#1A1816;">
   <%= product.name %> is available again
 </h1>
+<% if (typeof variantLabel !== 'undefined' && variantLabel) { %>
+<p style="margin:10px 0 0 0; font-family:Helvetica,Arial,sans-serif; font-size:14px; color:#4A453F;"><%= variantLabel %></p>
+<% } %>
 
 <% if (product.images && product.images[0] && product.images[0].url) { %>
 <p style="margin:26px 0 0 0;">

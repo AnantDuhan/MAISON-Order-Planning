@@ -15,7 +15,8 @@ const ejs = require('ejs');
 const path = require('path');
 
 const Product = require('../models/product');
-const { findVariant, variantLabel } = require('../utils/productVariants');
+const { findVariant, variantLabel, hasVariants, variantPrice, imagesForVariant } = require('../utils/productVariants');
+const validator = require('validator');
 const StockHold = require('../models/stockHold');
 const StockAlert = require('../models/stockAlert');
 const User = require('../models/user');
@@ -274,6 +275,13 @@ const checkLowStock = async productIds => {
  * claimed (notifiedAt set) before its email goes out, so concurrent runs can't
  * email the same person twice.
  */
+/** Is there stock for this request: its variant, or the product as a whole. */
+const restockedFor = (product, variantId) => {
+    if (!variantId) return product.Stock > 0;
+    const variant = findVariant(product, variantId);
+    return Boolean(variant) && variant.active !== false && variant.Stock > 0;
+};
+
 // Plus members get restock emails this long before everyone else.
 const MEMBER_HEAD_START_MS = 6 * 60 * 60 * 1000;
 
@@ -288,19 +296,23 @@ const notifyBackInStock = async (productIds, { now = new Date() } = {}) => {
     if (!(await require('./featureFlags').isEnabled('backInStock'))) return 0;
     const Subscription = require('../models/plusMembership');
     const products = await Product.find({ _id: { $in: productIds }, Stock: { $gt: 0 } })
-        .select('name price images Stock').lean();
+        .select('name price images Stock options variants').lean();
     let sent = 0;
     for (const product of products) {
         const pending = await StockAlert.find({ product: product._id, notifiedAt: null }).limit(500);
-        if (!pending.length) continue;
-        const members = new Set((await Subscription.distinct('user', {
-            user: { $in: pending.map(a => String(a.user)) }, isActive: true, status: 'ACTIVE',
+        // Only requests whose variant (or, without one, the product) has stock.
+        const ready = pending.filter(alert => restockedFor(product, alert.variant));
+        if (!ready.length) continue;
+        const userIds = ready.map(a => a.user).filter(Boolean).map(String);
+        const members = new Set(userIds.length ? (await Subscription.distinct('user', {
+            user: { $in: userIds }, isActive: true, status: 'ACTIVE',
             // Older memberships have no tier and are Plus.
             tier: { $ne: 'essential' },
-        })).map(String));
+        })).map(String) : []);
 
-        for (const alert of pending) {
-            const isMember = members.has(String(alert.user));
+        for (const alert of ready) {
+            // Guests (no account) are never members.
+            const isMember = Boolean(alert.user) && members.has(String(alert.user));
             if (!isMember) {
                 if (!alert.notifyAfter) {
                     await StockAlert.updateOne({ _id: alert._id, notifyAfter: null }, { notifyAfter: new Date(now.getTime() + MEMBER_HEAD_START_MS) });
@@ -314,14 +326,18 @@ const notifyBackInStock = async (productIds, { now = new Date() } = {}) => {
             );
             if (!claimed.modifiedCount) continue;
             try {
+                const variant = alert.variant ? findVariant(product, alert.variant) : null;
+                const label = variant ? variantLabel(product, variant) : '';
+                const images = variant ? imagesForVariant(product, variant) : product.images || [];
                 const html = await ejs.renderFile(path.join(__dirname, '../mails/back-in-stock.ejs'), {
-                    product,
-                    productLink: `${process.env.FRONTEND_URL || ''}/product/${product._id}`,
+                    product: { ...product, images, price: variant ? variantPrice(product, variant) : product.price },
+                    variantLabel: label,
+                    productLink: `${process.env.FRONTEND_URL || ''}/product/${product._id}${variant ? `?variant=${encodeURIComponent(variant._id)}` : ''}`,
                 });
                 await sendEmail({
                     email: alert.email,
                     sender: 'noreply',
-                    subject: `Back in stock: ${product.name}`,
+                    subject: `Back in stock: ${product.name}${label ? ` (${label})` : ''}`,
                     html,
                 });
                 sent += 1;
@@ -373,38 +389,81 @@ const onStockEdited = (productId, before, after) => {
 
 // ---- Back-in-stock requests ------------------------------------------------------
 
-const requestBackInStock = async ({ productId, user }) => {
-    const product = await Product.findById(productId).select('Stock').lean();
+const cleanEmail = value => (typeof value === 'string' ? value.trim().toLowerCase() : '');
+
+/** Requests that belong to this shopper: by account, or by the account's email. */
+const ownedBy = user => ({ $or: [{ user: String(user._id) }, { email: cleanEmail(user.email) }] });
+
+/**
+ * Ask to be emailed when a product (or one variant of it) is back.
+ * Signed-in shoppers pass `user`; guests pass `email`.
+ * @returns {{status: 'subscribed'|'in-stock'|'not-found'|'choose-variant'|'invalid-email'}}
+ */
+const requestBackInStock = async ({ productId, variantId = null, user = null, email = null }) => {
+    const product = await Product.findById(productId).select('Stock options variants').lean();
     if (!product) return { status: 'not-found' };
-    if (product.Stock > 0) return { status: 'in-stock' };
+
+    let variant = null;
+    if (hasVariants(product)) {
+        if (!variantId) return { status: 'choose-variant' };
+        variant = findVariant(product, variantId);
+        if (!variant || variant.active === false) return { status: 'not-found' };
+        if (variant.Stock > 0) return { status: 'in-stock' };
+    } else if (product.Stock > 0) {
+        return { status: 'in-stock' };
+    }
+
+    const address = cleanEmail(user ? user.email : email);
+    if (!address || !validator.isEmail(address)) return { status: 'invalid-email' };
+
     try {
         await StockAlert.create({
             _id: generateId(),
             product: String(productId),
-            user: String(user._id),
-            email: user.email,
+            variant: variant ? String(variant._id) : null,
+            user: user ? String(user._id) : null,
+            email: address,
         });
     } catch (error) {
         if (error.code !== 11000) throw error; // already waiting: fine
+        // A guest request for this address becomes theirs once they sign in.
+        if (user) {
+            await StockAlert.updateOne(
+                { product: String(productId), variant: variant ? String(variant._id) : null, email: address, notifiedAt: null, user: null },
+                { user: String(user._id) }
+            );
+        }
     }
     return { status: 'subscribed' };
 };
 
-const cancelBackInStock = ({ productId, userId }) =>
-    StockAlert.deleteOne({ product: String(productId), user: String(userId), notifiedAt: null });
+const cancelBackInStock = ({ productId, variantId = null, user }) =>
+    StockAlert.deleteOne({ product: String(productId), variant: variantId ? String(variantId) : null, notifiedAt: null, ...ownedBy(user) });
 
-const isWaitingFor = async ({ productId, userId }) =>
-    Boolean(await StockAlert.exists({ product: String(productId), user: String(userId), notifiedAt: null }));
+/** What this shopper is waiting for on one product: the whole product and/or variant ids. */
+const waitingFor = async ({ productId, user }) => {
+    const pending = await StockAlert.find({ product: String(productId), notifiedAt: null, ...ownedBy(user) })
+        .select('variant').lean();
+    return {
+        product: pending.some(a => !a.variant),
+        variants: pending.filter(a => a.variant).map(a => String(a.variant)),
+    };
+};
+
+const isWaitingFor = async ({ productId, variantId = null, user }) => {
+    const { product, variants } = await waitingFor({ productId, user });
+    return variantId ? variants.includes(String(variantId)) : product;
+};
 
 // ---- Admin report -----------------------------------------------------------------
 
 const inventoryReport = async ({ includeDemo = false } = {}) => {
     const productFilter = includeDemo ? {} : { isDemo: { $ne: true } };
     const products = await Product.find(productFilter)
-        .select('name Stock price category lowStockThreshold lowStockAlertedAt images')
+        .select('name Stock price category lowStockThreshold lowStockAlertedAt images options variants')
         .lean();
 
-    const [holds, waiting] = await Promise.all([
+    const [holds, waiting, waitingVariants] = await Promise.all([
         StockHold.aggregate([
             { $match: { status: 'active' } },
             { $unwind: '$items' },
@@ -414,7 +473,17 @@ const inventoryReport = async ({ includeDemo = false } = {}) => {
             { $match: { notifiedAt: null } },
             { $group: { _id: '$product', waiting: { $sum: 1 } } },
         ]),
+        StockAlert.aggregate([
+            { $match: { notifiedAt: null, variant: { $ne: null } } },
+            { $group: { _id: { product: '$product', variant: '$variant' }, waiting: { $sum: 1 } } },
+        ]),
     ]);
+    const variantsWaitingBy = new Map();
+    for (const row of waitingVariants) {
+        const key = String(row._id.product);
+        if (!variantsWaitingBy.has(key)) variantsWaitingBy.set(key, []);
+        variantsWaitingBy.get(key).push({ variant: String(row._id.variant), waiting: row.waiting });
+    }
     const heldBy = new Map(holds.map(h => [String(h._id), h]));
     const waitingBy = new Map(waiting.map(w => [String(w._id), w.waiting]));
 
@@ -427,6 +496,13 @@ const inventoryReport = async ({ includeDemo = false } = {}) => {
         threshold: thresholdOf(p),
         heldInCheckout: heldBy.get(String(p._id))?.held || 0,
         waitingForRestock: waitingBy.get(String(p._id)) || 0,
+        // Which options people are waiting for, most wanted first.
+        waitingByVariant: (variantsWaitingBy.get(String(p._id)) || [])
+            .map(({ variant, waiting: count }) => {
+                const v = findVariant(p, variant);
+                return { variant, label: v ? variantLabel(p, v) : 'Removed option', stock: v?.Stock ?? 0, waiting: count };
+            })
+            .sort((a, b) => b.waiting - a.waiting),
         status: p.Stock <= 0 ? 'out' : p.Stock <= thresholdOf(p) ? 'low' : 'ok',
     }));
 
@@ -470,6 +546,8 @@ module.exports = {
     requestBackInStock,
     cancelBackInStock,
     isWaitingFor,
+    waitingFor,
+    restockedFor,
     inventoryReport,
     thresholdOf,
 };

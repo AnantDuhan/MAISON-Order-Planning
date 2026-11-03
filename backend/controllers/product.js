@@ -814,26 +814,47 @@ exports.summerizeProductReviews = async (req, res, next) => {
 // ---- Back-in-stock requests (customer) -------------------------------------
 
 // GET /api/v1/product/:id/notify-me
+// What the signed-in shopper is waiting for on this product. Guests get
+// nothing to remember them by, so for them the answer is always "nothing".
 exports.getBackInStockStatus = async (req, res) => {
-  const waiting = await inventory.isWaitingFor({ productId: req.params.id, userId: req.user._id });
-  res.status(200).json({ success: true, waiting });
+  if (!req.user) return res.status(200).json({ success: true, waiting: false, product: false, variants: [] });
+  const { product, variants } = await inventory.waitingFor({ productId: req.params.id, user: req.user });
+  const variant = typeof req.query.variant === "string" ? req.query.variant : null;
+  res.status(200).json({
+    success: true,
+    waiting: variant ? variants.includes(variant) : product,
+    product,
+    variants,
+  });
 };
 
-// POST /api/v1/product/:id/notify-me
+const BACK_IN_STOCK_ERRORS = {
+  "not-found": [404, "Product not found"],
+  "in-stock": [409, "This is in stock now."],
+  "choose-variant": [400, "Choose an option first, so we know which one to tell you about."],
+  "invalid-email": [400, "Enter a valid email address."],
+};
+
+// POST /api/v1/product/:id/notify-me   { variant?, email? (guests) }
 exports.requestBackInStock = async (req, res) => {
-  const result = await inventory.requestBackInStock({ productId: req.params.id, user: req.user });
-  if (result.status === "not-found") {
-    return res.status(404).json({ success: false, message: "Product not found" });
-  }
-  if (result.status === "in-stock") {
-    return res.status(409).json({ success: false, message: "This product is in stock now." });
+  const variantId = typeof req.body?.variant === "string" ? req.body.variant : null;
+  const result = await inventory.requestBackInStock({
+    productId: req.params.id,
+    variantId,
+    user: req.user || null,
+    email: req.user ? null : req.body?.email,
+  });
+  const failure = BACK_IN_STOCK_ERRORS[result.status];
+  if (failure) {
+    return res.status(failure[0]).json({ success: false, message: failure[1] });
   }
   res.status(200).json({ success: true, waiting: true, message: "We'll email you when it's back." });
 };
 
-// DELETE /api/v1/product/:id/notify-me
+// DELETE /api/v1/product/:id/notify-me?variant=
 exports.cancelBackInStock = async (req, res) => {
-  await inventory.cancelBackInStock({ productId: req.params.id, userId: req.user._id });
+  const variantId = typeof req.query.variant === "string" ? req.query.variant : null;
+  await inventory.cancelBackInStock({ productId: req.params.id, variantId, user: req.user });
   res.status(200).json({ success: true, waiting: false });
 };
 

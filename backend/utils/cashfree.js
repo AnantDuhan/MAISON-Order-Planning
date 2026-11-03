@@ -45,6 +45,9 @@ const cashfreeRequest = async (path, options = {}) => {
     if (!response.ok) {
         const error = new Error(data.message || 'Cashfree request failed');
         error.statusCode = response.status;
+        // Keep Cashfree's error details so callers can distinguish lookup misses.
+        if (data.code) error.code = data.code;
+        if (data.type) error.type = data.type;
         throw error;
     }
 

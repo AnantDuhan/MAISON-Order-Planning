@@ -1,6 +1,7 @@
 import React, { Fragment, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router';
+import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 
 import { saveShippingInfo } from '../../actions/cartAction';
@@ -9,6 +10,10 @@ import { stateName } from '../../utils/indiaRegions';
 import CheckoutSteps from '../Cart/CheckoutSteps';
 import MetaData from '../layout/MetaData';
 import AddressFields, { EMPTY_ADDRESS, addressError } from '../User/AddressFields';
+import Field from '../layout/Field';
+import { getGuestContact, saveGuestContact, useCheckoutAccess } from '../../utils/guestCheckout';
+
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const pick = a => ({
     address: a.address || '',
@@ -26,7 +31,10 @@ const Shipping = () => {
     const navigate = useNavigate();
     const { shippingInfo } = useSelector(state => state.cart);
     const { user } = useSelector(state => state.user);
+    const { ready, isGuest } = useCheckoutAccess();
     const savedAddresses = user?.addresses || [];
+    // Guests: who the order is for (emailed the invoice and tracking link).
+    const [contact, setContact] = useState(() => getGuestContact() || { email: '', name: '' });
 
     // Start from the last address used, or the first saved one.
     const initial = shippingInfo?.address ? pick(shippingInfo) : savedAddresses[0] ? pick(savedAddresses[0]) : { ...EMPTY_ADDRESS };
@@ -49,13 +57,26 @@ const Shipping = () => {
 
     const shippingSubmit = async e => {
         e.preventDefault();
+        if (isGuest) {
+            const email = contact.email.trim();
+            const name = contact.name.trim();
+            if (!EMAIL.test(email)) {
+                toast.error('Enter a valid email for your order updates');
+                return;
+            }
+            if (name.length < 2) {
+                toast.error('Enter your full name');
+                return;
+            }
+            saveGuestContact({ email, name });
+        }
         const problem = addressError(form);
         if (problem) {
             toast.error(problem);
             return;
         }
         dispatch(saveShippingInfo(form));
-        if (usingNew && saveToBook) {
+        if (!isGuest && usingNew && saveToBook) {
             try {
                 await dispatch(addAddress({ label: '', ...form }));
                 toast.success('Address saved');
@@ -65,6 +86,8 @@ const Shipping = () => {
         }
         navigate('/order/confirm');
     };
+
+    if (!ready) return null;
 
     return (
         <Fragment>
@@ -77,6 +100,35 @@ const Shipping = () => {
                     <h1 className='heading-display mt-2 text-4xl'>Shipping details</h1>
 
                     <form className='mt-8' onSubmit={shippingSubmit}>
+                        {isGuest && (
+                            <fieldset className='mb-8 border border-line bg-surface p-6 sm:p-8'>
+                                <legend className='eyebrow px-1'>Checking out as a guest</legend>
+                                <div className='grid gap-6 sm:grid-cols-2'>
+                                    <Field label='Email' hint='For your invoice and tracking' className='sm:col-span-2'>
+                                        <input
+                                            type='email'
+                                            required
+                                            autoComplete='email'
+                                            value={contact.email}
+                                            onChange={e => setContact(c => ({ ...c, email: e.target.value }))}
+                                        />
+                                    </Field>
+                                    <Field label='Full name' className='sm:col-span-2'>
+                                        <input
+                                            type='text'
+                                            required
+                                            autoComplete='name'
+                                            maxLength={60}
+                                            value={contact.name}
+                                            onChange={e => setContact(c => ({ ...c, name: e.target.value }))}
+                                        />
+                                    </Field>
+                                </div>
+                                <p className='mt-5 font-sans text-xs text-ink-faint'>
+                                    Already have an account? <Link to={`/login?redirect=${encodeURIComponent('/shipping')}`} className='text-brass underline-offset-4 hover:underline'>Sign in</Link> for saved addresses and member benefits.
+                                </p>
+                            </fieldset>
+                        )}
                         {savedAddresses.length > 0 && (
                             <fieldset>
                                 <legend className='eyebrow'>Saved addresses</legend>
@@ -118,10 +170,12 @@ const Shipping = () => {
                         {usingNew && (
                             <div className={`border border-line bg-surface p-6 sm:p-8 ${savedAddresses.length ? 'mt-6' : ''}`}>
                                 <AddressFields value={form} onChange={setField} />
-                                <label className='mt-6 flex cursor-pointer items-center gap-3 font-sans text-sm text-ink-soft'>
-                                    <input type='checkbox' checked={saveToBook} onChange={e => setSaveToBook(e.target.checked)} className='h-4 w-4 accent-brass' />
-                                    Save this address for next time
-                                </label>
+                                {!isGuest && (
+                                    <label className='mt-6 flex cursor-pointer items-center gap-3 font-sans text-sm text-ink-soft'>
+                                        <input type='checkbox' checked={saveToBook} onChange={e => setSaveToBook(e.target.checked)} className='h-4 w-4 accent-brass' />
+                                        Save this address for next time
+                                    </label>
+                                )}
                             </div>
                         )}
 

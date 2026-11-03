@@ -11,6 +11,7 @@ import MetaData from '../layout/MetaData';
 import { createOrder, clearErrors } from '../../actions/orderAction';
 import { formatINR } from '../../utils/priceLabel';
 import { CASHFREE_MODE, loadCashfree, preloadCashfree } from '../../utils/loadCashfree';
+import { clearGuestContact, getGuestContact, saveLastGuestOrder, useCheckoutAccess } from '../../utils/guestCheckout';
 
 
 const Payment = () => {
@@ -30,14 +31,16 @@ const Payment = () => {
     const { error } = useSelector(state => state.newOrder);
 
     const [isProcessing, setIsProcessing] = useState(false);
+    const access = useCheckoutAccess();
+    const guestContact = access.isGuest ? getGuestContact() : null;
 
     useEffect(preloadCashfree, []);
     const dueNow = Number(orderInfo?.totalPrice || 0);
-    const ready = dueNow > 0 && cartItems?.length > 0;
+    const ready = dueNow > 0 && cartItems?.length > 0 && (!access.isGuest || Boolean(guestContact?.email));
 
     useEffect(() => {
-        if (!ready) navigate(cartItems?.length ? '/order/confirm' : '/cart', { replace: true });
-    }, [ready, cartItems?.length, navigate]);
+        if (access.ready && !ready) navigate(cartItems?.length ? '/order/confirm' : '/cart', { replace: true });
+    }, [access.ready, ready, cartItems?.length, navigate]);
 
     const submitHandler = async e => {
         e.preventDefault();
@@ -53,12 +56,22 @@ const Payment = () => {
                 quantity: item.quantity,
             }));
             const couponCode = orderInfo?.selectedCoupon?.code;
+            const isGuest = access.isGuest;
 
-            const { data } = await axios.post('/api/v1/cashfree/order', {
-                orderItems: pricedItems,
-                couponCode,
-                phoneNumber: shippingInfo.phoneNumber,
-            });
+            // Guests use their own endpoints: a signed guest token, returned
+            // when the payment starts, ties the next steps to this checkout.
+            const { data } = isGuest
+                ? await axios.post('/api/v1/cashfree/guest/order', {
+                    orderItems: pricedItems,
+                    couponCode,
+                    guest: { ...guestContact, phone: shippingInfo.phoneNumber },
+                })
+                : await axios.post('/api/v1/cashfree/order', {
+                    orderItems: pricedItems,
+                    couponCode,
+                    phoneNumber: shippingInfo.phoneNumber,
+                });
+            const guestHeaders = isGuest ? { headers: { 'X-Guest-Token': data.guestToken } } : undefined;
 
             const cashfree = await loadCashfree();
             const result = await cashfree.checkout({
@@ -76,12 +89,14 @@ const Payment = () => {
                 return;
             }
 
-            const verification = await axios.get(`/api/v1/cashfree/order/${data.orderId}/verify`);
+            const verification = isGuest
+                ? await axios.get(`/api/v1/cashfree/guest/order/${data.orderId}/verify`, guestHeaders)
+                : await axios.get(`/api/v1/cashfree/order/${data.orderId}/verify`);
             if (verification.data.status !== 'PAID') {
                 throw new Error('Payment could not be verified. Please try again.');
             }
 
-            const createdOrder = await dispatch(createOrder({
+            const orderBody = {
                 shippingInfo,
                 orderItems: pricedItems,
                 couponCode,
@@ -90,9 +105,20 @@ const Payment = () => {
                     provider: 'cashfree',
                     status: 'PAID',
                 },
-            }));
-            if (!createdOrder?.success) {
-                throw new Error('Payment succeeded, but the order could not be created. Please contact support.');
+            };
+
+            if (isGuest) {
+                const { data: placed } = await axios.post('/api/v1/order/guest/new', orderBody, guestHeaders);
+                if (!placed?.success) {
+                    throw new Error('Payment succeeded, but the order could not be created. Please contact support.');
+                }
+                saveLastGuestOrder({ id: placed.order._id, token: placed.trackingToken, email: placed.email });
+                clearGuestContact();
+            } else {
+                const createdOrder = await dispatch(createOrder(orderBody));
+                if (!createdOrder?.success) {
+                    throw new Error('Payment succeeded, but the order could not be created. Please contact support.');
+                }
             }
             toast.success('Payment processed successfully.');
             navigate('/success');

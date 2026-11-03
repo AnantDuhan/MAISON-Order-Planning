@@ -14,7 +14,9 @@ const invoiceSchema = new mongoose.Schema({
     sourceId: { type: String, required: true },
     order: { type: String, ref: 'Order' },
     membership: { type: String, ref: 'Subscription' },
-    user: { type: String, ref: 'User', required: true },
+    // The buyer's account. null for guest orders (and their credit notes):
+    // billedTo has their details, and the order says who owns it now.
+    user: { type: String, ref: 'User', default: null, required() { return this.type === 'membership'; } },
     billedTo: {
         name: String,
         email: String,

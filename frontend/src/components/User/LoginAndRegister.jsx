@@ -87,7 +87,13 @@ const LoginAndRegister = () => {
     const [progress, setProgress] = useState(0);
     const onLoaderFinished = () => setProgress(0);
 
-    const [user, setUser] = useState({ name: '', whatsappNumber: '', email: '', password: '' });
+    // ?email= prefills sign-up (e.g. after a guest order, to keep it in an account).
+    const [user, setUser] = useState(() => ({
+        name: '',
+        whatsappNumber: '',
+        email: (new URLSearchParams(location.search).get('email') || '').slice(0, 254),
+        password: '',
+    }));
     const { name, whatsappNumber, email, password } = user;
     const [showRegisterPassword, setShowRegisterPassword] = useState(false);
 

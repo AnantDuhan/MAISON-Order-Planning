@@ -2,7 +2,7 @@ import React, { Fragment, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { toast } from 'react-toastify';
 import { countryName, stateName } from '../../utils/indiaRegions';
-import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlineOutlined';
 
 import { addAddress, deleteAddress } from '../../actions/userAction';
 import MetaData from '../layout/MetaData';

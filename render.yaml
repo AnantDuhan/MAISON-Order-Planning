@@ -100,9 +100,13 @@ projects:
         sync: false
       - key: CASHFREE_WEBHOOK_URL
         sync: false
-      - key: CASHFREE_MONTHLY_AMOUNT
+      # Membership prices in whole rupees (utils/membershipPlans.js). After
+      # changing them, run `npm run cashfree:plans -- --apply` in backend/.
+      - key: CASHFREE_ESSENTIAL_YEARLY_AMOUNT
         sync: false
-      - key: CASHFREE_YEARLY_AMOUNT
+      - key: CASHFREE_PLUS_YEARLY_AMOUNT
+        sync: false
+      - key: CASHFREE_PLUS_YEARLY_AMOUNT
         sync: false
 
       # --- AI (review summaries) ---

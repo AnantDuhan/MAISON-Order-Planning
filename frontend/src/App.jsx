@@ -48,6 +48,7 @@ const Cart = lazy(() => import("./components/Cart/Cart"));
 const ConfirmOrder = lazy(() => import("./components/Cart/ConfirmOrder"));
 const OrderSuccess = lazy(() => import("./components/Cart/OrderSuccess"));
 const Shipping = lazy(() => import("./components/Cart/Shipping"));
+const CheckoutChoice = lazy(() => import("./components/Cart/CheckoutChoice"));
 const Payment = lazy(() => import("./components/Cart/Payment"));
 const About = lazy(() => import("./components/layout/About/About"));
 const Contact = lazy(() => import("./components/layout/Contact/Contact"));
@@ -57,6 +58,7 @@ const AdminHeader = lazy(
 const NotFound = lazy(() => import("./components/layout/Not-Found/NotFound"));
 const MyOrders = lazy(() => import("./components/Order/MyOrders"));
 const OrderDetails = lazy(() => import("./components/Order/OrderDetails"));
+const TrackOrder = lazy(() => import("./components/Order/TrackOrder"));
 const ProductDetails = lazy(
   () => import("./components/Product/ProductDetails"),
 );
@@ -142,6 +144,14 @@ function App() {
               <Route path="/about" element={<About />} exact />
               <Route path="/contact-us" element={<Contact />} exact />
               <Route path="/cart" element={<Cart />} exact />
+              {/* Checkout: signed-in shoppers, or guests (useCheckoutAccess guards each step) */}
+              <Route path="/checkout" element={<CheckoutChoice />} exact />
+              <Route path="/shipping" element={<Shipping />} exact />
+              <Route path="/order/confirm" element={<ConfirmOrder />} exact />
+              <Route path="/payment" element={<Payment />} exact />
+              <Route path="/success" element={<OrderSuccess />} exact />
+              <Route path="/track" element={<TrackOrder />} exact />
+              <Route path="/track/:id" element={<TrackOrder />} exact />
               <Route path="/privacy" element={<PrivacyPolicy />} />
               <Route path="/terms" element={<TermsAndConditions />} />
               <Route path="/shipping-policy" element={<ShippingPolicy />} />
@@ -186,15 +196,6 @@ function App() {
                 />
               )}
               {isAuthenticated && (
-                <Route path="/shipping" element={<Shipping />} exact />
-              )}
-              {isAuthenticated && (
-                <Route path="/order/confirm" element={<ConfirmOrder />} exact />
-              )}
-              {isAuthenticated && (
-                <Route path="/success" element={<OrderSuccess />} exact />
-              )}
-              {isAuthenticated && (
                 <Route path="/orders" element={<MyOrders />} exact />
               )}
               {isAuthenticated && (
@@ -211,10 +212,6 @@ function App() {
                 <Route path="/wishlist" element={<Wishlist />} exact />
               )}
 
-              {/* Payment Route with Razorpay Wrapper */}
-              {isAuthenticated && (
-                <Route path="/payment" element={<Payment />} exact />
-              )}
 
               {/* Admin Routes — always registered; ProtectedAdminRoute sends
                   unauthenticated users to /login and non-admins to /. */}

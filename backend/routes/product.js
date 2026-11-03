@@ -23,11 +23,16 @@ const {
 //    getAutocompleteSuggestions
 } = require('../controllers/product');
 
-const { isAuthUser, authRoles } = require('../middleware/auth');
+const { isAuthUser, authRoles, optionalAuth } = require('../middleware/auth');
+const { emailLimiter } = require('../middleware/rateLimiter');
 const demoGuard = require('../middleware/demoGuard');
 
 const { requireFeature } = require('../services/featureFlags');
 const router = express.Router();
+
+// Requests from guests send an email to an address they typed, so they share
+// the per-IP email budget. Signed-in shoppers can toggle freely.
+const guestEmailLimit = (req, res, next) => (req.user ? next() : emailLimiter(req, res, next));
 
 // router.get('/products/autocomplete', getAutocompleteSuggestions);
 
@@ -51,8 +56,9 @@ router.route('/product/:id/related').get(getRelatedProducts);
 
 router
     .route('/product/:id/notify-me')
-    .get(isAuthUser, getBackInStockStatus)
-    .post(isAuthUser, requireFeature('backInStock'), requestBackInStock)
+    .get(optionalAuth, getBackInStockStatus)
+    // Guests can ask too, with an email; they get the email-sending budget.
+    .post(optionalAuth, guestEmailLimit, requireFeature('backInStock'), requestBackInStock)
     .delete(isAuthUser, cancelBackInStock);
 
 router.route('/admin/inventory').get(isAuthUser, authRoles('admin'), getInventoryReport);

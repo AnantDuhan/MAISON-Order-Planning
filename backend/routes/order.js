@@ -1,6 +1,7 @@
 const express = require('express');
 const {
    newOrder,
+   newGuestOrder,
    getSingleOrder,
    myOrders,
    getAllOrders,
@@ -16,10 +17,19 @@ const router = express.Router();
 
 const { isAuthUser, authRoles } = require('../middleware/auth');
 const demoGuard = require('../middleware/demoGuard');
+const { trackLimiter } = require('../middleware/rateLimiter');
 const { requestReturn, getAllReturns, updateReturnStatus } = require('../controllers/return');
 const { initiateRefund, updateRefundStatus, getAllRefunds } = require('../controllers/refund');
+const { lookupOrder, getTrackedOrder } = require('../controllers/tracking');
+
+// Public tracking: no sign-in, so it works for guests and from email links.
+router.route('/order/track').post(trackLimiter, lookupOrder);
+router.route('/order/track/:id').get(trackLimiter, getTrackedOrder);
 
 router.route('/order/new').post(isAuthUser, demoGuard('place-order'), newOrder);
+// Guest checkout: authorised by the signed guest token, not a session. Not
+// behind the checkout switches: a guest who has paid must still get an order.
+router.route('/order/guest/new').post(newGuestOrder);
 
 router.route('/order/:id').get(isAuthUser, getSingleOrder);
 

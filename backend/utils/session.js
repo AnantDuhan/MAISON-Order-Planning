@@ -38,6 +38,9 @@ const sessionPolicy = (user, remember) => {
 };
 
 const issueSession = (user, res, statusCode = 200, mfaVerified = false, { remember = true } = {}) => {
+    // Guest orders placed with this (verified) email join the account. In the
+    // background: signing in never waits for it, and "My orders" claims too.
+    require('../services/guestOrders').claimGuestOrdersInBackground(user);
     const { lifetimeMs, persistent } = sessionPolicy(user, remember);
     const token = jwt.sign(
         { id: user._id, name: user.name, email: user.email, avatar: user.avatar, isDemo: user.isDemo, mfaVerified },

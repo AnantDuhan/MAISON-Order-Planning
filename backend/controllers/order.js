@@ -20,6 +20,8 @@ const { hasVariants, findVariant, variantLabel } = require('../utils/productVari
 const { renderPackingSlip } = require('../utils/packingSlipPdf');
 const logger = require('../config/logger');
 const { realOnly } = require('../utils/demoFilter');
+const guestOrders = require('../services/guestOrders');
+const { orderContact, signOrderViewToken, trackingLink } = require('../utils/orderAccess');
 
 // Valid forward transitions for an order. Anything else is rejected.
 const NEXT_STATUS = {
@@ -41,6 +43,82 @@ const estimateDeliveryDate = () => {
 
 const canViewOrder = (order, user) =>
     user && (String(order.user?._id || order.user) === String(user._id) || user.role === 'admin');
+
+const httpError = (statusCode, message) => Object.assign(new Error(message), { statusCode });
+
+/**
+ * The part of placing an order that account and guest checkouts share:
+ * reprice on the server, check Cashfree says PAID for exactly that amount,
+ * take the held stock and create the order. A payment can only ever make one
+ * order; a repeat returns the existing one with `deduped`.
+ *
+ * @param {{cashfreeOrderId: string, provider: string, orderItems, couponCode, shippingInfo,
+ *          tier: ('essential'|'plus'|null), owner: ({userId: string}|{guest: {email, name, phone}})}} input
+ * @returns {Promise<{order, deduped: boolean, estimatedDeliveryDate?: Date}>}
+ */
+const placePaidOrder = async ({ cashfreeOrderId, provider, orderItems, couponCode, shippingInfo, tier, owner }) => {
+    // Stock isn't checked here: it was held for this payment at checkout
+    // (and may now read 0 because this customer holds the last unit).
+    const pricing = await priceOrder(orderItems, couponCode, { checkStock: false, freeShipping: Boolean(tier), tier });
+
+    const cashfreeOrder = await getCashfreeOrder(cashfreeOrderId);
+    if (cashfreeOrder.order_status !== 'PAID') {
+        throw httpError(402, 'Cashfree payment has not been completed');
+    }
+    if (Math.abs(Number(cashfreeOrder.order_amount) - pricing.totalPrice) > 0.01) {
+        throw httpError(409, 'The amount paid does not match the order total. Please contact support.');
+    }
+    const paymentId = String(cashfreeOrder.cf_order_id || cashfreeOrderId);
+
+    // Prevent duplicate orders for the same completed payment
+    // (protects against double-submit / client retries).
+    const existingOrder = await Order.findOne({ 'paymentInfo.id': paymentId }).select('_id totalPrice estimatedDeliveryDate');
+    if (existingOrder) return { order: existingOrder, deduped: true };
+
+    const estimatedDeliveryDate = estimateDeliveryDate();
+    const orderId = generateId();
+
+    // Take the stock that was held when the customer started paying. If the
+    // hold expired meanwhile, take it now; if it has gone, the order is
+    // still created (the customer has paid) and flagged for admin review.
+    const stock = await inventory.commitForOrder({
+        cashfreeOrderId,
+        orderId,
+        items: pricing.orderItems,
+    });
+    if (stock.shortfall) {
+        logger.error({ orderId, payment: paymentId, reason: stock.message },
+            'order paid but stock ran out — needs admin review');
+    }
+
+    let order;
+    try {
+        order = await Order.create({
+            _id: orderId,
+            shippingInfo,
+            orderItems: pricing.orderItems,
+            paymentInfo: { id: paymentId, status: 'PAID', provider },
+            itemsPrice: pricing.itemsPrice,
+            taxPrice: pricing.taxPrice,
+            shippingPrice: pricing.shippingPrice,
+            totalPrice: pricing.totalPrice,
+            discountedAmount: pricing.discount,
+            paidAt: Date.now(),
+            ...(owner.guest ? { user: null, guest: owner.guest } : { user: owner.userId }),
+            couponUsed: Boolean(pricing.coupon),
+            couponCode: pricing.coupon ? pricing.coupon.code : undefined,
+            estimatedDeliveryDate,
+            memberTier: tier || null,
+            stockCommittedAt: stock.committed ? new Date() : null,
+            stockShortfall: stock.shortfall,
+        });
+    } catch (error) {
+        // Don't keep stock for an order that doesn't exist.
+        if (stock.committed) await inventory.restoreStock(pricing.orderItems).catch(() => {});
+        throw error;
+    }
+    return { order, deduped: false, estimatedDeliveryDate };
+};
 
 // create new order
 // Prices, totals and the coupon discount are all recomputed on the server and
@@ -86,75 +164,18 @@ exports.newOrder = async (req, res, next) => {
         const tier = hold
             ? (hold.memberTier || (hold.memberFreeShipping ? 'plus' : null))
             : await getMembershipTier(req.user._id);
-        const freeShipping = Boolean(tier);
 
-        // Stock isn't checked here: it was held for this payment at checkout
-        // (and may now read 0 because this customer holds the last unit).
-        const pricing = await priceOrder(orderItems, couponCode, { checkStock: false, freeShipping, tier });
-
-        const cashfreeOrder = await getCashfreeOrder(paymentInfo.id);
-        if (cashfreeOrder.order_status !== 'PAID') {
-            return res.status(402).json({
-                success: false,
-                message: 'Cashfree payment has not been completed',
-            });
-        }
-        if (Math.abs(Number(cashfreeOrder.order_amount) - pricing.totalPrice) > 0.01) {
-            return res.status(409).json({
-                success: false,
-                message: 'The amount paid does not match the order total. Please contact support.',
-            });
-        }
-        const paymentId = String(cashfreeOrder.cf_order_id || paymentInfo.id);
-
-        // Prevent duplicate orders for the same completed payment
-        // (protects against double-submit / client retries).
-        const existingOrder = await Order.findOne({ 'paymentInfo.id': paymentId }).select('_id');
-        if (existingOrder) {
-            return res.status(200).json({ success: true, order: existingOrder, deduped: true });
-        }
-
-        const estimatedDeliveryDate = estimateDeliveryDate();
-        const orderId = generateId();
-
-        // Take the stock that was held when the customer started paying. If the
-        // hold expired meanwhile, take it now; if it has gone, the order is
-        // still created (the customer has paid) and flagged for admin review.
-        const stock = await inventory.commitForOrder({
+        const { order, deduped, estimatedDeliveryDate } = await placePaidOrder({
             cashfreeOrderId: paymentInfo.id,
-            orderId,
-            items: pricing.orderItems,
+            provider,
+            orderItems,
+            couponCode,
+            shippingInfo,
+            tier,
+            owner: { userId: req.user._id },
         });
-        if (stock.shortfall) {
-            logger.error({ orderId, payment: paymentId, reason: stock.message },
-                'order paid but stock ran out — needs admin review');
-        }
-
-        let order;
-        try {
-            order = await Order.create({
-                _id: orderId,
-                shippingInfo,
-                orderItems: pricing.orderItems,
-                paymentInfo: { id: paymentId, status: 'PAID', provider },
-                itemsPrice: pricing.itemsPrice,
-                taxPrice: pricing.taxPrice,
-                shippingPrice: pricing.shippingPrice,
-                totalPrice: pricing.totalPrice,
-                discountedAmount: pricing.discount,
-                paidAt: Date.now(),
-                user: req.user._id,
-                couponUsed: Boolean(pricing.coupon),
-                couponCode: pricing.coupon ? pricing.coupon.code : undefined,
-                estimatedDeliveryDate,
-                memberTier: tier || null,
-                stockCommittedAt: stock.committed ? new Date() : null,
-                stockShortfall: stock.shortfall,
-            });
-        } catch (error) {
-            // Don't keep stock for an order that doesn't exist.
-            if (stock.committed) await inventory.restoreStock(pricing.orderItems).catch(() => {});
-            throw error;
+        if (deduped) {
+            return res.status(200).json({ success: true, order, deduped: true });
         }
 
         await invalidateOrderCaches(order._id, req.user._id);
@@ -203,6 +224,76 @@ exports.newOrder = async (req, res, next) => {
     }
 };
 
+// POST /api/v1/order/guest/new   (X-Guest-Token header from the guest checkout)
+// Places a paid guest order. The guest's contact details come from the
+// signed checkout token, not the request body, so they match what Cashfree
+// was told at payment time. Answers with a tracking token for the order.
+exports.newGuestOrder = async (req, res) => {
+    try {
+        const checkout = guestOrders.readGuestCheckoutToken(req.get('x-guest-token'));
+        const { shippingInfo, orderItems, paymentInfo, couponCode } = req.body || {};
+        if (!checkout) {
+            return res.status(403).json({ success: false, message: 'Your checkout has expired. Please contact support with your payment details if you were charged.' });
+        }
+        if (paymentInfo?.provider !== 'cashfree' || paymentInfo?.id !== checkout.cashfreeOrderId
+            || !guestOrders.isGuestPaymentId(paymentInfo.id)) {
+            return res.status(403).json({ success: false, message: 'You cannot use this payment for the order' });
+        }
+        const hold = await inventory.getHold(paymentInfo.id);
+        if (hold && String(hold.user) !== guestOrders.holdOwnerFor(paymentInfo.id)) {
+            return res.status(403).json({ success: false, message: 'You cannot use this payment for the order' });
+        }
+
+        const { order, deduped, estimatedDeliveryDate } = await placePaidOrder({
+            cashfreeOrderId: paymentInfo.id,
+            provider: 'cashfree',
+            orderItems,
+            couponCode,
+            shippingInfo,
+            tier: null,
+            owner: { guest: checkout.guest },
+        });
+
+        const reply = {
+            success: true,
+            order: { _id: order._id, totalPrice: order.totalPrice, estimatedDeliveryDate: order.estimatedDeliveryDate },
+            trackingToken: signOrderViewToken(order._id),
+            email: checkout.guest.email,
+            ...(deduped && { deduped: true }),
+        };
+        if (deduped) return res.status(200).json(reply);
+
+        await invalidateOrderCaches(order._id, null);
+
+        const buyer = { name: checkout.guest.name, email: checkout.guest.email };
+        const emailMessage = await ejs.renderFile(
+            path.join(__dirname, '../mails/order-confirmation.ejs'),
+            {
+                order,
+                user: buyer,
+                status: 'placed',
+                estimatedDeliveryDate: estimatedDeliveryDate.toDateString(),
+                orderLink: trackingLink(order._id),
+            }
+        );
+        sendOrderConfirmationWithInvoice({
+            order,
+            user: buyer,
+            sender: 'support',
+            subject: 'Your Order📦 has been placed successfully',
+            html: emailMessage,
+        });
+
+        res.status(200).json(reply);
+    } catch (error) {
+        logger.error({ err: error }, 'Guest order creation failed');
+        res.status(error.statusCode || 500).json({
+            success: false,
+            message: error.statusCode ? error.message : 'Could not place the order',
+        });
+    }
+};
+
 // get single order
 exports.getSingleOrder = async (req, res, next) => {
     let order;
@@ -215,6 +306,13 @@ exports.getSingleOrder = async (req, res, next) => {
             'name email'
         ).lean();
         if (order) await cache.setJSON(cacheKey, order, 600);
+    }
+
+    // A guest order for this account's verified email: claim it, then show it.
+    if (order && !order.user && order.guest?.email && req.user?.isEmailVerified
+        && order.guest.email === String(req.user.email || '').toLowerCase()) {
+        await guestOrders.claimGuestOrders(req.user);
+        order = { ...order, user: { _id: req.user._id, name: req.user.name, email: req.user.email } };
     }
 
     // Return 404 (not 403) for other users' orders so ids can't be probed.
@@ -240,6 +338,10 @@ exports.getSingleOrder = async (req, res, next) => {
 
 // get logged in user order
 exports.myOrders = async (req, res, next) => {
+    // Guest orders placed with this (verified) email join the account first.
+    await guestOrders.claimGuestOrders(req.user).catch(error =>
+        logger.error({ err: error.message, userId: req.user._id }, 'claiming guest orders failed'));
+
     let orders;
     const cacheKey = `orders:${req.user._id}`;
 
@@ -382,7 +484,10 @@ exports.updateOrder = async (req, res, next) => {
         await invalidateOrderCaches(orderId, order.user);
 
         // Notify the customer who placed the order (not the admin making the change).
-        const orderOwner = await User.findById(order.user);
+        // Notify the customer who placed the order (not the admin making the change):
+        // the account holder, or the guest's email for a guest order.
+        const orderOwner = order.user ? await User.findById(order.user) : null;
+        const recipient = orderContact(order, orderOwner);
         if (orderOwner) {
             sendPushNotification(
                 orderOwner.pushToken,
@@ -390,19 +495,21 @@ exports.updateOrder = async (req, res, next) => {
                 `Your order is now ${order.orderStatus}.`,
                 { orderId: order._id, type: 'order-status' }
             ).catch(() => {});
-
+        }
+        if (recipient?.email) {
             const emailMessage = await ejs.renderFile(
                 path.join(__dirname, '../mails/order-confirmation.ejs'),
                 {
                     order,
-                    user: orderOwner,
+                    user: orderOwner || { name: recipient.name, email: recipient.email },
                     status: order.orderStatus,
                     estimatedDeliveryDate: estimatedDeliveryDate ? estimatedDeliveryDate.toDateString() : '',
-                    orderLink: `${process.env.BACKEND_URL}/go/order/${order._id}`
+                    // Guests have no account page: their link opens tracking.
+                    orderLink: orderOwner ? `${process.env.BACKEND_URL}/go/order/${order._id}` : trackingLink(order._id)
                 }
             );
             sendEmailInBackground({
-                email: orderOwner.email,
+                email: recipient.email,
                 sender: "support",
                 subject: `Your Order📦 Status Update: ${order.orderStatus}`,
                 html: emailMessage

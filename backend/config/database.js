@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const dotenv = require("dotenv");
 const Banner = require('../models/banner');
+const StockAlert = require('../models/stockAlert');
 const generateId = require('../utils/generateId');
 
 async function seedDefaultBanner() {
@@ -24,6 +25,25 @@ async function seedDefaultBanner() {
     }
 }
 
+// Back-in-stock requests used to be unique per user and product. That index
+// blocks waiting for two variants of one product, and guest requests (no
+// user), so drop it once; the model creates the new one.
+async function upgradeStockAlertIndexes() {
+    try {
+        const indexes = await StockAlert.collection.indexes();
+        if (indexes.some(index => index.name === StockAlert.LEGACY_INDEX)) {
+            await StockAlert.collection.dropIndex(StockAlert.LEGACY_INDEX);
+            console.log(`🔧 Dropped legacy stock alert index ${StockAlert.LEGACY_INDEX}`);
+        }
+        await StockAlert.createIndexes();
+    } catch (error) {
+        // A fresh database has no collection yet: nothing to upgrade.
+        if (error.codeName !== 'NamespaceNotFound') {
+            console.error('Stock alert index upgrade skipped:', error.message);
+        }
+    }
+}
+
 const MAX_RETRIES = Number(process.env.DB_CONNECT_RETRIES) || 5;
 const RETRY_BASE_MS = 2000;
 
@@ -42,6 +62,7 @@ async function connectWithRetry(attempt = 1) {
         });
         console.log(`🚀 MongoDB connected with server: ${data.connection.host}`);
         seedDefaultBanner();
+        upgradeStockAlertIndexes();
     } catch (err) {
         console.error(`MongoDB connection attempt ${attempt}/${MAX_RETRIES} failed: ${err.message}`);
         if (attempt >= MAX_RETRIES) {

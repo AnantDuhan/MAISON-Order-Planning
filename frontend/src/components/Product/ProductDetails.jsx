@@ -108,9 +108,12 @@ const ProductDetails = () => {
   };
 
   // Single-value options, and the first colour in stock, start selected.
+  // A restock email links to ?variant=<id>: open on that option.
+  const linkedVariant = searchParams.get("variant");
   useEffect(() => {
     if (!product?._id) return;
-    setSelection(defaultSelection(product));
+    const linked = linkedVariant && (product.variants || []).find((v) => v._id === linkedVariant);
+    setSelection(linked?.options ? { ...linked.options } : defaultSelection(product));
     setQuantity(1);
     setMissing([]);
   }, [product?._id]);
@@ -406,7 +409,14 @@ const ProductDetails = () => {
                     primaryAction("min-h-[52px] flex-1")
                   ) : showNotify ? (
                     <div className="flex-1">
-                      <BackInStockButton productId={product._id} isAuthenticated={Boolean(user)} />
+                      <BackInStockButton
+                        productId={product._id}
+                        productName={product.name}
+                        variantId={selectedVariant?._id || null}
+                        variantLabel={selectedVariant ? Object.values(selection).filter(Boolean).join(" / ") : ""}
+                        needsVariant={hasOptions && !selectedVariant}
+                        isAuthenticated={Boolean(user)}
+                      />
                     </div>
                   ) : (
                     <span className="flex min-h-[52px] flex-1 items-center justify-center border border-line font-sans text-[0.72rem] uppercase tracking-luxe text-ink-faint">

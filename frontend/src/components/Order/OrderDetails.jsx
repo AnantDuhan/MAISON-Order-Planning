@@ -7,6 +7,7 @@ import { joinSocketRoom, leaveSocketRoom } from '../../utils/socket';
 
 import { clearErrors, getOrderDetails, returnRequest, reorder } from '../../actions/orderAction';
 import TrackingTimeline from './TrackingTimeline';
+import DeliveryProgress from './DeliveryProgress';
 import OrderItemsList, { inr } from './OrderItemsList';
 import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
 import ReplayIcon from '@mui/icons-material/Replay';
@@ -22,8 +23,6 @@ import { countryName, stateName } from '../../utils/indiaRegions';
 const formatDate = value => (value
     ? new Date(value).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
     : '');
-
-const formatShortDate = value => new Date(value).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
 
 const OrderDetails = ({ startReturn = false }) => {
     const { order, error, loading } = useSelector(state => state.orderDetails);
@@ -114,16 +113,6 @@ const OrderDetails = ({ startReturn = false }) => {
     const isDelivered = order?.orderStatus === 'Delivered';
     const placedAt = order?.createdAt || order?.paidAt;
     const itemCount = (order?.orderItems || []).reduce((n, item) => n + (item.quantity || 0), 0);
-    const shippedAt = order?.shipment?.shippedAt
-        || order?.shipment?.events?.find(event => event.status === 'Shipped')?.at;
-    const isShipped = ['Shipped', 'Delivered'].includes(order?.orderStatus);
-
-    const steps = [
-        { label: 'Placed', done: Boolean(order?._id), date: placedAt },
-        { label: 'Shipped', done: isShipped, date: shippedAt },
-        { label: 'Delivered', done: isDelivered, date: order?.DeliveredAt },
-    ];
-
     const stage = returnStage(order);
     const statusLabel = stage ? RETURN_STATUS_LABEL[stage.key] : order?.orderStatus || '';
     const statusTone = stage?.declined
@@ -133,21 +122,6 @@ const OrderDetails = ({ startReturn = false }) => {
             : isDelivered
                 ? { badge: 'border-success/40 text-success', dot: 'bg-success' }
                 : { badge: 'border-brass/40 text-brass', dot: 'bg-brass' };
-
-    const lastEvent = order?.shipment?.lastStatus;
-    const progressHeadline = order?.isRefunded ? 'This order was refunded'
-        : isDelivered ? `Delivered ${formatDate(order?.DeliveredAt)}`
-            : lastEvent && lastEvent !== 'Shipped' ? lastEvent
-                : isShipped ? 'On its way to you'
-                    : 'We’re preparing your order';
-    // An estimate in the past on an undelivered order is a late order: say so.
-    const isLate = !isDelivered && !order?.isRefunded && order?.estimatedDeliveryDate
-        && new Date(order.estimatedDeliveryDate).setHours(23, 59, 59, 999) < Date.now();
-    const progressDetail = !isDelivered && !order?.isRefunded && order?.estimatedDeliveryDate
-        ? isLate
-            ? `Running late — it was expected by ${formatDate(order.estimatedDeliveryDate)}. Sorry for the wait.`
-            : `Expected by ${formatDate(order.estimatedDeliveryDate)}`
-        : null;
 
     const paymentMethod = order?.paymentInfo?.provider === 'wallet'
         ? 'with store credit'
@@ -218,40 +192,7 @@ const OrderDetails = ({ startReturn = false }) => {
                             {/* Main column */}
                             <div className='space-y-12'>
                                 {/* Progress */}
-                                <section aria-label='Delivery progress' className='border border-line bg-surface p-6 sm:p-8'>
-                                    <p className='font-display text-2xl text-ink'>{progressHeadline}</p>
-                                    {progressDetail && (
-                                        <p className={`mt-1 font-sans text-sm ${isLate ? 'text-brass' : 'text-ink-soft'}`}>{progressDetail}</p>
-                                    )}
-                                    {isLate && (
-                                        <Link to='/contact-us' className='mt-2 inline-block font-sans text-sm text-ink-soft underline-offset-4 hover:text-brass hover:underline'>
-                                            Ask us about this order
-                                        </Link>
-                                    )}
-                                    <ol className='mt-8 grid grid-cols-3'>
-                                        {steps.map((step, index) => (
-                                            <li key={step.label} className='relative'>
-                                                {index > 0 && (
-                                                    <span
-                                                        aria-hidden='true'
-                                                        className={`absolute right-1/2 top-[7px] h-px w-full ${step.done ? 'bg-brass' : 'bg-line'}`}
-                                                    />
-                                                )}
-                                                <div className='relative flex flex-col items-center text-center'>
-                                                    <span
-                                                        className={`h-[15px] w-[15px] rounded-full border-2 ${step.done ? 'border-brass bg-brass' : 'border-line bg-surface'}`}
-                                                    />
-                                                    <span className={`mt-3 font-sans text-sm ${step.done ? 'text-ink' : 'text-ink-faint'}`}>
-                                                        {step.label}
-                                                    </span>
-                                                    <span className='mt-1 font-sans text-xs text-ink-faint'>
-                                                        {step.date ? formatShortDate(step.date) : '\u00a0'}
-                                                    </span>
-                                                </div>
-                                            </li>
-                                        ))}
-                                    </ol>
-                                </section>
+                                <DeliveryProgress order={order} />
 
                                 {/* Returns: the way in after delivery, then the return's progress */}
                                 <ReturnEligibility order={order} returnsOn={returnsOn} onStart={() => setReturnOpen(true)} />

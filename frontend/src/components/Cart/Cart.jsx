@@ -36,7 +36,8 @@ const Cart = () => {
     }, [isAuthenticated, cartItems.length, dispatch]);
 
     const checkOutHandler = () => {
-        if (!isAuthenticated) navigate('/login');
+        // Signed out: choose guest checkout or signing in.
+        if (!isAuthenticated) navigate('/checkout');
         else navigate('/shipping');
     };
 

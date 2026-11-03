@@ -1,4 +1,4 @@
-import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlineOutlined';
 import FingerprintIcon from '@mui/icons-material/Fingerprint';
 import React, { useEffect, useState } from 'react';
 import { toast } from 'react-toastify';

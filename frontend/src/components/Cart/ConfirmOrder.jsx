@@ -10,10 +10,13 @@ import { formatINR } from '../../utils/priceLabel';
 import { shippingFor } from '../../utils/delivery';
 import { useIsMember } from '../../utils/useIsMember';
 import { formatAddress } from '../../utils/indiaRegions';
+import { getGuestContact, useCheckoutAccess } from '../../utils/guestCheckout';
 
 const ConfirmOrder = () => {
     const { shippingInfo, cartItems } = useSelector(state => state.cart);
     const { user } = useSelector(state => state.user);
+    const { ready, isGuest } = useCheckoutAccess();
+    const guestContact = isGuest ? getGuestContact() : null;
     // The API lists only coupons still running; this also drops any that
     // ran out while the page was open.
     const coupons = (useSelector(state => state.coupon?.coupons) || [])
@@ -44,12 +47,14 @@ const ConfirmOrder = () => {
         dispatch(getAllCoupons());
     }, [dispatch]);
 
-    // Nothing to review without items or an address (direct visit, new tab).
-    const missing = !cartItems?.length ? '/cart' : !shippingInfo?.address ? '/shipping' : null;
+    // Nothing to review without items, an address or (guests) contact details.
+    const missing = !cartItems?.length ? '/cart'
+        : !shippingInfo?.address || (isGuest && !guestContact?.email) ? '/shipping'
+            : null;
     useEffect(() => {
-        if (missing) navigate(missing, { replace: true });
-    }, [missing, navigate]);
-    if (missing) return null;
+        if (ready && missing) navigate(missing, { replace: true });
+    }, [ready, missing, navigate]);
+    if (!ready || missing) return null;
 
     return (
         <Fragment>
@@ -65,8 +70,14 @@ const ConfirmOrder = () => {
                             <div className='mt-5 space-y-3 border border-line bg-surface p-6'>
                                 <div className='flex justify-between'>
                                     <span className='font-sans text-sm text-ink-faint'>Name</span>
-                                    <span className='font-sans text-sm text-ink'>{user?.name}</span>
+                                    <span className='font-sans text-sm text-ink'>{isGuest ? guestContact?.name : user?.name}</span>
                                 </div>
+                                {isGuest && (
+                                    <div className='flex justify-between gap-8'>
+                                        <span className='font-sans text-sm text-ink-faint'>Email</span>
+                                        <span className='break-all text-right font-sans text-sm text-ink'>{guestContact?.email}</span>
+                                    </div>
+                                )}
                                 <div className='flex justify-between'>
                                     <span className='font-sans text-sm text-ink-faint'>Phone</span>
                                     <span className='font-sans text-sm text-ink'>+91 {shippingInfo.phoneNumber}</span>
