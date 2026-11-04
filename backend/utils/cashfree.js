@@ -4,7 +4,8 @@ const CASHFREE_API_VERSION = '2025-01-01';
 const CASHFREE_TIMEOUT_MS = Number(process.env.CASHFREE_TIMEOUT_MS) || 15000;
 
 const getCashfreeBaseUrl = () =>
-    process.env.CASHFREE_ENVIRONMENT === 'production'
+    // Any case: "production" and "PRODUCTION" both mean the live API.
+    String(process.env.CASHFREE_ENVIRONMENT || '').trim().toLowerCase() === 'production'
         ? 'https://api.cashfree.com/pg'
         : 'https://sandbox.cashfree.com/pg';
 

@@ -3,7 +3,7 @@
  *
  * Prices come from env (see utils/membershipPlans.js):
  *   CASHFREE_ESSENTIAL_YEARLY_AMOUNT   Essential, per year
- *   CASHFREE_PLUS_YEARLY_AMOUNT       Plus, per month
+ *   CASHFREE_PLUS_MONTHLY_AMOUNT       Plus, per month
  *   CASHFREE_PLUS_YEARLY_AMOUNT        Plus, per year
  * Each plan id carries its price (maison-plus-monthly-249), so a new price
  * is a new plan; existing members stay on the plan they joined.
@@ -28,7 +28,7 @@ const { ensurePlan, isMissingPlan } = require('../utils/cashfreePlans');
 
 const run = async () => {
     const apply = process.argv.includes('--apply');
-    const environment = process.env.CASHFREE_ENVIRONMENT === 'production' ? 'PRODUCTION' : 'sandbox';
+    const environment = String(process.env.CASHFREE_ENVIRONMENT || '').trim().toLowerCase() === 'production' ? 'PRODUCTION' : 'sandbox';
     console.log(`Cashfree ${environment} · ${apply ? 'creating missing plans' : 'check only (add --apply to create)'}\n`);
 
     let missing = 0;

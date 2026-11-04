@@ -8,7 +8,6 @@ import MainHeader from "./components/layout/Header/MainHeader";
 import Footer from "./components/layout/Footer/Footer";
 import store from "./store";
 
-import "./App.css";
 import BackendWaker from "./components/layout/Server-Health/BackendWaker";
 import ErrorBoundary from "./components/layout/ErrorBoundary";
 import Loader from "./components/layout/Loader/Loader";

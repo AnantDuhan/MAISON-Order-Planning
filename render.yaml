@@ -104,7 +104,7 @@ projects:
       # changing them, run `npm run cashfree:plans -- --apply` in backend/.
       - key: CASHFREE_ESSENTIAL_YEARLY_AMOUNT
         sync: false
-      - key: CASHFREE_PLUS_YEARLY_AMOUNT
+      - key: CASHFREE_PLUS_MONTHLY_AMOUNT
         sync: false
       - key: CASHFREE_PLUS_YEARLY_AMOUNT
         sync: false

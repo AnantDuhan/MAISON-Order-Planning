@@ -1,7 +1,9 @@
 // The Cashfree SDK is only needed on the payment and membership pages, so it
 // loads there (on first visit to either) instead of on every page of the shop.
 const SDK_URL = 'https://sdk.cashfree.com/js/v3/cashfree.js';
-const MODE = import.meta.env.REACT_APP_CASHFREE_MODE || 'sandbox';
+// Must match the backend's CASHFREE_ENVIRONMENT (production or sandbox), or
+// checkout opens the wrong Cashfree environment. Any case is accepted.
+const MODE = String(import.meta.env.REACT_APP_CASHFREE_MODE || '').trim().toLowerCase() === 'production' ? 'production' : 'sandbox';
 export const CASHFREE_MODE = MODE;
 
 let pending = null;

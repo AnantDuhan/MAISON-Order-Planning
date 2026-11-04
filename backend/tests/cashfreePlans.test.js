@@ -18,7 +18,7 @@ const freshPlans = env => {
 };
 
 test('prices come from env, and the plan id carries the price', () => {
-    const { PLANS } = freshPlans({ CASHFREE_ESSENTIAL_YEARLY_AMOUNT: '699', CASHFREE_PLUS_YEARLY_AMOUNT: ' 249 ', CASHFREE_PLUS_YEARLY_AMOUNT: '2199' });
+    const { PLANS } = freshPlans({ CASHFREE_ESSENTIAL_YEARLY_AMOUNT: '699', CASHFREE_PLUS_MONTHLY_AMOUNT: ' 249 ', CASHFREE_PLUS_YEARLY_AMOUNT: '2199' });
     assert.deepEqual(Object.values(PLANS).map(p => [p.planId, p.amount]), [
         ['maison-essential-yearly-699', 699],
         ['maison-plus-monthly-249', 249],
@@ -29,7 +29,7 @@ test('prices come from env, and the plan id carries the price', () => {
 test('a mistyped price falls back to the default instead of becoming NaN', () => {
     const errors = []; const original = console.error; console.error = m => errors.push(m);
     try {
-        const { PLANS } = freshPlans({ CASHFREE_ESSENTIAL_YEARLY_AMOUNT: '₹699', CASHFREE_PLUS_YEARLY_AMOUNT: '249.5', CASHFREE_PLUS_YEARLY_AMOUNT: '' });
+        const { PLANS } = freshPlans({ CASHFREE_ESSENTIAL_YEARLY_AMOUNT: '₹699', CASHFREE_PLUS_MONTHLY_AMOUNT: '249.5', CASHFREE_PLUS_YEARLY_AMOUNT: '' });
         assert.deepEqual(Object.values(PLANS).map(p => p.planId), ['maison-essential-yearly-600', 'maison-plus-monthly-199', 'maison-plus-yearly-1799']);
         assert.equal(errors.length, 2);
     } finally { console.error = original; }
@@ -38,9 +38,9 @@ test('a mistyped price falls back to the default instead of becoming NaN', () =>
 test('the old env names are reported, not silently ignored', () => {
     const warnings = []; const original = console.warn; console.warn = m => warnings.push(m);
     try {
-        freshPlans({ CASHFREE_PLUS_MONTHLY_AMOUNT: '249', CASHFREE_PLUS_YEARLY_AMOUNT: '2199' });
+        freshPlans({ CASHFREE_MONTHLY_AMOUNT: '249', CASHFREE_YEARLY_AMOUNT: '2199' });
         assert.equal(warnings.length, 2);
-        assert.match(warnings[0], /CASHFREE_PLUS_YEARLY_AMOUNT/);
+        assert.match(warnings[0], /CASHFREE_PLUS_MONTHLY_AMOUNT/);
     } finally { console.warn = original; }
 });
 
