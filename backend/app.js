@@ -115,6 +115,7 @@ app.use((req, res, next) => {
 const s3 = require("./config/s3"); // shared with the user controller
 
 const sharp = require("sharp");
+const imageVariants = require("./utils/imageVariants");
 
 const IMAGE_TYPES = ["image/png", "image/jpg", "image/jpeg", "image/webp"];
 
@@ -170,19 +171,33 @@ const uploadProductImages = async (productId, files = []) => {
     while (next < files.length) {
       const i = next++;
       const file = files[i];
-      const { buffer, mimetype, ext } = await compressImage(file);
       let safeName = file.originalname.replace(/[^\w.-]/g, "_");
-      if (ext) safeName = safeName.replace(/\.[^.]+$/, "") + `.${ext}`;
+      // The 1600px WebP plus smaller copies for srcset (utils/imageVariants.js).
+      let rendered = null;
+      try {
+        rendered = await imageVariants.renderSizes(file.buffer);
+        safeName = safeName.replace(/\.[^.]+$/, "") + ".webp";
+      } catch (err) {
+        console.error("⚠️ Image compression failed, uploading original:", err.message);
+      }
       const key = `products/${productId}/${Date.now()}-${i}-${safeName}`;
-      await s3.send(new PutObjectCommand({
+      const put = (Key, Body, ContentType) => s3.send(new PutObjectCommand({
         Bucket: process.env.AWS_BUCKET_NAME,
-        Key: key,
-        Body: buffer,
-        ContentType: mimetype,
+        Key,
+        Body,
+        ContentType,
         // Filenames are unique per upload, so images can be cached forever.
         CacheControl: "public, max-age=31536000, immutable",
       }));
-      images[i] = { _id: generateId(), url: `https://${bucketHost()}/${key}` };
+      await put(key, rendered ? rendered.main : file.buffer, rendered ? "image/webp" : file.mimetype);
+      const widths = [];
+      for (const copy of rendered?.copies || []) {
+        await put(imageVariants.withWidth(key, copy.width), copy.buffer, "image/webp");
+        widths.push(copy.width);
+      }
+      // widths: [] when the photo is too small for copies, so the backfill
+      // script skips it. Left out when sharp couldn't read it, so it can retry.
+      images[i] = { _id: generateId(), url: `https://${bucketHost()}/${key}`, ...(rendered && { widths }) };
     }
   };
   await Promise.all(Array.from({ length: Math.min(UPLOAD_CONCURRENCY, files.length) }, worker));
@@ -202,9 +217,9 @@ const getImageKeyFromUrl = imageUrl => {
 
 // Best-effort cleanup. DeleteObjects rejects an empty list, so skip it then.
 const deleteImages = async (images = []) => {
+  // Each image's main file and its smaller copies.
   const objects = images
-    .map(image => getImageKeyFromUrl(image.url))
-    .filter(Boolean)
+    .flatMap(image => imageVariants.keysForImage(getImageKeyFromUrl(image.url), image.widths))
     .map(Key => ({ Key }));
   if (!objects.length) return;
   try {
@@ -221,6 +236,11 @@ const pickProductFields = body => {
   const fields = {};
   for (const key of ["name", "description", "price", "category", "Stock", "lowStockThreshold", "metaTitle", "metaDescription"]) {
     if (body[key] !== undefined && body[key] !== "") fields[key] = body[key];
+  }
+  // Cost price (admin only): a number, or "" to clear it.
+  if (body.costPrice !== undefined) {
+    const cost = body.costPrice === "" || body.costPrice === null ? null : Number(body.costPrice);
+    if (cost === null || (Number.isFinite(cost) && cost >= 0)) fields.costPrice = cost;
   }
   // Maison Plus early access: "start" opens a 48-hour Plus-only window from
   // now; "end" opens the product to everyone.
@@ -300,6 +320,7 @@ const auditRoute = require("./routes/audit");
 const featuresRoute = require("./routes/features");
 const aiRoute = require("./routes/ai");
 const categoryRoute = require("./routes/category");
+const vitalsRoute = require("./routes/vitals");
 const inventory = require("./services/inventoryService");
 const { auditAdminWrites, snapshot } = require("./middleware/audit");
 const { buildVariantFields, cleanImageColors, parseTags } = require("./utils/productVariants");
@@ -343,6 +364,7 @@ app.use("/api/v1", auditRoute);
 app.use("/api/v1", featuresRoute);
 app.use("/api/v1", aiRoute);
 app.use("/api/v1", categoryRoute);
+app.use("/api/v1", vitalsRoute);
 app.use(redirectRoute);
 app.use(seoRoute); // /sitemap.xml
 
@@ -422,6 +444,18 @@ adminProducts.post("/admin/add-product", adminOnly, acceptProductPhotos, async (
       message: status === 400 ? error.message : "Could not create product",
     });
   }
+});
+
+// Cost prices for the edit form. The form loads the public product, which
+// never includes them (they're admin-only).
+adminProducts.get("/admin/product/:id/costs", adminOnly, async (req, res) => {
+  const product = await Product.findById(req.params.id).select("costPrice variants._id variants.costPrice").lean();
+  if (!product) return res.status(404).json({ success: false, message: "Product not found" });
+  res.status(200).json({
+    success: true,
+    costPrice: product.costPrice ?? null,
+    variants: (product.variants || []).map(v => ({ _id: v._id, costPrice: v.costPrice ?? null })),
+  });
 });
 
 adminProducts.put("/admin/product/:id", adminOnly, acceptProductPhotos, async (req, res) => {

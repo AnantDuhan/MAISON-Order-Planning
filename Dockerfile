@@ -8,6 +8,9 @@
 FROM node:22-alpine AS frontend
 WORKDIR /app/frontend
 
+# Same npm major as the lockfiles are written with (npm 11). node:22 ships
+# npm 10, whose `npm ci` rejects npm 11 lockfiles ("Missing … from lock file").
+RUN npm install -g npm@11 --no-audit --no-fund
 COPY frontend/package*.json ./
 RUN npm ci
 
@@ -27,6 +30,7 @@ RUN npm run build
 FROM node:22-alpine
 WORKDIR /app
 
+RUN npm install -g npm@11 --no-audit --no-fund
 COPY backend/package*.json ./backend/
 RUN cd backend && npm ci --omit=dev
 

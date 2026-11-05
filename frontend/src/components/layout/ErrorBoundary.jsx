@@ -19,7 +19,7 @@ class ErrorBoundary extends React.Component {
 
     componentDidCatch(error, errorInfo) {
         // Keep the detail in the console for debugging; swap for a reporting
-        // service (Sentry et al) when one is wired up.
+        // service if one is ever added.
         console.error('Uncaught render error:', error, errorInfo);
     }
 

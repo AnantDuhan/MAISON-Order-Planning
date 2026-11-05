@@ -113,6 +113,7 @@ const normalizeVariants = (raw, options, existing = []) => {
     if (list.length > MAX_VARIANTS) throw new VariantError(`At most ${MAX_VARIANTS} variants per product`);
 
     const known = new Set((existing || []).map(v => String(v._id)));
+    const existingById = new Map((existing || []).map(v => [String(v._id), v]));
     const keys = new Set();
     const skus = new Set();
 
@@ -135,6 +136,13 @@ const normalizeVariants = (raw, options, existing = []) => {
         const price = rawPrice === '' || rawPrice == null ? null : Number(rawPrice);
         if (price !== null && !(price > 0)) throw new VariantError(`Variant ${Object.values(selection).join(' / ')}: price must be positive or left empty`);
 
+        // Not sent at all (a form that never loaded costs): keep the saved one.
+        const rawCost = variant?.costPrice;
+        const saved = variant?._id ? existingById.get(String(variant._id)) : null;
+        const costPrice = rawCost === undefined ? (saved?.costPrice ?? null)
+            : rawCost === '' || rawCost === null ? null : Number(rawCost);
+        if (costPrice !== null && !(costPrice >= 0)) throw new VariantError(`Variant ${Object.values(selection).join(' / ')}: cost price must be 0 or more, or left empty`);
+
         const sku = clean(variant?.sku, 40);
         if (sku) {
             if (skus.has(sku.toLowerCase())) throw new VariantError(`SKU "${sku}" is used twice`);
@@ -143,7 +151,7 @@ const normalizeVariants = (raw, options, existing = []) => {
 
         // Keep ids of variants that already exist, so carts/holds pointing at them stay valid.
         const id = variant?._id && known.has(String(variant._id)) ? String(variant._id) : generateId();
-        return { _id: id, options: selection, price, Stock: stock, sku: sku || undefined, active: variant?.active !== false };
+        return { _id: id, options: selection, price, costPrice, Stock: stock, sku: sku || undefined, active: variant?.active !== false };
     });
 };
 

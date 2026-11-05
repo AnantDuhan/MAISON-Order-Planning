@@ -1,7 +1,7 @@
 const pino = require('pino');
 
 // Structured logger. In development it pretty-prints; in production it emits
-// JSON lines suitable for aggregation (Grafana Loki, Sentry, etc.). Replace
+// JSON lines suitable for log aggregation (Render logs, Grafana Loki…). Replace
 // ad-hoc console.log calls with logger.info / logger.error over time.
 const isProd = process.env.NODE_ENV === 'production';
 

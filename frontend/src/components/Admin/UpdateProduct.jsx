@@ -1,4 +1,5 @@
-import React, { Fragment, useEffect, useState } from 'react';
+import React, { Fragment, useEffect, useRef, useState } from 'react';
+import axios from 'axios';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
@@ -26,6 +27,11 @@ const UpdateProduct = () => {
 
     const [name, setName] = useState('');
     const [price, setPrice] = useState(0);
+    // Cost prices aren't in the public product: fetched separately. Until they
+    // arrive nothing about cost is sent, so saving never wipes them.
+    const [costPrice, setCostPrice] = useState('');
+    const [costsLoaded, setCostsLoaded] = useState(false);
+    const variantCosts = useRef(null);
     const [description, setDescription] = useState('');
     const [category, setCategory] = useState('');
     const [earlyAccess, setEarlyAccess] = useState(''); // '' unchanged · 'start' · 'end'
@@ -62,7 +68,11 @@ const UpdateProduct = () => {
             setStock(product.Stock);
             setVariantData({
                 options: product.options || [],
-                variants: (product.variants || []).map(v => ({ ...v, price: v.price ?? '' })),
+                variants: (product.variants || []).map(v => ({
+                    ...v,
+                    price: v.price ?? '',
+                    ...(variantCosts.current && { costPrice: variantCosts.current[v._id] ?? '' }),
+                })),
             });
             setOldImages(product.images);
             setOldPhotoTags(Object.fromEntries((product.images || []).filter(img => img.color).map(img => [img._id, img.color])));
@@ -82,6 +92,27 @@ const UpdateProduct = () => {
         }
     }, [dispatch, error, navigate, isUpdated, productId, product, updateError]);
 
+    useEffect(() => {
+        let active = true;
+        setCostsLoaded(false);
+        variantCosts.current = null;
+        axios.get(`/api/v1/admin/product/${productId}/costs`)
+            .then(({ data }) => {
+                if (!active) return;
+                const byId = Object.fromEntries((data.variants || []).map(v => [v._id, v.costPrice ?? '']));
+                variantCosts.current = byId;
+                setCostPrice(data.costPrice ?? '');
+                setVariantData(d => ({ ...d, variants: d.variants.map(v => ({ ...v, costPrice: byId[v._id] ?? '' })) }));
+                setCostsLoaded(true);
+            })
+            .catch(() => {
+                // Leave costs untouched on save (they're simply not sent).
+            });
+        return () => {
+            active = false;
+        };
+    }, [productId]);
+
     const updateProductSubmitHandler = async e => {
         e.preventDefault();
         const productCategory = category;
@@ -93,6 +124,7 @@ const UpdateProduct = () => {
         const myForm = new FormData();
         myForm.set('name', name);
         myForm.set('price', price);
+        if (costsLoaded) myForm.set('costPrice', costPrice);
         myForm.set('description', description);
         const detailFields = toDetailFields(details);
         myForm.set('highlights', detailFields.highlights);
@@ -168,6 +200,18 @@ const UpdateProduct = () => {
                                     required
                                     value={price}
                                     onChange={e => setPrice(e.target.value)}
+                                />
+                            </Field>
+                            <Field label='Cost price' hint='Private · for margins'>
+                                <span className='shrink-0 font-sans text-ink-soft'>₹</span>
+                                <input
+                                    type='number'
+                                    min='0'
+                                    step='0.01'
+                                    placeholder='What one unit costs you'
+                                    value={costPrice}
+                                    disabled={!costsLoaded}
+                                    onChange={e => setCostPrice(e.target.value)}
                                 />
                             </Field>
                             <Field label='Stock' hint={hasOptions ? 'Set per variant below' : null}>

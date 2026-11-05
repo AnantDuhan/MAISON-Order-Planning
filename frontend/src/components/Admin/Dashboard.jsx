@@ -13,6 +13,7 @@ import {
 } from "../../actions/analyticsAction";
 import MetaData from "../layout/MetaData";
 import { useTheme } from "../../context/ThemeContext";
+import InsightsPanel from "./InsightsPanel";
 import {
   UNLISTED_FILTER,
   adminProductsLink,
@@ -413,6 +414,8 @@ const Dashboard = () => {
             </p>
           </div>
         </div>
+
+        <InsightsPanel />
 
         <div className="mt-10">
           <div className="flex items-end justify-between gap-4">

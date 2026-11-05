@@ -125,7 +125,19 @@ const guestCheckoutLimiter = rateLimit({
     store: makeStore('rl:guest-checkout:'),
 });
 
+// Web Vitals beacons: one per page view, so generous, but capped per IP so
+// nobody can fill the collection.
+const vitalsLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: 150,
+    standardHeaders: 'draft-7',
+    legacyHeaders: false,
+    handler: (req, res) => res.status(204).end(),
+    store: makeStore('rl:vitals:'),
+});
+
 module.exports = {
+    vitalsLimiter,
     guestCheckoutLimiter,
     aiLimiter,
     apiLimiter,

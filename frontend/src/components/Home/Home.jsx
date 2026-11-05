@@ -8,6 +8,7 @@ import { clearErrors, getProduct } from '../../actions/productAction';
 import { clearNewsletter, newsletter } from '../../actions/subscribeAction';
 import Loader from '../layout/Loader/Loader';
 import MetaData from '../layout/MetaData';
+import { CARD_SIZES_4_COL } from '../../utils/responsiveImage';
 import ProductCard from './ProductCard';
 import { useFeature } from '../../context/FeatureFlagsContext';
 import { formatINR, priceLabel } from '../../utils/priceLabel';
@@ -223,7 +224,7 @@ const Home = () => {
                 <section className='editorial-shell mt-20 sm:mt-24'>
                     <SectionHead title='New arrivals' link='/products' linkLabel='Shop all' />
                     <div className='mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4'>
-                        {arrivals.map(product => <ProductCard key={product._id} product={product} />)}
+                        {arrivals.map(product => <ProductCard key={product._id} product={product} sizes={CARD_SIZES_4_COL} />)}
                     </div>
                 </section>
             )}

@@ -26,6 +26,9 @@ jobs:
           cache: npm
           cache-dependency-path: backend/package-lock.json
 
+      - name: Use npm 11 (the lockfiles are written with it)
+        run: npm install -g npm@11 --no-audit --no-fund
+
       - name: Install backend dependencies
         working-directory: ./backend
         run: npm ci
@@ -75,6 +78,9 @@ jobs:
           cache: npm
           cache-dependency-path: backend/package-lock.json
 
+      - name: Use npm 11 (the lockfiles are written with it)
+        run: npm install -g npm@11 --no-audit --no-fund
+
       - name: Install backend dependencies
         working-directory: ./backend
         run: npm ci
@@ -99,6 +105,9 @@ jobs:
           node-version: 22.x
           cache: npm
           cache-dependency-path: frontend/package-lock.json
+
+      - name: Use npm 11 (the lockfiles are written with it)
+        run: npm install -g npm@11 --no-audit --no-fund
 
       - name: Install frontend dependencies
         working-directory: ./frontend

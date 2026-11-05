@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 
+import { CARD_SIZES_4_COL } from '../../utils/responsiveImage';
 import ProductCard from '../Home/ProductCard';
 
 /** A titled row of product cards; renders nothing when there are no products. */
@@ -21,7 +22,7 @@ const ProductStrip = ({ eyebrow, title, products, viewAll }) => {
             </div>
             <div className='grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4'>
                 {products.map(product => (
-                    <ProductCard key={product._id} product={product} />
+                    <ProductCard key={product._id} product={product} sizes={CARD_SIZES_4_COL} />
                 ))}
             </div>
         </section>

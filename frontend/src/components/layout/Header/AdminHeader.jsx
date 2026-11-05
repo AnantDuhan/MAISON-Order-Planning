@@ -19,6 +19,7 @@ const links = [
     { to: '/admin/coupons', label: 'Coupons' },
     { to: '/admin/memberships', label: 'Memberships' },
     { to: '/admin/inventory', label: 'Inventory' },
+    { to: '/admin/performance', label: 'Site Performance' },
     { to: '/admin/cart-recovery', label: 'Cart Recovery' },
     { to: '/admin/audit-log', label: 'Audit Log' },
     { to: '/admin/features', label: 'Features' },

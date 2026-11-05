@@ -112,9 +112,9 @@ exports.getAdminProducts = async (req, res, next) => {
 };
 
 // Fields kept on the product record for the admin side only: who created it,
-// demo seeding, stock-alert bookkeeping and Mongoose's version key. The public
+// demo seeding, stock-alert bookkeeping, cost price and Mongoose's version key. The public
 // product page never needs them.
-const INTERNAL_PRODUCT_FIELDS = ['user', 'isDemo', 'lowStockThreshold', 'lowStockAlertedAt', '__v'];
+const INTERNAL_PRODUCT_FIELDS = ['user', 'isDemo', 'lowStockThreshold', 'lowStockAlertedAt', 'costPrice', '__v'];
 
 /**
  * A product as shoppers may see it (works on documents and cached plain objects).
@@ -125,6 +125,10 @@ const INTERNAL_PRODUCT_FIELDS = ['user', 'isDemo', 'lowStockThreshold', 'lowStoc
 const publicProduct = (product) => {
   const plain = product && typeof product.toJSON === 'function' ? product.toJSON() : { ...product };
   INTERNAL_PRODUCT_FIELDS.forEach((field) => delete plain[field]);
+  // What each variant costs us is admin-only too.
+  if (Array.isArray(plain.variants)) {
+    plain.variants = plain.variants.map(({ costPrice, ...variant }) => variant);
+  }
   return plain;
 };
 exports.publicProduct = publicProduct;

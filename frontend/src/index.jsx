@@ -14,6 +14,10 @@ import MaisonToaster from './components/layout/Toast/MaisonToaster';
 
 import './styles/theme.css';
 import { API_BASE_URL } from './utils/apiBase';
+import { startWebVitals } from './utils/webVitals';
+
+// Core Web Vitals from real visitors, for Admin → Site performance.
+startWebVitals();
 
 const GOOGLE_CLIENT_ID = import.meta.env.REACT_APP_GOOGLE_CLIENT_ID;
 axios.defaults.baseURL = API_BASE_URL;

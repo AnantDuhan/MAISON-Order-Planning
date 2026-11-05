@@ -9,6 +9,7 @@ import { priceLabel } from '../../utils/priceLabel';
 import { useCanHover } from '../../utils/useCanHover';
 import { optionsSummary, stockStatus } from '../../utils/productFacts';
 import { useMembershipTier } from '../../utils/useIsMember';
+import { CARD_SIZES, imageProps } from '../../utils/responsiveImage';
 
 // The product page caps a single line at 10; the card follows the same rule.
 const MAX_PER_LINE = 10;
@@ -25,25 +26,27 @@ const DEFAULT_IMAGE = 'https://ecommerce-bucket-sdk.s3.ap-south-1.amazonaws.com/
  * Photos without auto-play: on a mouse, hovering swaps to the second photo;
  * on a touch screen, the photos are a swipeable strip with dots.
  */
-const CardPhotos = ({ product }) => {
+const CardPhotos = ({ product, sizes, priority }) => {
     const canHover = useCanHover();
     const [active, setActive] = useState(0);
-    const urls = (product.images || []).map(img => img?.url).filter(Boolean).slice(0, 4);
-    const photos = urls.length ? urls : [DEFAULT_IMAGE];
+    const found = (product.images || []).filter(img => img?.url).slice(0, 4);
+    const photos = found.length ? found : [{ url: DEFAULT_IMAGE }];
+    // Cards in the first row are on screen at once: load them now, not lazily.
+    const first = priority ? { loading: 'eager', fetchpriority: 'high' } : { loading: 'lazy' };
 
     if (canHover || photos.length === 1) {
         return (
             <>
                 <img
-                    src={photos[0]}
+                    {...imageProps(photos[0], sizes)}
                     alt={product.name}
-                    loading='lazy'
+                    {...first}
                     decoding='async'
                     className={`h-full w-full object-cover transition-all duration-700 ease-luxe group-hover:scale-105 ${photos[1] && canHover ? 'group-hover:opacity-0' : ''}`}
                 />
                 {photos[1] && canHover && (
                     <img
-                        src={photos[1]}
+                        {...imageProps(photos[1], sizes)}
                         alt=''
                         loading='lazy'
                         decoding='async'
@@ -62,12 +65,12 @@ const CardPhotos = ({ product }) => {
     return (
         <>
             <div className='no-scrollbar flex h-full snap-x snap-mandatory overflow-x-auto' onScroll={onScroll}>
-                {photos.map((src, i) => (
+                {photos.map((photo, i) => (
                     <img
-                        key={src + i}
-                        src={src}
+                        key={photo.url + i}
+                        {...imageProps(photo, sizes)}
                         alt={i === 0 ? product.name : `${product.name}, photo ${i + 1}`}
-                        loading='lazy'
+                        {...(i === 0 ? first : { loading: 'lazy' })}
                         decoding='async'
                         draggable='false'
                         className='h-full w-full shrink-0 snap-center object-cover'
@@ -83,7 +86,11 @@ const CardPhotos = ({ product }) => {
     );
 };
 
-const ProductCard = ({ product }) => {
+/**
+ * sizes: how wide the card shows (CARD_SIZES for 3-column grids, CARD_SIZES_4_COL for 4).
+ * priority: true for cards in the first row, so their photo isn't lazy-loaded.
+ */
+const ProductCard = ({ product, sizes = CARD_SIZES, priority = false }) => {
     const dispatch = useDispatch();
     const navigate = useNavigate();
     const tier = useMembershipTier();
@@ -150,7 +157,7 @@ const ProductCard = ({ product }) => {
             <Link className='group card-luxe block' to={`/product/${product._id}`}>
                 {/* Image */}
                 <div className='relative aspect-[4/5] overflow-hidden bg-surface-2'>
-                    <CardPhotos product={product} />
+                    <CardPhotos product={product} sizes={sizes} priority={priority} />
                     <button
                         onClick={addToWishlist}
                         aria-label='Add to wishlist'

@@ -220,7 +220,7 @@ const Products = () => {
                                     aria-busy={loading}
                                     className={`grid grid-cols-1 gap-x-6 gap-y-10 transition-opacity duration-300 sm:grid-cols-2 xl:grid-cols-3 ${loading ? 'pointer-events-none opacity-40' : ''}`}
                                 >
-                                    {products.map(product => <ProductCard key={product._id} product={product} />)}
+                                    {products.map((product, index) => <ProductCard key={product._id} product={product} priority={index < 2} />)}
                                 </div>
                             ) : (
                                 <div className='py-20 text-center'>

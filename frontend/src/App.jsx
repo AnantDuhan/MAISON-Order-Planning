@@ -85,6 +85,7 @@ const AdminCategories = lazy(() => import("./components/Admin/Categories"));
 const AuditLog = lazy(() => import("./components/Admin/AuditLog"));
 const CartRecovery = lazy(() => import("./components/Admin/CartRecovery"));
 const Inventory = lazy(() => import("./components/Admin/Inventory"));
+const SitePerformance = lazy(() => import("./components/Admin/SitePerformance"));
 const VerifyInvoice = lazy(() => import("./components/Invoice/VerifyInvoice"));
 
 function App() {
@@ -228,6 +229,15 @@ function App() {
                 element={
                   <ProtectedAdminRoute>
                     <Inventory />
+                  </ProtectedAdminRoute>
+                }
+                exact
+              />
+              <Route
+                path="/admin/performance"
+                element={
+                  <ProtectedAdminRoute>
+                    <SitePerformance />
                   </ProtectedAdminRoute>
                 }
                 exact

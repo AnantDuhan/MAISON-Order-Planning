@@ -25,6 +25,7 @@ const NewProduct = () => {
 
     const [name, setName] = useState('');
     const [price, setPrice] = useState(0);
+    const [costPrice, setCostPrice] = useState('');
     const [description, setDescription] = useState('');
     const [category, setCategory] = useState('');
     const { categories: categoryTree } = useCategories({ admin: true });
@@ -59,6 +60,7 @@ const NewProduct = () => {
         const myForm = new FormData();
         myForm.set('name', name);
         myForm.set('price', price);
+        if (costPrice !== '') myForm.set('costPrice', costPrice);
         myForm.set('description', description);
         const detailFields = toDetailFields(details);
         myForm.set('highlights', detailFields.highlights);
@@ -147,6 +149,17 @@ const NewProduct = () => {
                                     required
                                     value={price || ''}
                                     onChange={e => setPrice(e.target.value)}
+                                />
+                            </Field>
+                            <Field label='Cost price' hint='Private · for margins'>
+                                <span className='shrink-0 font-sans text-ink-soft'>₹</span>
+                                <input
+                                    type='number'
+                                    min='0'
+                                    step='0.01'
+                                    placeholder='What one unit costs you'
+                                    value={costPrice}
+                                    onChange={e => setCostPrice(e.target.value)}
                                 />
                             </Field>
                             <Field label='Stock' hint={hasOptions ? 'Set per variant below' : null}>

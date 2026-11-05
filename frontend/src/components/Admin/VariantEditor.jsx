@@ -149,6 +149,7 @@ const VariantEditor = ({ category, value, onChange }) => {
                                     <th className='px-3 py-2 font-normal'>Variant</th>
                                     <th className='px-3 py-2 font-normal'>Stock</th>
                                     <th className='px-3 py-2 font-normal'>Price (blank = base)</th>
+                                    <th className='px-3 py-2 font-normal' title='What one unit costs you. Private, for margins.'>Cost (blank = base)</th>
                                     <th className='px-3 py-2 font-normal'>SKU</th>
                                     <th className='px-3 py-2 font-normal'>On sale</th>
                                 </tr>
@@ -161,6 +162,9 @@ const VariantEditor = ({ category, value, onChange }) => {
                                             onChange={e => setVariant(i, { Stock: e.target.value === '' ? '' : Number(e.target.value) })} /></td>
                                         <td className='px-3 py-2'><input className={`${field} w-28`} type='number' min='1' value={v.price ?? ''}
                                             onChange={e => setVariant(i, { price: e.target.value })} /></td>
+                                        <td className='px-3 py-2'><input className={`${field} w-24`} type='number' min='0' step='0.01' value={v.costPrice ?? ''}
+                                            aria-label={`Cost price of ${Object.values(v.options).join(' / ')}`}
+                                            onChange={e => setVariant(i, { costPrice: e.target.value })} /></td>
                                         <td className='px-3 py-2'><input className={`${field} w-32`} value={v.sku || ''}
                                             onChange={e => setVariant(i, { sku: e.target.value })} /></td>
                                         <td className='px-3 py-2 text-center'><input type='checkbox' className='accent-[#A07C4B]' checked={v.active !== false}

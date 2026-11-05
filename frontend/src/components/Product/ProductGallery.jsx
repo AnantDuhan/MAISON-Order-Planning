@@ -1,4 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { imageProps } from '../../utils/responsiveImage';
+
+// Main photo: about half the page beside the details on desktop, full width on phones.
+const MAIN_SIZES = '(min-width: 1024px) 50vw, 100vw';
 
 const Arrow = ({ dir, onClick }) => (
     <button
@@ -80,7 +84,7 @@ const ProductGallery = ({ images, alt, onOpen }) => {
                             aria-current={i === active}
                             className={`aspect-[4/5] w-full shrink-0 overflow-hidden border bg-surface-2 transition ${i === active ? 'border-ink' : 'border-line opacity-70 hover:opacity-100'}`}
                         >
-                            <img src={img.url} alt='' loading='lazy' decoding='async' className='h-full w-full object-cover' />
+                            <img {...imageProps(img, '80px')} alt='' loading='lazy' decoding='async' className='h-full w-full object-cover' />
                         </button>
                     ))}
                 </div>
@@ -102,7 +106,7 @@ const ProductGallery = ({ images, alt, onOpen }) => {
                             className='w-full shrink-0 snap-center cursor-zoom-in'
                         >
                             <img
-                                src={img.url}
+                                {...imageProps(img, MAIN_SIZES)}
                                 alt={`${alt}, photo ${i + 1}`}
                                 loading={i === 0 ? 'eager' : 'lazy'}
                                 fetchpriority={i === 0 ? 'high' : undefined}

@@ -32,7 +32,10 @@ const productSchema = mongoose.Schema({
             // Value of the product's colour option this photo shows (e.g.
             // "Navy"). Empty = shared by every colour (fabric close-up, size
             // chart). See imagesForSelection in utils/productVariants.js.
-            color: String
+            color: String,
+            // Smaller copies stored next to url ("-w400.webp"…), for srcset.
+            // Empty for photos uploaded before they existed (utils/imageVariants.js).
+            widths: { type: [Number], default: undefined }
         }
     ],
     user: {
@@ -44,6 +47,9 @@ const productSchema = mongoose.Schema({
         type: String,
         required: [true, 'Please Enter product category']
     },
+    // What one unit costs MAISON to buy or make (₹), for the profitability
+    // report. Admin only: stripped from everything shoppers can read.
+    costPrice: { type: Number, default: null, min: 0 },
     // Search-engine title/description. Empty = use name/description.
     metaTitle: { type: String, trim: true, maxLength: 70, default: '' },
     metaDescription: { type: String, trim: true, maxLength: 170, default: '' },
@@ -86,6 +92,8 @@ const productSchema = mongoose.Schema({
                 _id: String,
                 options: { type: Map, of: String },
                 price: { type: Number, default: null, min: 0 },
+                // What one unit costs MAISON; null = the product's costPrice. Admin only.
+                costPrice: { type: Number, default: null, min: 0 },
                 Stock: { type: Number, default: 0, min: 0 },
                 sku: String,
                 active: { type: Boolean, default: true },
