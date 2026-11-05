@@ -95,3 +95,5 @@ const connectDB = () => {
 };
 
 module.exports = connectDB;
+// For tests: the one-off index upgrade run after connecting.
+module.exports.upgradeStockAlertIndexes = upgradeStockAlertIndexes;

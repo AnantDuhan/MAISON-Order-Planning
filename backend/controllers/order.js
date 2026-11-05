@@ -19,8 +19,8 @@ const cartRecovery = require('../services/cartRecoveryService');
 const { hasVariants, findVariant, variantLabel } = require('../utils/productVariants');
 const { renderPackingSlip } = require('../utils/packingSlipPdf');
 const logger = require('../config/logger');
-const { realOnly } = require('../utils/demoFilter');
 const guestOrders = require('../services/guestOrders');
+const orderListing = require('../services/orderListing');
 const { orderContact, signOrderViewToken, trackingLink } = require('../utils/orderAccess');
 // Which status may follow which: lifecycle/orderLifecycle.js.
 const { orderLifecycle, estimateDeliveryDate } = require('../lifecycle/orderLifecycle');
@@ -341,72 +341,37 @@ exports.getSingleOrder = async (req, res, next) => {
 };
 
 // get logged in user order
+// GET /api/v1/orders/me?page=&limit=   newest first, 20 a page
 exports.myOrders = async (req, res, next) => {
     // Guest orders placed with this (verified) email join the account first.
     await guestOrders.claimGuestOrders(req.user).catch(error =>
         logger.error({ err: error.message, userId: req.user._id }, 'claiming guest orders failed'));
 
-    let orders;
-    const cacheKey = `orders:${req.user._id}`;
-
-    orders = await cache.getJSON(cacheKey);
-    if (!orders) {
-        orders = await Order.find({
-            user: req.user._id
-        }).lean();
-        await cache.setJSON(cacheKey, orders);
-    }
-
-    res.status(200).json({
-        success: true,
-        orders
-    });
+    // Not cached: one indexed query ({user, createdAt}), and always current.
+    const result = await orderListing.customerOrders(req.user._id, req.query);
+    res.status(200).json({ success: true, ...result });
 };
 
+// GET /api/v1/admin/orders?view=all|late&page=&limit=
+// One page of orders, plus (page 1) the orders that need action now.
 exports.getAllOrders = async (req, res, next) => {
     try {
-        let orders;
-        let totalAmount = 0;
-
-        if (req.user?.isDemo) {
-            const demoOrders = await Order.find({ isDemo: true })
-                .populate('user', 'name email')
-                .sort({ createdAt: -1 })
-                .limit(100);
-
-            return res.status(200).json({
-                success: true,
-                demoMode: true,
-                orders: demoOrders
-            });
-        }
-
-        orders = await cache.getJSON('orders');
-        if (!orders) {
-            // Customer name and email for the admin list (Customer column).
-            // Real orders only; the demo seed script's orders are isDemo.
-            orders = await Order.find(realOnly()).populate('user', 'name email').sort({ createdAt: -1 }).lean();
-            await cache.setJSON('orders', orders);
-        }
-
-        // 3. Calculate total amount safely
-        if (orders && Array.isArray(orders)) {
-            orders.forEach(order => {
-                totalAmount += order.totalPrice;
-            });
-        } else {
-            // Safety fallback if cache gets corrupted
-            orders = []; 
-        }
-
+        const view = req.query.view === 'late' ? 'late' : 'all';
+        const result = await orderListing.adminOrders({
+            view,
+            page: req.query.page,
+            limit: req.query.limit,
+            // Demo admin must only see the synthetic demo orders.
+            demo: Boolean(req.user?.isDemo),
+        });
         res.status(200).json({
             success: true,
-            totalAmount,
-            orders
+            view,
+            ...(req.user?.isDemo && { demoMode: true }),
+            ...result,
         });
-        
     } catch (error) {
-        console.error("Error fetching all orders:", error);
+        logger.error({ err: error }, 'Error fetching all orders');
         res.status(500).json({ success: false, message: "Server Error" });
     }
 };

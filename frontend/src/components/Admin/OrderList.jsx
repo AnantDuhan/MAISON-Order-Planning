@@ -1,5 +1,5 @@
 import EditIcon from '@mui/icons-material/Edit';
-import React, { Fragment, useEffect, useState } from 'react';
+import React, { Fragment, useEffect, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
@@ -45,18 +45,51 @@ const daysLate = order => {
     return Math.max(0, Math.ceil((Date.now() - due.getTime()) / DAY_MS));
 };
 
+const toRow = item => ({
+    id: item._id,
+    name: item.orderItems?.[0]?.name || '—',
+    itemsQty: item.orderItems?.length || 0,
+    amount: item.totalPrice,
+    status: item.orderStatus,
+    refundStatus: item.refundStatus,
+    late: daysLate(item),
+    memberTier: item.memberTier || null,
+    image: itemImage(item.orderItems?.[0]),
+    more: Math.max(0, (item.orderItems?.length || 0) - 1),
+    placedAt: item.createdAt,
+    city: item.shippingInfo?.city || '',
+    customer: typeof item.user === 'object' && item.user ? item.user.name : item.guest?.name ? `${item.guest.name} (guest)` : '',
+    email: typeof item.user === 'object' && item.user ? item.user.email : item.guest?.email || '',
+});
+
+/*
+ * One page at a time from the server (services/orderListing.js). On page 1
+ * the orders that need action now (late, then Plus orders to ship) sit in
+ * their own table above the rest, so they can't hide on a later page.
+ */
 const OrderList = () => {
-    const [lateOnly, setLateOnly] = useState(false);
+    const [view, setView] = useState('all');
+    const [page, setPage] = useState(1);
     const dispatch = useDispatch();
 
-    const { error, orders } = useSelector(state => state.allOrders);
+    const { error, orders, pinned, pages, total, counts } = useSelector(state => state.allOrders);
     const { error: deleteError, isDeleted } = useSelector(state => state.order);
 
     const deleteOrderHandler = id => dispatch(deleteOrder(id));
 
-    // Fetched once on opening (and after a delete). Errors only show a toast;
-    // they used to trigger another fetch, which looped while the API failed.
-    const { loaded, reload } = useLoadOnce(() => dispatch(getAllOrders()));
+    // Errors only show a toast; they used to trigger another fetch, which
+    // looped while the API failed.
+    const { loaded, reload } = useLoadOnce(() => dispatch(getAllOrders({ page, view })));
+
+    // A new page or view fetches again (the first load is useLoadOnce's).
+    const firstRun = useRef(true);
+    useEffect(() => {
+        if (firstRun.current) {
+            firstRun.current = false;
+            return;
+        }
+        reload();
+    }, [page, view, reload]);
 
     useEffect(() => {
         if (error) {
@@ -74,30 +107,15 @@ const OrderList = () => {
         }
     }, [dispatch, error, deleteError, isDeleted, reload]);
 
-    const allRows = (loaded ? orders || [] : []).map(item => ({
-        id: item._id,
-        name: item.orderItems?.[0]?.name || '—',
-        itemsQty: item.orderItems?.length || 0,
-        amount: item.totalPrice,
-        status: item.orderStatus,
-        refundStatus: item.refundStatus,
-        late: daysLate(item),
-        memberTier: item.memberTier || null,
-        image: itemImage(item.orderItems?.[0]),
-        more: Math.max(0, (item.orderItems?.length || 0) - 1),
-        placedAt: item.createdAt,
-        city: item.shippingInfo?.city || '',
-        // Populated by the API; older cached lists may still hold just the id.
-        customer: typeof item.user === 'object' && item.user ? item.user.name : item.guest?.name ? `${item.guest.name} (guest)` : '',
-        email: typeof item.user === 'object' && item.user ? item.user.email : item.guest?.email || '',
-    }));
-    const lateCount = allRows.filter(r => r.late > 0).length;
-    // Late orders first so they can't hide on page 3, then Plus orders
-    // still to ship (priority dispatch), then everything else.
-    const rank = r => (r.late > 0 ? 2 : r.memberTier === 'plus' && r.status === 'Processing' ? 1 : 0);
-    const rows = (lateOnly ? allRows.filter(r => r.late > 0) : allRows)
-        .slice()
-        .sort((a, b) => rank(b) - rank(a));
+    const rows = (loaded ? orders || [] : []).map(toRow);
+    const pinnedRows = (loaded && view === 'all' ? pinned || [] : []).map(toRow);
+    const lateCount = counts?.late || 0;
+    const plusCount = counts?.plusToShip || 0;
+
+    const switchView = next => {
+        setView(next);
+        setPage(1);
+    };
 
     // Phones and tablets: what to ship, how urgent, and for how much.
     const renderCard = row => (
@@ -241,12 +259,34 @@ const OrderList = () => {
                             <span className='font-medium text-danger'>{lateCount} {lateCount === 1 ? 'order is' : 'orders are'} past the delivery date</span>
                             {' '}and not delivered. Customers see these as running late — ship them or contact the customer.
                         </p>
-                        <button type='button' onClick={() => setLateOnly(v => !v)} className='btn-outline shrink-0 !px-4 !py-2.5'>
-                            {lateOnly ? 'Show all orders' : 'Show late only'}
+                        <button type='button' onClick={() => switchView(view === 'late' ? 'all' : 'late')} className='btn-outline shrink-0 !px-4 !py-2.5'>
+                            {view === 'late' ? 'Show all orders' : 'Show late only'}
                         </button>
                     </div>
                 )}
-                <AdminTable columns={columns} rows={rows} renderCard={renderCard} loading={!loaded} emptyMessage={lateOnly ? 'No late orders.' : 'No orders yet.'} />
+
+                {pinnedRows.length > 0 && (
+                    <section aria-labelledby='pinned-orders' className='mb-12'>
+                        <h2 id='pinned-orders' className='eyebrow mb-4'>
+                            Needs action now · {lateCount > 0 && `${lateCount} late`}{lateCount > 0 && plusCount > 0 && ' · '}{plusCount > 0 && `${plusCount} Plus to ship`}
+                        </h2>
+                        <AdminTable columns={columns} rows={pinnedRows} renderCard={renderCard} pageSize={50} />
+                    </section>
+                )}
+
+                {view === 'all' && pinnedRows.length > 0 && (
+                    <h2 className='eyebrow mb-4'>All other orders · {total}</h2>
+                )}
+                <AdminTable
+                    columns={columns}
+                    rows={rows}
+                    renderCard={renderCard}
+                    loading={!loaded}
+                    page={page}
+                    totalPages={pages}
+                    onPageChange={setPage}
+                    emptyMessage={view === 'late' ? 'No late orders.' : pinnedRows.length ? 'No other orders.' : 'No orders yet.'}
+                />
             </AdminPage>
         </Fragment>
     );

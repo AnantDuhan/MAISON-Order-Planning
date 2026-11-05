@@ -14,6 +14,7 @@
         "seed:demo-account": "node scripts/seed-demo-account.js",
         "cashfree:plans": "node scripts/syncCashfreePlans.js",
         "test": "node --test --test-force-exit \"tests/**/*.test.js\"",
+        "test:db": "node --test --test-force-exit --test-concurrency=1 \"tests-db/**/*.test.js\"",
         "backfill:invoices": "node scripts/backfillInvoices.js",
         "sign:invoices": "node scripts/signInvoices.js",
         "test:invoice-email": "node scripts/testInvoiceEmail.js",
@@ -60,6 +61,7 @@
         "validator": "^13.12.0"
     },
     "devDependencies": {
+        "mongodb-memory-server-core": "^11.3.0",
         "nodemon": "^3.1.4",
         "pino-pretty": "^13.0.0"
     },

@@ -63,13 +63,14 @@ export const createOrder = order => async dispatch => {
 };
 
 // My Orders
-export const myOrders = () => async dispatch => {
+// One page of the signed-in shopper's orders, newest first.
+export const myOrders = ({ page = 1 } = {}) => async dispatch => {
     try {
         dispatch({ type: MY_ORDERS_REQUEST });
 
-        const { data } = await axios.get('/api/v1/orders/me');
+        const { data } = await axios.get('/api/v1/orders/me', { params: { page } });
 
-        dispatch({ type: MY_ORDERS_SUCCESS, payload: data.orders });
+        dispatch({ type: MY_ORDERS_SUCCESS, payload: data });
     } catch (error) {
         dispatch({
             type: MY_ORDERS_FAIL,
@@ -79,13 +80,15 @@ export const myOrders = () => async dispatch => {
 };
 
 // Get All Orders - admin
-export const getAllOrders = () => async dispatch => {
+// One page of orders. view 'all' (page 1 also has `pinned`: late and Plus
+// orders to ship) or 'late'.
+export const getAllOrders = ({ page = 1, view = 'all' } = {}) => async dispatch => {
     try {
         dispatch({ type: ALL_ORDERS_REQUEST });
 
-        const { data } = await axios.get('/api/v1/admin/orders');
+        const { data } = await axios.get('/api/v1/admin/orders', { params: { page, view } });
 
-        dispatch({ type: ALL_ORDERS_SUCCESS, payload: data.orders });
+        dispatch({ type: ALL_ORDERS_SUCCESS, payload: data });
     } catch (error) {
         dispatch({
             type: ALL_ORDERS_FAIL,

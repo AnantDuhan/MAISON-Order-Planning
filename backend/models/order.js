@@ -271,6 +271,8 @@ orderSchema.index({ user: 1, createdAt: -1 });
 // Finding unclaimed guest orders for an email when its owner signs in.
 orderSchema.index({ 'guest.email': 1, user: 1 }, { partialFilterExpression: { 'guest.email': { $type: 'string' } } });
 orderSchema.index({ orderStatus: 1 });
+// Admin "late" list: undelivered orders past their estimate (services/orderListing.js).
+orderSchema.index({ orderStatus: 1, estimatedDeliveryDate: 1 });
 orderSchema.index({ createdAt: -1 });
 orderSchema.index(
     { 'paymentInfo.id': 1 },

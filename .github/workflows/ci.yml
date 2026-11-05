@@ -48,6 +48,43 @@ jobs:
         working-directory: ./backend
         run: find . -name '*.js' -not -path './node_modules/*' -print0 | xargs -0 -n1 node --check
 
+  backend-db:
+    name: Backend database tests
+    runs-on: ubuntu-latest
+
+    # A real MongoDB for tests-db/ (indexes, atomic updates, queries).
+    services:
+      mongo:
+        image: mongo:8
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.runCommand({ ping: 1 }).ok'"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Use Node.js 22.x
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22.x
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        working-directory: ./backend
+        run: npm ci
+
+      - name: Run database tests
+        working-directory: ./backend
+        env:
+          TEST_MONGODB_URI: mongodb://localhost:27017
+        run: npm run test:db
+
   frontend:
     name: Frontend build
     runs-on: ubuntu-latest

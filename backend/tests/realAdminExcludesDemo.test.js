@@ -23,7 +23,7 @@ const admin = { _id: 'a1', role: 'admin' };
 const excludesDemo = filter => assert.deepEqual(filter?.isDemo, { $ne: true }, `filter ${JSON.stringify(filter)} should exclude demo records`);
 // A query chain that records the filter it was created with.
 const chain = (result = []) => {
-    const q = { populate: () => q, sort: () => q, limit: () => q, select: () => q, lean: async () => result, then: (r, j) => Promise.resolve(result).then(r, j) };
+    const q = { populate: () => q, sort: () => q, limit: () => q, skip: () => q, select: () => q, lean: async () => result, then: (r, j) => Promise.resolve(result).then(r, j) };
     return q;
 };
 
@@ -56,11 +56,26 @@ test('real orders, returns, refunds and users lists leave out demo records', asy
     s.set(cache, 'getJSON', async () => null);
     s.set(cache, 'setJSON', async () => {});
     for (const [Model, handler] of [[Order, getAllOrders], [Return, getAllReturns], [Refund, getAllRefunds], [User, getAllUsers]]) {
-        let filter;
-        s.set(Model, 'find', f => { filter = f; return chain(); });
-        await handler({ user: admin }, mockRes());
-        excludesDemo(filter);
+        const filters = [];
+        s.set(Model, 'find', f => { filters.push(f); return chain(); });
+        s.set(Model, 'countDocuments', async f => { filters.push(f); return 0; });
+        const res = mockRes();
+        await handler({ user: admin, query: {} }, res);
+        assert.equal(res.statusCode, 200, `${Model.modelName} list failed: ${JSON.stringify(res.body)}`);
+        assert.ok(filters.length > 0);
+        filters.forEach(excludesDemo);
     }
+});
+
+test('the demo admin\'s order list holds only demo orders', async () => {
+    const filters = [];
+    s.set(Order, 'find', f => { filters.push(f); return chain(); });
+    s.set(Order, 'countDocuments', async f => { filters.push(f); return 0; });
+    const res = mockRes();
+    await getAllOrders({ user: { ...admin, isDemo: true }, query: {} }, res);
+    assert.equal(res.body.demoMode, true);
+    assert.ok(filters.length > 0);
+    filters.forEach(f => assert.equal(f.isDemo, true));
 });
 
 test('the demo admin still sees only demo users', async () => {

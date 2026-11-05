@@ -135,7 +135,8 @@ const OrderCard = ({ order }) => {
 const MyOrders = () => {
     const dispatch = useDispatch();
 
-    const { loading, error } = useSelector(state => state.myOrders);
+    const { loading, error, page = 1, pages = 1, total = 0 } = useSelector(state => state.myOrders);
+    const [wantedPage, setWantedPage] = useState(1);
     const orders = useSelector(state => {
         const value = state.myOrders.orders;
         return Array.isArray(value) ? value : [];
@@ -150,18 +151,29 @@ const MyOrders = () => {
             toast.error(error);
             dispatch(clearErrors());
         }
-        dispatch(myOrders());
-        setProgress(100);
-        setTimeout(() => setProgress(0), 5000);
     }, [dispatch, error]);
 
-    // Newest first.
-    const sorted = [...orders].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+    // One page at a time, newest first (sorted by the server).
+    useEffect(() => {
+        dispatch(myOrders({ page: wantedPage }));
+        setProgress(100);
+        const timer = setTimeout(() => setProgress(0), 5000);
+        return () => clearTimeout(timer);
+    }, [dispatch, wantedPage]);
+
+    const goToPage = next => {
+        setWantedPage(next);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    const sorted = orders;
+    // Full-page loader only on the first load; later pages swap in place.
+    const firstLoad = loading && !sorted.length;
 
     return (
         <Fragment>
             <MetaData title={`${user?.name} · Orders`} />
-            {loading ? (
+            {firstLoad ? (
                 <Fragment>
                     <LoadingBar color='#A07C4B' progress={progress} onLoaderFinished={onLoaderFinished} />
                     <Loader label='Finding your orders' />
@@ -171,9 +183,9 @@ const MyOrders = () => {
                     <div className='mb-10 text-center'>
                         <p className='eyebrow'>{user?.name}</p>
                         <h1 className='heading-display mt-3 text-display'>My Orders</h1>
-                        {sorted.length > 0 && (
+                        {total > 0 && (
                             <p className='mt-3 font-sans text-sm text-ink-faint'>
-                                {sorted.length} {sorted.length === 1 ? 'order' : 'orders'}
+                                {total} {total === 1 ? 'order' : 'orders'}
                             </p>
                         )}
                     </div>
@@ -186,11 +198,36 @@ const MyOrders = () => {
                             <Link to='/products' className='btn-outline mt-8'>Start Shopping</Link>
                         </div>
                     ) : (
-                        <div className='mx-auto grid max-w-5xl gap-4 lg:grid-cols-2 lg:gap-6'>
-                            {sorted.map(order => (
-                                <OrderCard key={order._id} order={order} />
-                            ))}
-                        </div>
+                        <Fragment>
+                            <div className={`mx-auto grid max-w-5xl gap-4 transition-opacity lg:grid-cols-2 lg:gap-6 ${loading ? 'opacity-50' : ''}`}>
+                                {sorted.map(order => (
+                                    <OrderCard key={order._id} order={order} />
+                                ))}
+                            </div>
+                            {pages > 1 && (
+                                <div className='mt-12 flex items-center justify-center gap-2'>
+                                    <button
+                                        type='button'
+                                        onClick={() => goToPage(Math.max(1, page - 1))}
+                                        disabled={page <= 1 || loading}
+                                        className='min-h-[44px] border border-line px-5 font-sans text-[0.68rem] uppercase tracking-luxe text-ink-soft transition-colors hover:border-brass hover:text-brass disabled:opacity-30'
+                                    >
+                                        Newer
+                                    </button>
+                                    <span className='px-4 font-sans text-[0.68rem] uppercase tracking-luxe text-ink-faint'>
+                                        Page {page} of {pages}
+                                    </span>
+                                    <button
+                                        type='button'
+                                        onClick={() => goToPage(Math.min(pages, page + 1))}
+                                        disabled={page >= pages || loading}
+                                        className='min-h-[44px] border border-line px-5 font-sans text-[0.68rem] uppercase tracking-luxe text-ink-soft transition-colors hover:border-brass hover:text-brass disabled:opacity-30'
+                                    >
+                                        Older
+                                    </button>
+                                </div>
+                            )}
+                        </Fragment>
                     )}
                 </div>
             )}

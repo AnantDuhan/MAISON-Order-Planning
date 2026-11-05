@@ -12,6 +12,9 @@ import React, { Fragment, useMemo, useState } from 'react';
  *                    rows stack into labelled fields there.
  * loading         -> true until the page's data has arrived: shows placeholder
  *                    rows instead of the empty message.
+ * page, totalPages, onPageChange
+ *                 -> paging done by the server: `rows` is already one page.
+ *                    Without them the table pages `rows` itself (pageSize).
  *
  * Renders as a grid on desktop (lg and up).
  */
@@ -56,15 +59,26 @@ const LoadingRows = ({ columns, gridTemplate, count = 6 }) => (
     </div>
 );
 
-const AdminTable = ({ columns, rows, pageSize = 10, emptyMessage = 'Nothing to show yet.', renderCard, loading = false }) => {
-    const [page, setPage] = useState(1);
+const AdminTable = ({
+    columns, rows, pageSize = 10, emptyMessage = 'Nothing to show yet.', renderCard, loading = false,
+    page: serverPage, totalPages: serverTotalPages, onPageChange,
+}) => {
+    const serverPaged = typeof onPageChange === 'function';
+    const [localPage, setLocalPage] = useState(1);
 
-    const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
-    const safePage = Math.min(page, totalPages);
+    const totalPages = serverPaged
+        ? Math.max(1, serverTotalPages || 1)
+        : Math.max(1, Math.ceil(rows.length / pageSize));
+    const safePage = Math.min(serverPaged ? serverPage || 1 : localPage, totalPages);
+    const setPage = next => {
+        const value = typeof next === 'function' ? next(safePage) : next;
+        if (serverPaged) onPageChange(value);
+        else setLocalPage(value);
+    };
 
     const pageRows = useMemo(
-        () => rows.slice((safePage - 1) * pageSize, safePage * pageSize),
-        [rows, safePage, pageSize]
+        () => (serverPaged ? rows : rows.slice((safePage - 1) * pageSize, safePage * pageSize)),
+        [rows, safePage, pageSize, serverPaged]
     );
 
     const gridTemplate = columns.map(c => c.width || '1fr').join(' ');

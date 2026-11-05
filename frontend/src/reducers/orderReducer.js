@@ -70,15 +70,19 @@ export const newOrderReducer = (state = {}, action) => {
 export const myOrdersReducer = (state = { orders: [] }, action) => {
     switch (action.type) {
         case MY_ORDERS_REQUEST:
+            // Keep the current page on screen while the next one loads.
             return {
+                ...state,
                 loading: true,
-                orders: []
             };
 
         case MY_ORDERS_SUCCESS:
             return {
                 loading: false,
-                orders: action.payload.orders ? action.payload.orders : action.payload, 
+                orders: action.payload.orders || [],
+                page: action.payload.page || 1,
+                pages: action.payload.pages || 1,
+                total: action.payload.total ?? (action.payload.orders || []).length,
             };
 
         case MY_ORDERS_FAIL:
@@ -102,14 +106,20 @@ export const allOrdersReducer = (state = { orders: [] }, action) => {
     switch (action.type) {
         case ALL_ORDERS_REQUEST:
             return {
+                ...state,
                 loading: true,
-                orders: []
             };
 
         case ALL_ORDERS_SUCCESS:
             return {
                 loading: false,
-                orders: action.payload.orders ? action.payload.orders : action.payload,
+                orders: action.payload.orders || [],
+                pinned: action.payload.pinned || [],
+                view: action.payload.view || 'all',
+                page: action.payload.page || 1,
+                pages: action.payload.pages || 1,
+                total: action.payload.total ?? 0,
+                counts: action.payload.counts || { late: 0, plusToShip: 0 },
             };
 
         case ALL_ORDERS_FAIL:

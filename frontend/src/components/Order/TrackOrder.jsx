@@ -177,7 +177,10 @@ const TrackOrder = () => {
     const [params] = useSearchParams();
     const location = useLocation();
     const token = params.get('t');
-    const fromLookup = location.state?.order?._id === id ? location.state.order : null;
+    // The order the lookup form just fetched, if it's this one. On /track (no
+    // id) both sides are undefined, so check there is an order first.
+    const stateOrder = location.state?.order;
+    const fromLookup = id && stateOrder?._id === id ? stateOrder : null;
 
     const [order, setOrder] = useState(fromLookup);
     const [failed, setFailed] = useState('');
