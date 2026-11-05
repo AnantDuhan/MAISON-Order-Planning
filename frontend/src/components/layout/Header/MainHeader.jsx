@@ -2,12 +2,9 @@ import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
 import CardMembershipIcon from '@mui/icons-material/CardMembership';
 import PersonOutlineIcon from '@mui/icons-material/PersonOutlineOutlined';
-import React, { useEffect, useRef, useState } from 'react';
-import { FaSearch } from 'react-icons/fa';
+import React, { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
-import { useNavigate } from 'react-router';
 import { Link } from 'react-router-dom';
-import axios from 'axios';
 
 import { useLogout } from '../../../utils/useLogout';
 import ThemeToggle from '../ThemeToggle';
@@ -16,16 +13,11 @@ import { formatINR } from '../../../utils/priceLabel';
 import { FREE_SHIPPING_THRESHOLD } from '../../../utils/delivery';
 import { useMembership } from '../../../utils/useIsMember';
 import { useCategories } from '../../../utils/useCategories';
+import { useFeature } from '../../../context/FeatureFlagsContext';
+import HeaderSearch from './HeaderSearch';
 
-const useDebounce = (value, delay) => {
-    const [debouncedValue, setDebouncedValue] = useState(value);
-    useEffect(() => {
-        const handler = setTimeout(() => setDebouncedValue(value), delay);
-        return () => clearTimeout(handler);
-    }, [value, delay]);
-    return debouncedValue;
-};
-
+// Phone menu links. On desktop the bar shows the store's departments instead;
+// these stay reachable from the footer and the account menu.
 const navLinks = [
     { to: '/products', label: 'Shop' },
     { to: '/orders', label: 'Orders' },
@@ -36,66 +28,51 @@ const navLinks = [
 const MainHeader = () => {
     const { isAuthenticated, user } = useSelector(state => state.user);
     const { cartItems } = useSelector(state => state.cart);
-    const navigate = useNavigate();
-
-    const [keyword, setKeyword] = useState('');
-    const [suggestions, setSuggestions] = useState([]);
-    const [isSuggestionsVisible, setIsSuggestionsVisible] = useState(false);
     const [menuOpen, setMenuOpen] = useState(false);
     useOverlay(menuOpen);
-    // Departments for the phone menu, with their photos (shared, cached request).
+    // Departments for the desktop bar and the phone menu (shared, cached request).
     const { categories: departments } = useCategories();
+    const membershipsOn = useFeature('memberships');
     const closeMenu = () => setMenuOpen(false);
     const [scrolled, setScrolled] = useState(false);
     // Shared with the rest of the app: one request, not one per component.
     const membership = useMembership();
 
-    const debouncedKeyword = useDebounce(keyword, 300);
-    const searchRef = useRef(null);
+    // Phones: the search field under the logo slides away while scrolling
+    // down the page and comes back on the way up.
+    const [phoneSearchHidden, setPhoneSearchHidden] = useState(false);
 
     useEffect(() => {
-        const onScroll = () => setScrolled(window.scrollY > 8);
-        window.addEventListener('scroll', onScroll);
+        let lastY = window.scrollY;
+        let hidden = false;
+        let settleUntil = 0;
+        const onScroll = () => {
+            const y = window.scrollY;
+            setScrolled(y > 8);
+            // Showing or hiding the field changes the header's height, and the
+            // browser shifts the page to match. Ignore scroll events while that
+            // settles, or the field would flicker in and out.
+            const now = Date.now();
+            if (now < settleUntil) {
+                lastY = y;
+                return;
+            }
+            if (Math.abs(y - lastY) < 12) return;
+            const next = y > 120 && y > lastY;
+            lastY = y;
+            if (next !== hidden) {
+                hidden = next;
+                settleUntil = now + 400;
+                setPhoneSearchHidden(next);
+            }
+        };
+        window.addEventListener('scroll', onScroll, { passive: true });
         return () => window.removeEventListener('scroll', onScroll);
     }, []);
 
 
     // Close the menu first so the toast isn't drawn over it.
     const { signOut: handleLogout } = useLogout({ before: () => setMenuOpen(false) });
-
-    const handleDropDownSuggestionClick = suggestion => {
-        setKeyword(suggestion.name);
-        navigate(`/product/${suggestion.id}`);
-        setIsSuggestionsVisible(false);
-    };
-
-    useEffect(() => {
-        if (debouncedKeyword && typeof debouncedKeyword === 'string' && debouncedKeyword.trim() !== '') {
-            const fetchSuggestions = async () => {
-                try {
-                    const { data } = await axios.get(`/api/v1/products/autocomplete?query=${debouncedKeyword}`);
-                    setSuggestions(data.data || []);
-                    setIsSuggestionsVisible(true);
-                } catch (error) {
-                    console.error('Error fetching suggestions:', error);
-                    setSuggestions([]);
-                }
-            };
-            fetchSuggestions();
-        } else {
-            setSuggestions([]);
-            setIsSuggestionsVisible(false);
-        }
-    }, [debouncedKeyword]);
-
-    const searchSubmitHandler = e => {
-        e.preventDefault();
-        if (keyword.trim()) {
-            navigate(`/search?keyword=${encodeURIComponent(keyword.trim())}`);
-            setIsSuggestionsVisible(false);
-            setMenuOpen(false);
-        }
-    };
 
     return (
         <header
@@ -106,9 +83,21 @@ const MainHeader = () => {
             }`}
         >
             {/* Announcement strip */}
+            {/* Members are told their perk; everyone else how to get it. */}
             <div className='hidden bg-ink text-canvas md:block'>
                 <p className='mx-auto max-w-editorial px-6 py-2 text-center font-sans text-[0.68rem] uppercase tracking-luxe lg:px-12'>
-                    Complimentary shipping on orders over {formatINR(FREE_SHIPPING_THRESHOLD)} · Crafted for the considered life
+                    {membership?.isActive ? (
+                        <>Your membership is active · complimentary shipping on every order</>
+                    ) : membershipsOn ? (
+                        <>
+                            Complimentary shipping over {formatINR(FREE_SHIPPING_THRESHOLD)} · Members never pay shipping ·{' '}
+                            <Link to='/membership' className='underline decoration-canvas/50 underline-offset-4 transition-colors hover:text-white hover:decoration-white'>
+                                Join Maison Essential
+                            </Link>
+                        </>
+                    ) : (
+                        <>Complimentary shipping on orders over {formatINR(FREE_SHIPPING_THRESHOLD)} · Crafted for the considered life</>
+                    )}
                 </p>
             </div>
 
@@ -125,8 +114,24 @@ const MainHeader = () => {
                             {menuOpen ? <path d='M6 6l12 12M18 6L6 18' /> : <path d='M3 7h18M3 12h18M3 17h18' />}
                         </svg>
                     </button>
-                    <ul className='hidden items-center gap-6 lg:flex xl:gap-8'>
-                        {navLinks.map(l => (
+                    <ul className='hidden items-center gap-6 lg:flex xl:gap-8' aria-label='Shop'>
+                        <li>
+                            <Link to='/products' className='link-reveal whitespace-nowrap font-sans text-[0.82rem] uppercase tracking-luxe'>
+                                Shop all
+                            </Link>
+                        </li>
+                        {/* Two departments fit beside the centred wordmark at 1024px, three from 1280px. */}
+                        {departments.slice(0, 3).map((dept, i) => (
+                            <li key={dept._id} className={i === 2 ? 'hidden xl:block' : undefined}>
+                                <Link
+                                    to={`/products?category=${encodeURIComponent(dept.slug)}`}
+                                    className='link-reveal whitespace-nowrap font-sans text-[0.82rem] uppercase tracking-luxe'
+                                >
+                                    {dept.name}
+                                </Link>
+                            </li>
+                        ))}
+                        {departments.length === 0 && navLinks.slice(1).map(l => (
                             <li key={l.to}>
                                 <Link to={l.to} className='link-reveal font-sans text-[0.82rem] uppercase tracking-luxe'>
                                     {l.label}
@@ -145,33 +150,9 @@ const MainHeader = () => {
 
                 {/* Right: actions */}
                 <div className='flex flex-1 items-center justify-end gap-3 sm:gap-4 lg:gap-3 xl:gap-4'>
-                    <form ref={searchRef} className='relative hidden md:block' onSubmit={searchSubmitHandler}>
-                        <div className='flex items-center gap-2 border-b border-line focus-within:border-brass'>
-                            <FaSearch className='text-ink-faint' size={13} />
-                            <input
-                                type='text'
-                                placeholder='Search'
-                                value={keyword}
-                                onChange={e => setKeyword(e.target.value)}
-                                onFocus={() => setIsSuggestionsVisible(true)}
-                                onBlur={() => setTimeout(() => setIsSuggestionsVisible(false), 200)}
-                                className='w-28 bg-transparent py-2 font-sans text-sm text-ink placeholder:text-ink-faint focus:w-44 focus:outline-none transition-all duration-500 ease-luxe'
-                            />
-                        </div>
-                        {isSuggestionsVisible && suggestions.length > 0 && (
-                            <ul className='absolute right-0 top-full z-50 mt-2 w-64 border border-line bg-surface py-2 shadow-luxe'>
-                                {suggestions.map(s => (
-                                    <li
-                                        key={s.id}
-                                        onMouseDown={() => handleDropDownSuggestionClick(s)}
-                                        className='cursor-pointer px-4 py-2 font-sans text-sm text-ink-soft transition-colors hover:bg-surface-2 hover:text-brass'
-                                    >
-                                        {s.name}
-                                    </li>
-                                ))}
-                            </ul>
-                        )}
-                    </form>
+                    <div className='hidden md:block'>
+                        <HeaderSearch />
+                    </div>
 
                     {/* Phones keep only cart and account in the bar; the rest is in the menu. */}
                     <span className='hidden sm:block'>
@@ -249,19 +230,25 @@ const MainHeader = () => {
                 </div>
             </nav>
 
+            {/* Phones: search always one tap away, under the logo. */}
+            {!menuOpen && (
+                <div
+                    className={`px-5 transition-[max-height,opacity,padding] duration-300 ease-luxe sm:px-6 md:hidden ${
+                        phoneSearchHidden ? 'max-h-0 overflow-hidden pb-0 opacity-0' : 'max-h-20 pb-3 opacity-100'
+                    }`}
+                    aria-hidden={phoneSearchHidden || undefined}
+                    inert={phoneSearchHidden ? '' : undefined}
+                >
+                    <HeaderSearch variant='phone' placeholder='Search products' />
+                </div>
+            )}
+
             {/* Mobile menu */}
             {menuOpen && (
                 <div className='border-t border-line bg-canvas px-6 py-6 lg:hidden'>
-                    <form className='mb-5 flex items-center gap-2 border-b border-line' onSubmit={searchSubmitHandler}>
-                        <FaSearch className='text-ink-faint' size={13} />
-                        <input
-                            type='text'
-                            placeholder='Search a product'
-                            value={keyword}
-                            onChange={e => setKeyword(e.target.value)}
-                            className='w-full bg-transparent py-2 font-sans text-sm text-ink placeholder:text-ink-faint focus:outline-none'
-                        />
-                    </form>
+                    <div className='mb-6 md:hidden'>
+                        <HeaderSearch variant='phone' placeholder='Search products' onSearched={closeMenu} />
+                    </div>
                     {departments.length > 0 && (
                         <nav aria-label='Shop by category' className='mb-6'>
                             <p className='eyebrow mb-3'>Shop by category</p>
