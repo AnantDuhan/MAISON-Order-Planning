@@ -30,13 +30,15 @@ const CookieConsent = () => {
     if (!open) return null;
 
     // A slim bar on phones (it used to cover a third of the screen), a small
-    // card from 640px. Hidden while a menu or sheet is open.
+    // card from 640px. Hidden while a menu or sheet is open. On phones it sits
+    // above any pinned bottom bar (--bottom-bar, the product page's "Add to
+    // bag" bar) instead of covering it.
     return (
         <div
             role='dialog'
             aria-live='polite'
             aria-label='Cookie preferences'
-            className='hide-under-overlay fixed inset-x-0 bottom-0 z-50 border-t border-line bg-surface/95 px-4 py-3 shadow-lg backdrop-blur sm:inset-x-auto sm:bottom-6 sm:right-6 sm:max-w-md sm:border sm:px-6 sm:py-5'
+            className='hide-under-overlay fixed inset-x-0 bottom-[var(--bottom-bar,0px)] z-50 border-t border-line bg-surface/95 px-4 py-3 shadow-lg backdrop-blur sm:inset-x-auto sm:bottom-6 sm:right-6 sm:max-w-md sm:border sm:px-6 sm:py-5'
         >
             <p className='hidden eyebrow sm:block'>Cookies</p>
             <div className='flex items-center gap-3 sm:block'>

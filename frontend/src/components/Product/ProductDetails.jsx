@@ -122,6 +122,9 @@ const ProductDetails = () => {
   // off screen — below the first screen on short phones, or scrolled past.
   const buyRowRef = useRef(null);
   const [showBuyBar, setShowBuyBar] = useState(false);
+  // The pinned buy bar's height, as --bottom-bar, so other bottom bars (the
+  // cookie notice) sit above it instead of covering "Add to bag".
+  const bottomBarRef = useRef(null);
   useEffect(() => {
     const el = buyRowRef.current;
     if (!el || typeof IntersectionObserver === "undefined") return undefined;
@@ -254,6 +257,46 @@ const ProductDetails = () => {
   // What the buy controls can do right now.
   const optionsComplete = !hasOptions || Boolean(selectedVariant);
   const canBuy = optionsComplete ? inStock : product?.Stock >= 1;
+  const buyBarShown = showBuyBar && canBuy;
+  useEffect(() => {
+    const root = document.documentElement;
+    const el = bottomBarRef.current;
+    if (!buyBarShown || !el) {
+      root.style.removeProperty("--bottom-bar");
+      return undefined;
+    }
+    const update = () => root.style.setProperty("--bottom-bar", `${el.offsetHeight}px`);
+    update();
+    const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(update) : null;
+    observer?.observe(el);
+    return () => {
+      observer?.disconnect();
+      root.style.removeProperty("--bottom-bar");
+    };
+  }, [buyBarShown]);
+
+  // Desktop: the details column is pinned beside the photos. When it is taller
+  // than the window, pin it by its bottom edge instead (a negative top), so the
+  // accordions at the end can still be read while the photos scroll.
+  const detailsColumnRef = useRef(null);
+  const [detailsTop, setDetailsTop] = useState(null);
+  useEffect(() => {
+    const el = detailsColumnRef.current;
+    if (!el) return undefined;
+    const PIN_TOP = 112; // lg:top-28
+    const update = () => {
+      const spare = window.innerHeight - el.offsetHeight - 24;
+      setDetailsTop(spare < PIN_TOP ? spare : null);
+    };
+    update();
+    const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(update) : null;
+    observer?.observe(el);
+    window.addEventListener("resize", update);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener("resize", update);
+    };
+  }, [product?._id]);
   const status = !product?._id
     ? null
     : optionsComplete
@@ -312,9 +355,9 @@ const ProductDetails = () => {
             <div className="hidden sm:block">
               <Breadcrumbs product={product} />
             </div>
-            <div className="grid gap-6 sm:gap-8 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:gap-14 xl:gap-20">
-              {/* Gallery: edge to edge on phones */}
-              <div className="-mx-6 sm:mx-0 lg:sticky lg:top-28 lg:self-start">
+            <div className="grid gap-6 sm:gap-8 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] lg:gap-12 xl:gap-16">
+              {/* Gallery: edge to edge on phones; on desktop every photo, large, scrolling with the page */}
+              <div className="-mx-6 sm:mx-0">
                 <ProductGallery
                   images={galleryImages}
                   alt={chosenColor ? `${product.name} in ${chosenColor}` : product.name}
@@ -329,8 +372,12 @@ const ProductDetails = () => {
                 index={lightboxImageIndex}
               />
 
-              {/* Details */}
-              <div className="flex flex-col">
+              {/* Details: stay in view on desktop while the photos scroll */}
+              <div
+                ref={detailsColumnRef}
+                className="flex flex-col lg:sticky lg:top-[var(--details-top,7rem)] lg:self-start"
+                style={detailsTop == null ? undefined : { "--details-top": `${detailsTop}px` }}
+              >
                 <p className="eyebrow">{product.category || "Maison"}</p>
                 <h1 className="heading-display mt-2 text-[2rem] leading-[1.08] sm:text-5xl">
                   {product.name}
@@ -538,7 +585,7 @@ const ProductDetails = () => {
 
           {/* Phones: price and Add to bag stay in reach while the main button is off screen */}
           {showBuyBar && canBuy && (
-            <div className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/95 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 backdrop-blur lg:hidden">
+            <div ref={bottomBarRef} className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/95 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 backdrop-blur lg:hidden">
               <div className="mx-auto flex max-w-xl items-center gap-3">
                 <div className="min-w-0 flex-1">
                   <p className="font-display text-xl leading-tight text-ink">{priceText}</p>

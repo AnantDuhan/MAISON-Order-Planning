@@ -15,6 +15,7 @@ import { useOverlay } from '../../../utils/useOverlay';
 import { formatINR } from '../../../utils/priceLabel';
 import { FREE_SHIPPING_THRESHOLD } from '../../../utils/delivery';
 import { useMembership } from '../../../utils/useIsMember';
+import { useCategories } from '../../../utils/useCategories';
 
 const useDebounce = (value, delay) => {
     const [debouncedValue, setDebouncedValue] = useState(value);
@@ -42,6 +43,9 @@ const MainHeader = () => {
     const [isSuggestionsVisible, setIsSuggestionsVisible] = useState(false);
     const [menuOpen, setMenuOpen] = useState(false);
     useOverlay(menuOpen);
+    // Departments for the phone menu, with their photos (shared, cached request).
+    const { categories: departments } = useCategories();
+    const closeMenu = () => setMenuOpen(false);
     const [scrolled, setScrolled] = useState(false);
     // Shared with the rest of the app: one request, not one per component.
     const membership = useMembership();
@@ -258,6 +262,29 @@ const MainHeader = () => {
                             className='w-full bg-transparent py-2 font-sans text-sm text-ink placeholder:text-ink-faint focus:outline-none'
                         />
                     </form>
+                    {departments.length > 0 && (
+                        <nav aria-label='Shop by category' className='mb-6'>
+                            <p className='eyebrow mb-3'>Shop by category</p>
+                            <div className='grid grid-cols-2 gap-2.5'>
+                                {departments.slice(0, 5).map(dept => (
+                                    <Link
+                                        key={dept._id}
+                                        to={`/products?category=${encodeURIComponent(dept.slug)}`}
+                                        onClick={closeMenu}
+                                        className='relative flex h-20 items-end overflow-hidden bg-surface-2 p-2'
+                                    >
+                                        {dept.displayImage && (
+                                            <img src={dept.displayImage} alt='' loading='lazy' decoding='async' className='absolute inset-0 h-full w-full object-cover' />
+                                        )}
+                                        <span className='relative bg-surface/95 px-2 py-1 font-sans text-xs text-ink'>{dept.name}</span>
+                                    </Link>
+                                ))}
+                                <Link to='/products' onClick={closeMenu} className='flex h-20 items-center justify-center border border-line font-sans text-xs uppercase tracking-luxe text-ink'>
+                                    Shop all
+                                </Link>
+                            </div>
+                        </nav>
+                    )}
                     <ul className='flex flex-col gap-4'>
                         {user?.role === 'admin' && (
                             <li>
@@ -296,9 +323,16 @@ const MainHeader = () => {
                             <span className='font-sans text-sm uppercase tracking-luxe text-ink'>Theme</span>
                         </li>
                         {!isAuthenticated && (
-                            <li className='sm:hidden'>
-                                <Link to='/login' onClick={() => setMenuOpen(false)} className='font-sans text-sm uppercase tracking-luxe text-ink'>
-                                    Login
+                            <li>
+                                <Link to='/track' onClick={closeMenu} className='font-sans text-sm uppercase tracking-luxe text-ink'>
+                                    Track an order
+                                </Link>
+                            </li>
+                        )}
+                        {!isAuthenticated && (
+                            <li className='mt-2 sm:hidden'>
+                                <Link to='/login' onClick={closeMenu} className='btn-solid block w-full text-center'>
+                                    Sign in
                                 </Link>
                             </li>
                         )}

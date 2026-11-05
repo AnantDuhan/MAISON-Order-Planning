@@ -1,8 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { imageProps } from '../../utils/responsiveImage';
+import { useMediaQuery } from '../../utils/useMediaQuery';
 
 // Main photo: about half the page beside the details on desktop, full width on phones.
-const MAIN_SIZES = '(min-width: 1024px) 50vw, 100vw';
+const MAIN_SIZES = '100vw';
+// Desktop grid: the lead photo spans the gallery column (about 55% of the page), the rest go in pairs.
+const DESKTOP_LEAD_SIZES = '(min-width: 1440px) 760px, 55vw';
+const DESKTOP_PAIR_SIZES = '(min-width: 1440px) 380px, 28vw';
 
 const Arrow = ({ dir, onClick }) => (
     <button
@@ -25,6 +29,7 @@ const Arrow = ({ dir, onClick }) => (
  * Tapping or clicking a photo opens the zoom view at that photo.
  */
 const ProductGallery = ({ images, alt, onOpen }) => {
+    const isDesktop = useMediaQuery('(min-width: 1024px)');
     const [active, setActive] = useState(0);
     const track = useRef(null);
     const thumbs = useRef(null);
@@ -64,6 +69,34 @@ const ProductGallery = ({ images, alt, onOpen }) => {
 
     if (!count) {
         return <div className='aspect-square w-full border border-line bg-surface-2' />;
+    }
+
+    // Desktop: every photo, large, in a grid that scrolls with the page while
+    // the details stay in view. Phones keep the swipe carousel below. Only one
+    // is rendered, so no photo is downloaded twice.
+    if (isDesktop) {
+        return (
+            <div className='grid grid-cols-2 gap-3'>
+                {images.map((img, i) => (
+                    <button
+                        key={img.url + i}
+                        type='button'
+                        onClick={() => onOpen(i)}
+                        aria-label={`Zoom photo ${i + 1} of ${count}`}
+                        className={`group cursor-zoom-in overflow-hidden bg-surface-2 ${i === 0 || (count === 2 && i === 1) || (i === count - 1 && count % 2 === 0) ? 'col-span-2' : ''}`}
+                    >
+                        <img
+                            {...imageProps(img, i === 0 || count === 2 ? DESKTOP_LEAD_SIZES : DESKTOP_PAIR_SIZES)}
+                            alt={`${alt}, photo ${i + 1}`}
+                            loading={i === 0 ? 'eager' : 'lazy'}
+                            fetchpriority={i === 0 ? 'high' : undefined}
+                            decoding='async'
+                            className='aspect-[4/5] w-full object-cover transition-transform duration-700 ease-luxe group-hover:scale-[1.02]'
+                        />
+                    </button>
+                ))}
+            </div>
+        );
     }
 
     return (
