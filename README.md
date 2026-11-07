@@ -226,7 +226,6 @@ The frontend is currently based on React 18 and uses React Router, Redux/Redux T
 | JWT           | Authentication               |
 | Speakeasy     | TOTP 2FA                     |
 | Google OAuth  | Social authentication        |
-| BullMQ        | Background job processing    |
 | Nodemailer    | Email delivery               |
 | EJS           | Email templates              |
 | Cashfree      | Payments & subscriptions     |
@@ -235,7 +234,7 @@ The frontend is currently based on React 18 and uses React Router, Redux/Redux T
 | Swagger       | API documentation            |
 | Pino          | Application logging          |
 
-The current backend dependencies include Express 5, Mongoose, Redis, BullMQ, Socket.IO, Elasticsearch, AWS S3, Cashfree-related integrations, Google AI packages, JWT, Speakeasy, Nodemailer, Swagger and rate limiting.
+The current backend dependencies include Express 5, Mongoose, Redis, Socket.IO, Elasticsearch, AWS S3, Cashfree-related integrations, Google AI packages, JWT, Speakeasy, Nodemailer, Swagger and rate limiting.
 
 ---
 
@@ -663,7 +662,6 @@ MAISON-Order-Planning/
 │   │
 │   ├── newsletterJob.js
 │   ├── wishlistJob.js
-│   ├── worker.js
 │   ├── app.js
 │   └── server.js
 │
@@ -926,12 +924,6 @@ cd frontend
 npm run build
 ```
 
-Backend worker:
-
-```bash
-npm run worker
-```
-
 ---
 
 # 🐳 Docker
@@ -1029,7 +1021,7 @@ Express API
 | Image Storage    | AWS S3                       |
 | AI               | Google Gemini                |
 | Email            | Nodemailer + EJS             |
-| Background Jobs  | BullMQ / scheduled endpoints |
+| Background Jobs  | Scheduled endpoints (cron-job.org) |
 | API Docs         | Swagger/OpenAPI              |
 | Analytics        | Admin dashboard              |
 | Rate Limiting    | Express Rate Limit           |

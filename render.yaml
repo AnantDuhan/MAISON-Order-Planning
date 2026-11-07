@@ -49,8 +49,6 @@ projects:
       # --- Scheduled jobs ---
       - key: CRON_SECRET             # required by POST /api/v1/jobs/*
         sync: false
-      - key: EMAIL_JOBS_INLINE       # "true": run newsletter/wishlist in the web process (no worker.js deployed)
-        value: "true"
 
       # --- Inventory ---
       - key: ADMIN_ALERT_EMAILS      # optional, comma-separated; defaults to all admin users
