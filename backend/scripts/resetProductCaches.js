@@ -1,14 +1,11 @@
 /**
  * Run after replacing or bulk-editing the products collection directly in
  * MongoDB (Atlas, Compass, mongosh). Those edits skip the app, so nothing
- * clears the copies the storefront reads from:
- *   1. Redis: product lists (products:list:*) and product pages (product:*)
- *   2. Elasticsearch: the "products" search index
+ * clears the copies the storefront reads from Redis: product lists
+ * (products:list:*) and product pages (product:*).
  *
  * Usage (from backend/):  node scripts/resetProductCaches.js
- * Add --cache-only to skip Elasticsearch.
  */
-const mongoose = require('mongoose');
 require('dotenv').config({ path: require('path').join(__dirname, '../config/config.env'), quiet: true });
 
 const PATTERNS = ['products:list:*', 'product:*'];
@@ -44,27 +41,13 @@ async function clearRedis() {
     console.log(`Redis: deleted ${deleted} cached product keys`);
 }
 
-async function rebuildSearchIndex() {
-    const esClient = require('../config/elasticsearch');
-    const { bulkReindex } = require('../services/searchService');
-    // Reindexing alone only adds/updates; deleted products would stay
-    // searchable. Drop the index so it's rebuilt from the collection as it is now.
-    await esClient.indices.delete({ index: 'products', ignore_unavailable: true });
-    await mongoose.connect(process.env.DB_HOSTED_URI);
-    const { indexed } = await bulkReindex();
-    console.log(`Elasticsearch: rebuilt "products" index with ${indexed} products`);
-    await mongoose.disconnect();
-}
-
 (async () => {
     try {
         await clearRedis();
-        if (!process.argv.includes('--cache-only')) await rebuildSearchIndex();
         process.exit(0);
     } catch (error) {
         console.error('Reset failed:', error.name, error.message || '');
         if (error.errors) error.errors.forEach(e => console.error('  -', e.message));
-        if (error.meta?.body) console.error('  ES says:', JSON.stringify(error.meta.body.error || error.meta.body));
         process.exit(1);
     }
 })();

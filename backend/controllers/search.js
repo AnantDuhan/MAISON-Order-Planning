@@ -1,67 +1,53 @@
-const { searchProducts, suggestProducts } = require('../services/searchService');
-const categoryService = require('../services/categoryService');
+const Product = require('../models/product');
 const { listProducts } = require('./product');
 
-const RESULT_PER_PAGE = () => Number(process.env.RESULT_PER_PAGE) || 8;
-
-// The extended query parser turns price[gte]=5 into { price: { gte: '5' } };
-// older clients may send minPrice/maxPrice instead.
-const rangeOf = (query, field, legacyMin, legacyMax) => ({
-    min: query[field]?.gte ?? query[`${field}[gte]`] ?? (legacyMin && query[legacyMin]),
-    max: query[field]?.lte ?? query[`${field}[lte]`] ?? (legacyMax && query[legacyMax]),
-});
-
 // GET /api/v1/search
-// Same filters, sorting and response shape as GET /products, ranked by
-// Elasticsearch relevance. If Elasticsearch is down, it falls back to the
-// catalogue query so search still returns results.
+// The catalogue query with a keyword: same filters, sorting, paging and
+// response shape as GET /products. Products match when their name contains
+// the keyword (case-insensitive).
 exports.searchProductsController = async (req, res) => {
-    const { keyword, category, sort, page, inStock } = req.query;
-    const price = rangeOf(req.query, 'price', 'minPrice', 'maxPrice');
-    const ratings = rangeOf(req.query, 'ratings');
-    const limit = Number(req.query.limit) || RESULT_PER_PAGE();
-
-    try {
-        // A department ("Accessories") covers every category inside it.
-        const categories = typeof category === 'string' && category.trim()
-            ? await categoryService.namesFor(category)
-            : [];
-
-        const { products, total } = await searchProducts({
-            keyword,
-            categories,
-            minPrice: price.min,
-            maxPrice: price.max,
-            minRating: ratings.min,
-            inStock: inStock === 'true',
-            sort,
-            page,
-            limit,
-        });
-
-        return res.status(200).json({
-            success: true,
-            products,
-            total,
-            productsCount: total,
-            filteredProductsCount: total,
-            resultPerPage: limit,
-        });
-    } catch (error) {
-        console.error('Search error, using catalogue fallback:', error.message);
-    }
-
     try {
         const payload = await listProducts(req.query);
-        return res.status(200).json({ ...payload, total: payload.filteredProductsCount, fallback: true });
+        return res.status(200).json({ ...payload, total: payload.filteredProductsCount });
     } catch (error) {
-        console.error('Search fallback error:', error.message);
+        console.error('Search error:', error.message);
         return res.status(503).json({
             success: false,
             message: 'Search is temporarily unavailable',
         });
     }
 };
+
+const escapeRegex = value => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const SUGGESTION_LIMIT = 6;
+
+/**
+ * Up to `limit` products whose name contains the typed text, names that start
+ * with it first, then shorter (closer) names.
+ */
+const suggestProducts = async (text, limit = SUGGESTION_LIMIT) => {
+    const query = typeof text === 'string' ? text.trim().slice(0, 100) : '';
+    if (!query) return [];
+    const matches = await Product.find({ name: { $regex: escapeRegex(query), $options: 'i' } })
+        .select('name category price images')
+        .limit(50)
+        .lean();
+    const lower = query.toLowerCase();
+    return matches
+        .map(p => ({ product: p, starts: p.name.toLowerCase().startsWith(lower) }))
+        .sort((a, b) => (b.starts - a.starts) || (a.product.name.length - b.product.name.length))
+        .slice(0, limit)
+        .map(({ product: p }) => ({
+            // `id` too: the header navigates to /product/:id on click.
+            id: String(p._id),
+            _id: String(p._id),
+            name: p.name,
+            category: p.category,
+            price: p.price,
+            images: (p.images || []).slice(0, 1),
+        }));
+};
+exports.suggestProducts = suggestProducts;
 
 // GET /api/v1/products/autocomplete?query=...
 exports.autocompleteController = async (req, res) => {

@@ -7,10 +7,8 @@ const ApiFeatures = require('../utils/apifeatures');
 const Product = require('../models/product');
 const cache = require('../utils/cache');
 const categoryService = require('../services/categoryService');
-const searchService = require('../services/searchService');
-const esClient = require('../config/elasticsearch');
 const { getAllProducts } = require('../controllers/product');
-const { searchProductsController } = require('../controllers/search');
+const { searchProductsController, suggestProducts } = require('../controllers/search');
 
 const s = stubs();
 afterEach(() => s.restore());
@@ -48,36 +46,44 @@ test('product listings sort when asked and cache per sort', async () => {
     assert.match(cacheKeys[0], /"sort":"price_asc"/);
 });
 
-test('search filters by every category in a department, ratings and price', async () => {
-    let body;
+test('search filters by every category in a department, ratings, price and stock', async () => {
+    let listQuery;
     s.set(categoryService, 'namesFor', async () => ['Accessories', 'Necklaces']);
-    s.set(esClient, 'search', async req => { body = req; return { hits: { hits: [], total: { value: 0 } } }; });
-
-    const res = mockRes();
-    await searchProductsController({ query: { keyword: 'gold', category: 'accessories', price: { gte: '1000', lte: '5000' }, ratings: { gte: '4' }, sort: 'newest' } }, res);
-
-    assert.equal(res.statusCode, 200);
-    const filters = body.query.bool.filter;
-    assert.deepEqual(filters.find(f => f.terms).terms.category.sort(), ['Accessories', 'Necklaces', 'accessories', 'necklaces']);
-    assert.deepEqual(filters.find(f => f.range?.price).range.price, { gte: 1000, lte: 5000 });
-    assert.deepEqual(filters.find(f => f.range?.ratings).range.ratings, { gte: 4 });
-    assert.deepEqual(body.sort, [{ createdAt: 'desc' }]);
-    assert.equal(res.body.filteredProductsCount, 0);
-    assert.ok(res.body.resultPerPage > 0);
-});
-
-test('search falls back to the catalogue when Elasticsearch is down', async () => {
-    s.set(searchService, 'searchProducts', async () => { throw new Error('connect ECONNREFUSED'); });
-    s.set(esClient, 'search', async () => { throw new Error('connect ECONNREFUSED'); });
     s.set(Product, 'estimatedDocumentCount', async () => 5);
     s.set(Product, 'countDocuments', async () => 1);
-    s.set(mongoose.Query.prototype, 'exec', async () => [{ _id: 'p1', name: 'Gold chain' }]);
+    s.set(mongoose.Query.prototype, 'exec', async function () { listQuery = this; return [{ _id: 'p1', name: 'Gold chain' }]; });
 
     const res = mockRes();
-    await searchProductsController({ query: { keyword: 'gold' } }, res);
+    await searchProductsController({ query: { keyword: 'gold', category: 'accessories', price: { gte: '1000', lte: '5000' }, ratings: { gte: '4' }, sort: 'newest', inStock: 'true' } }, res);
 
     assert.equal(res.statusCode, 200);
+    const filter = listQuery.getFilter();
+    assert.equal(filter.name.$regex, 'gold');
+    assert.deepEqual(filter.category.$in.map(r => r.source), ['^Accessories$', '^Necklaces$']);
+    assert.deepEqual(filter.price, { $gte: 1000, $lte: 5000 });
+    assert.deepEqual(filter.ratings, { $gte: 4 });
+    assert.deepEqual(filter.Stock, { $gt: 0 });
+    assert.deepEqual(listQuery.getOptions().sort, { createdAt: -1, _id: -1 });
     assert.deepEqual(res.body.products, [{ _id: 'p1', name: 'Gold chain' }]);
+    assert.equal(res.body.total, 1);
     assert.equal(res.body.filteredProductsCount, 1);
-    assert.equal(res.body.fallback, true);
+});
+
+test('suggestions: names that start with the text first, then shorter names, at most six', async () => {
+    let filter;
+    const names = ['A gold ring', 'Gold chain bracelet', 'Gold chain', 'Rose gold watch', 'Goldie', 'Old gold', 'Gilded gold tray', 'gold'];
+    s.set(Product, 'find', f => {
+        filter = f;
+        return { select() { return this; }, limit() { return this; }, lean: async () => names.map((name, i) => ({ _id: `p${i}`, name, images: [{ url: 'a' }, { url: 'b' }] })) };
+    });
+
+    await suggestProducts('Gold.*');
+    assert.equal(filter.name.$regex, 'Gold\\.\\*'); // typed text is matched literally
+
+    const data = await suggestProducts('  Gold ');
+    assert.equal(data.length, 6);
+    assert.deepEqual(data.slice(0, 4).map(d => d.name), ['gold', 'Goldie', 'Gold chain', 'Gold chain bracelet']);
+    assert.equal(data[0].id, 'p7');
+    assert.equal(data[0].images.length, 1);
+    assert.deepEqual(await suggestProducts('   '), []);
 });

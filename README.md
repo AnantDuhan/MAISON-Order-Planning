@@ -22,7 +22,7 @@
 
 **Product Discovery → Cart → Checkout → Payment → Order Processing → Shipping → Delivery → Returns → Refunds**
 
-The application combines a modern React frontend with a Node.js/Express backend, MongoDB persistence, Redis caching, Elasticsearch-powered product search, Socket.IO real-time communication, Cashfree payments, AWS S3 storage, Google OAuth, TOTP-based two-factor authentication, and Gemini-powered AI features.
+The application combines a modern React frontend with a Node.js/Express backend, MongoDB persistence, Redis caching, MongoDB product search, Socket.IO real-time communication, Cashfree payments, AWS S3 storage, Google OAuth, TOTP-based two-factor authentication, and Gemini-powered AI features.
 
 The platform also includes an administration workspace for managing products, orders, users, coupons, returns, refunds, and business analytics.
 
@@ -162,16 +162,9 @@ MAISON follows a full-stack architecture consisting of a React client and Node.j
           │     MongoDB      │              │      Redis       │
           │                  │              │                  │
           │ Users            │              │ Caching          │
-          │ Products         │              │ Socket.IO Adapter│
-          │ Orders           │              │ Background Jobs  │
+          │ Products         │              │ Rate limiting    │
+          │ Orders           │              │                  │
           │ Reviews          │              └──────────────────┘
-          └──────────────────┘
-                    │
-                    ▼
-          ┌──────────────────┐
-          │  Elasticsearch   │
-          │                  │
-          │ Product Search   │
           └──────────────────┘
 
         External Integrations
@@ -184,7 +177,7 @@ MAISON follows a full-stack architecture consisting of a React client and Node.j
         SMTP         → Transactional Email
 ```
 
-The backend also supports Redis-based Socket.IO adapters so events can be propagated between multiple application instances when Redis is configured.
+The app runs as a single instance, so Socket.IO uses its built-in in-memory adapter. Running several instances would need a shared adapter (for example `@socket.io/redis-adapter`).
 
 ---
 
@@ -221,7 +214,6 @@ The frontend is currently based on React 18 and uses React Router, Redux/Redux T
 | Mongoose      | MongoDB ODM                  |
 | Redis         | Caching / distributed events |
 | Upstash Redis | Managed Redis                |
-| Elasticsearch | Product search               |
 | Socket.IO     | Real-time events             |
 | JWT           | Authentication               |
 | Speakeasy     | TOTP 2FA                     |
@@ -234,7 +226,7 @@ The frontend is currently based on React 18 and uses React Router, Redux/Redux T
 | Swagger       | API documentation            |
 | Pino          | Application logging          |
 
-The current backend dependencies include Express 5, Mongoose, Redis, Socket.IO, Elasticsearch, AWS S3, Cashfree-related integrations, Google AI packages, JWT, Speakeasy, Nodemailer, Swagger and rate limiting.
+The current backend dependencies include Express 5, Mongoose, Redis, Socket.IO, AWS S3, Cashfree-related integrations, Google AI packages, JWT, Speakeasy, Nodemailer, Swagger and rate limiting.
 
 ---
 
@@ -324,11 +316,9 @@ MongoDB indexes are used for frequently accessed query paths, including:
 * Product search
 * Order history
 
-### Elasticsearch
+### Product Search
 
-Elasticsearch is used for product-search functionality.
-
-The backend initializes the product search index when the application starts.
+Search and the header's suggestions query MongoDB directly: products whose name contains the typed text, with the same filters and sorting as the shop. There is no separate search index to keep in sync.
 
 ### Response Compression
 
@@ -337,10 +327,6 @@ HTTP responses are compressed using gzip-compatible response compression.
 ### Frontend Code Splitting
 
 Frontend routes use lazy loading to reduce the amount of JavaScript required during initial application startup.
-
-### Distributed Socket.IO
-
-When Redis is configured, Socket.IO uses the Redis adapter to synchronize events between multiple application instances.
 
 ---
 
@@ -698,7 +684,6 @@ Install:
 Optional services:
 
 * Redis / Upstash Redis
-* Elasticsearch
 * AWS S3
 * SMTP provider
 * Google OAuth
@@ -1012,7 +997,7 @@ Express API
 | ---------------- | ---------------------------- |
 | Authentication   | JWT + Google OAuth           |
 | Account Security | TOTP 2FA                     |
-| Product Search   | MongoDB + Elasticsearch      |
+| Product Search   | MongoDB                      |
 | Caching          | Redis / Upstash              |
 | Database         | MongoDB + Mongoose           |
 | Real-Time        | Socket.IO                    |
@@ -1036,7 +1021,6 @@ For production deployments:
 
 * Use a managed MongoDB deployment such as MongoDB Atlas.
 * Use a managed Redis service such as Upstash.
-* Configure Elasticsearch appropriately for your workload.
 * Store secrets exclusively in environment variables or a secret manager.
 * Use HTTPS.
 * Configure Cashfree webhooks correctly.
@@ -1117,6 +1101,6 @@ https://github.com/AnantDuhan/MAISON-Order-Planning
 ---
 
 <p align="center">
-  Built with React, Node.js, MongoDB, Redis, Elasticsearch, Socket.IO, AWS, Cashfree and Gemini AI.
+  Built with React, Node.js, MongoDB, Redis, Socket.IO, AWS, Cashfree and Gemini AI.
 </p>
 

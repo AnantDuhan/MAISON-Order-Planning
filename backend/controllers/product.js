@@ -8,7 +8,6 @@ const generateId = require("../utils/generateId");
 const { GoogleGenAI } = require("@google/genai");
 const cache = require("../utils/cache");
 const { generateEmbedding } = require("../utils/generateEmbedding");
-const searchService = require("../services/searchService");
 const categoryService = require("../services/categoryService");
 
 // Fields an admin may change through the JSON update endpoint.
@@ -22,9 +21,6 @@ const LIST_CACHE_TTL = 60;
 // Fields a product card needs (ProductCard, priceLabel, optionsSummary, stockStatus).
 const LIST_FIELDS = 'name price priceFrom priceTo images category ratings numOfReviews Stock options earlyAccessUntil createdAt';
 const DETAIL_CACHE_TTL = 3600;
-
-const syncSearchIndex = product =>
-  searchService.indexProduct(product).catch(err => console.error("Search index sync failed:", err.message));
 
 // Auto-generate a review summary the first time a product with enough reviews
 // is viewed, so nobody has to click "Generate". Guarded so each product only
@@ -65,8 +61,7 @@ exports.getAllProducts = async (req, res, next) => {
 
 /**
  * One page of the catalogue for a listing query (keyword, category, price,
- * ratings, sort, page). Shared by GET /products and by search when
- * Elasticsearch is unavailable.
+ * ratings, sort, page, inStock). Shared by GET /products and GET /search.
  */
 exports.listProducts = async query => {
   const { category } = query;
@@ -82,6 +77,8 @@ exports.listProducts = async query => {
     const names = await categoryService.namesFor(category);
     apiFeature.query.where('category').in(names.map(n => new RegExp(`^${n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i')));
   }
+
+  if (query.inStock === 'true') apiFeature.query.where('Stock').gt(0);
 
   const filter = apiFeature.query.getFilter();
   apiFeature.sort().pagination(resultPerPage);
@@ -290,7 +287,6 @@ exports.updateProduct = async (req, res, next) => {
     });
 
     await cache.del(`product:${productId}`);
-    syncSearchIndex(updatedProduct);
     inventory.onStockEdited(productId, product.Stock, updatedProduct.Stock);
     res.locals.audit = {
       before: snapshot(product, ['name', 'price', 'Stock', 'category', 'lowStockThreshold']),
@@ -510,7 +506,6 @@ exports.createProductReview = async (req, res, next) => {
   await product.save({ validateBeforeSave: false });
 
   await cache.del(`product:${productId}`);
-  syncSearchIndex(product);
 
   const io = req.app.get("socketio");
   io.to(String(productId)).emit("reviewUpdate", {
@@ -754,7 +749,6 @@ exports.deleteReview = async (req, res, next) => {
   );
 
   await cache.del(`product:${productId}`);
-  syncSearchIndex(updatedProduct);
 
   // Emit the post-delete state (previously the old reviews were sent).
   const io = req.app.get("socketio");

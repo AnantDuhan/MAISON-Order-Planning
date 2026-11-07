@@ -144,7 +144,6 @@ function reviewCountForProduct() {
             `\n✅ Done. ${totalReviews} reviews across ${productsWithReviews} products; ` +
             `${productsOverSix} products now have more than 6 reviews.`
         );
-        console.log('Next: run "npm run reindex" if you want ratings reflected in search.');
         await mongoose.disconnect();
         process.exit(0);
     } catch (e) {

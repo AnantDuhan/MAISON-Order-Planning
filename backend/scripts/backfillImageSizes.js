@@ -92,7 +92,6 @@ const run = async () => {
 
     await cache.del(...[...touched].map(id => `product:${id}`)).catch(() => {});
     console.log(`\nDone: ${done} photo(s) updated, ${failed} failed.`);
-    console.log('Search results show the new sizes after the next reindex: npm run reindex');
     await mongoose.disconnect();
 };
 

@@ -216,7 +216,6 @@ function buildProduct(userId, usedIds) {
         }
 
         console.log(`\u2705 Done. Inserted ${inserted} products.`);
-        console.log('Next: run "npm run reindex" to load them into Elasticsearch.');
         await mongoose.disconnect();
         process.exit(0);
     } catch (e) {

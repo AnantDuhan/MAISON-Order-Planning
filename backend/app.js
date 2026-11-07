@@ -25,7 +25,6 @@ const Product = require("./models/product");
 const generateId = require("./utils/generateId");
 const { generateEmbedding } = require("./utils/generateEmbedding");
 const cache = require("./utils/cache");
-const { indexProduct, deleteProductDoc } = require("./services/searchService");
 const swaggerSpec = require("./config/swagger");
 
 const app = express();
@@ -298,9 +297,6 @@ const tagExistingImages = (images, raw) => {
   });
 };
 
-const syncSearchIndex = promise =>
-  promise.catch(err => console.error("Search index sync failed:", err.message));
-
 // Route Imports
 const productRoute = require("./routes/product");
 const userRoute = require("./routes/user");
@@ -423,7 +419,6 @@ adminProducts.post("/admin/add-product", adminOnly, acceptProductPhotos, async (
     });
 
     await cache.del(`product:${productId}`);
-    syncSearchIndex(indexProduct(product));
 
     res.locals.audit = {
       entity: { type: "product", id: productId },
@@ -524,7 +519,6 @@ adminProducts.put("/admin/product/:id", adminOnly, acceptProductPhotos, async (r
     if (oldImages) await deleteImages(oldImages);
 
     await cache.del(`product:${productId}`);
-    syncSearchIndex(indexProduct(updatedProduct));
     inventory.onStockEdited(productId, product.Stock, updatedProduct.Stock);
     res.locals.audit = {
       before: snapshot(product, ['name', 'price', 'Stock', 'category', 'lowStockThreshold']),
@@ -563,7 +557,6 @@ adminProducts.delete("/admin/product/:id", adminOnly, async (req, res) => {
     };
     await deleteImages(product.images);
     await cache.del(`product:${productId}`);
-    syncSearchIndex(deleteProductDoc(productId));
 
     return res.status(200).json({
       success: true,

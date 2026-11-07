@@ -5,7 +5,6 @@ const { stubs, mockRes } = require('./helpers');
 const Order = require('../models/order');
 const Product = require('../models/product');
 const cache = require('../utils/cache');
-const searchService = require('../services/searchService');
 const { createProductReview, deleteReview } = require('../controllers/product');
 
 const s = stubs();
@@ -40,7 +39,6 @@ test('accepts a review from a customer with a delivered order', async () => {
     s.set(Product, 'findById', async () => product);
     s.set(Order, 'exists', async q => { existsQuery = q; return { _id: 'o1' }; });
     s.set(cache, 'del', async () => {});
-    s.set(searchService, 'indexProduct', async () => {});
     const res = mockRes();
     await createProductReview(
         { body: { productId: 'lamp', rating: 4, comment: 'Nice' }, user: { _id: 'u1', name: 'A' }, app },

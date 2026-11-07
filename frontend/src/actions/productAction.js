@@ -50,8 +50,8 @@ const SORTS = ['newest', 'price_asc', 'price_desc', 'ratings'];
 
 /**
  * Get one page of products for the shop, search and home page.
- * `search: true` ranks by relevance through /search (which falls back to the
- * catalogue if Elasticsearch is down); otherwise /products.
+ * `search: true` goes through /search (the catalogue query with a keyword);
+ * otherwise /products.
  */
 export const getProduct = ({
     keyword = '',

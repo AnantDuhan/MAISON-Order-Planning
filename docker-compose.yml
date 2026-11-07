@@ -23,11 +23,8 @@ services:
       # backend/config/config.env (the env_file above) so that file is the
       # single source of truth for the Mongo connection string.
       - REDIS_URL=redis://redis:6379
-      - ELASTICSEARCH_NODE=http://elasticsearch:9200
     depends_on:
       redis:
-        condition: service_healthy
-      elasticsearch:
         condition: service_healthy
     restart: unless-stopped
 
@@ -46,32 +43,6 @@ services:
       retries: 5
     restart: unless-stopped
 
-  elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.0
-    container_name: my_elasticsearch
-    environment:
-      - discovery.type=single-node
-      - xpack.security.enabled=false     # dev only — enable + TLS in production
-      - bootstrap.memory_lock=true
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"  # cap heap; raise for larger catalogs
-    ulimits:
-      memlock:
-        soft: -1
-        hard: -1
-    ports:
-      - "9200:9200"
-    volumes:
-      - es-data:/usr/share/elasticsearch/data
-    healthcheck:
-      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -qE '\"status\":\"(green|yellow)\"'"]
-      interval: 15s
-      timeout: 10s
-      retries: 12
-      start_period: 60s
-    restart: unless-stopped
-
 volumes:
   redis-data:
-    driver: local
-  es-data:
     driver: local

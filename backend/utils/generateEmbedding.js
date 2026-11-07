@@ -1,14 +1,13 @@
-// CommonJS like the rest of the backend (this file used to be ESM and only
-// loaded thanks to Node 22's require(esm) support).
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+// Product embeddings, on the same Google Gen AI SDK as services/aiService.js.
+const { GoogleGenAI } = require('@google/genai');
 
-// Built on first use and reused: one client and model for the process.
-let embeddingModel = null;
-const getEmbeddingModel = apiKey => {
-    if (!embeddingModel) {
-        embeddingModel = new GoogleGenerativeAI(apiKey).getGenerativeModel({ model: 'gemini-embedding-001' });
-    }
-    return embeddingModel;
+const EMBEDDING_MODEL = 'gemini-embedding-001';
+
+// Built on first use and reused: one client for the process.
+let client = null;
+const getClient = apiKey => {
+    if (!client) client = new GoogleGenAI({ apiKey });
+    return client;
 };
 
 const generateEmbedding = async (text) => {
@@ -23,15 +22,15 @@ const generateEmbedding = async (text) => {
     }
 
     try {
-        const model = getEmbeddingModel(apiKey);
-
-        const result = await model.embedContent(text);
-
-        return result.embedding.values;
+        const response = await getClient(apiKey).models.embedContent({
+            model: EMBEDDING_MODEL,
+            contents: text,
+        });
+        return response.embeddings?.[0]?.values || null;
     } catch (error) {
         console.error('Embedding Generation Error:', error.message);
         return null;
     }
 };
 
-module.exports = { generateEmbedding };
+module.exports = { generateEmbedding, _resetClient: () => { client = null; } };

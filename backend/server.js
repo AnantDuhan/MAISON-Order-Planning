@@ -7,8 +7,6 @@ const { isAllowedOrigin } = require('./app');
 const connectDB = require('./config/database');
 const http = require('http');
 const { Server } = require('socket.io');
-const { createAdapter } = require('@socket.io/redis-adapter');
-const { createClient } = require('redis');
 const redisClient = require('./config/redisClientUpstash');
 const { warmUpEmailTransport } = require('./utils/sendEmail');
 const runWeeklyNewsletter = require('./newsletterJob');
@@ -34,23 +32,9 @@ const io = new Server(createServer, {
     }
 });
 
-// Fan Socket.io events across instances via Redis pub/sub. Without this, an
-// event emitted on one instance never reaches clients connected to another.
-// Falls back to the in-memory adapter locally when REDIS_URL is unset.
-async function attachRedisAdapter(io) {
-    if (!process.env.REDIS_UPSTASH_URL) {
-        console.info('Socket.io: single-instance mode (no REDIS_UPSTASH_URL)');
-        return;
-    }
-    const pubClient = createClient({ url: process.env.REDIS_UPSTASH_URL });
-    const subClient = pubClient.duplicate();
-    pubClient.on('error', e => console.error('Socket pub error:', e.message));
-    subClient.on('error', e => console.error('Socket sub error:', e.message));
-    await Promise.all([pubClient.connect(), subClient.connect()]);
-    io.adapter(createAdapter(pubClient, subClient));
-    console.info('Socket.io: Redis adapter attached (multi-instance ready)');
-}
-attachRedisAdapter(io).catch(err => console.error('Redis adapter setup failed:', err.message));
+// One server instance, so Socket.io's built-in in-memory adapter delivers
+// every event. Running several instances would need a shared adapter again
+// (e.g. @socket.io/redis-adapter) so events reach clients on other instances.
 
 const readCookie = (header, name) => {
     for (const part of String(header || '').split(';')) {
@@ -128,9 +112,6 @@ app.set('redisClient', redisClient);
 //connecting to database
 connectDB();
 
-// Initialise the Elasticsearch products index (non-fatal if ES is unreachable).
-const { ensureIndex } = require("./services/searchService");
-ensureIndex().catch(err => console.error("Elasticsearch index init failed:", err.message));
 
 // Open the SMTP pool at boot so the first user-facing email is fast too.
 warmUpEmailTransport();
