@@ -161,7 +161,7 @@ const ProductCard = ({ product, sizes = CARD_SIZES, priority = false }) => {
                     <button
                         onClick={addToWishlist}
                         aria-label='Add to wishlist'
-                        className='absolute right-3 top-3 grid h-9 w-9 place-items-center rounded-full bg-canvas/80 text-ink backdrop-blur transition-all duration-500 ease-luxe hover:text-brass [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100'
+                        className='absolute right-2 top-2 grid h-9 w-9 place-items-center rounded-full bg-canvas/80 text-ink backdrop-blur transition-all duration-500 ease-luxe hover:text-brass sm:right-3 sm:top-3 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100'
                     >
                         <svg width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='1.5'>
                             <path d='M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1.1L12 21l7.8-7.5 1-1.1a5.5 5.5 0 0 0 0-7.8z' />
@@ -186,7 +186,7 @@ const ProductCard = ({ product, sizes = CARD_SIZES, priority = false }) => {
                                     onClick={quickAdd}
                                     disabled={adding}
                                     aria-label={`Add ${product.name} to bag`}
-                                    className='absolute bottom-3 right-3 grid h-10 w-10 place-items-center rounded-full bg-canvas/90 text-ink shadow-sm backdrop-blur transition-colors active:bg-brass active:text-canvas disabled:opacity-60 [@media(hover:hover)]:hidden'
+                                    className='absolute bottom-2 right-2 grid h-10 w-10 place-items-center rounded-full bg-canvas/90 text-ink shadow-sm backdrop-blur transition-colors active:bg-brass active:text-canvas disabled:opacity-60 sm:bottom-3 sm:right-3 [@media(hover:hover)]:hidden'
                                 >
                                     <BagIcon />
                                 </button>
@@ -199,9 +199,10 @@ const ProductCard = ({ product, sizes = CARD_SIZES, priority = false }) => {
                     )}
                 </div>
 
-                {/* Meta: category, name, real options, price and stock */}
-                <div className='px-5 py-5'>
-                    <div className='flex items-baseline justify-between gap-2'>
+                {/* Meta: category, name, real options, price and stock. Tighter on
+                    phones, where cards sit two to a row. */}
+                <div className='px-3 py-3 sm:px-5 sm:py-5'>
+                    <div className='flex flex-wrap items-baseline justify-between gap-x-2'>
                         {product.category && (
                             <p className='truncate font-sans text-[0.68rem] uppercase tracking-luxe text-ink-faint'>{product.category}</p>
                         )}
@@ -209,15 +210,15 @@ const ProductCard = ({ product, sizes = CARD_SIZES, priority = false }) => {
                             <p className='shrink-0 font-sans text-[0.62rem] uppercase tracking-luxe text-brass'>Plus early access</p>
                         )}
                     </div>
-                    <h3 className='mt-1 truncate font-display text-xl font-medium text-ink'>{product.name}</h3>
+                    <h3 className='mt-1 line-clamp-2 font-display text-[1.05rem] font-medium leading-snug text-ink sm:truncate sm:text-xl sm:leading-normal'>{product.name}</h3>
                     {summary && <p className='mt-1 truncate font-sans text-xs text-ink-soft'>{summary}</p>}
                     {product.numOfReviews > 0 && (
-                        <div className='mt-2 flex items-center gap-2'>
-                            <Rating {...options} />
+                        <div className='mt-1.5 flex items-center gap-1.5 sm:mt-2 sm:gap-2'>
+                            <Rating {...options} sx={{ fontSize: { xs: '0.95rem', sm: '1.125rem' } }} />
                             <span className='font-sans text-[0.7rem] text-ink-faint'>({product.numOfReviews})</span>
                         </div>
                     )}
-                    <div className='mt-3 flex items-baseline justify-between gap-3'>
+                    <div className='mt-2 flex flex-col gap-0.5 sm:mt-3 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3'>
                         <p className='font-sans text-sm tracking-wide text-ink'>{priceLabel(product)}</p>
                         <p className={`shrink-0 font-sans text-[0.68rem] uppercase tracking-luxe ${stock.tone === 'out' ? 'text-danger' : stock.tone === 'low' ? 'text-brass' : 'text-ink-faint'}`}>{stock.label}</p>
                     </div>

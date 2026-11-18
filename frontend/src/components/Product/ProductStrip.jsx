@@ -20,7 +20,7 @@ const ProductStrip = ({ eyebrow, title, products, viewAll }) => {
                     </Link>
                 )}
             </div>
-            <div className='grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4'>
+            <div className='grid grid-cols-2 gap-x-3 gap-y-8 sm:gap-8 lg:grid-cols-4'>
                 {products.map(product => (
                     <ProductCard key={product._id} product={product} sizes={CARD_SIZES_4_COL} />
                 ))}

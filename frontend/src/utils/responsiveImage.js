@@ -12,8 +12,9 @@ const MAIN_WIDTH = 1600;
 const withWidth = (url, width) => url.replace(/(\.[a-z0-9]+)?([?#].*)?$/i, (_, ext = '', rest = '') => `-w${width}${ext}${rest}`);
 
 /** Grid cards: 1 column on phones, 2 from sm, 3 or 4 on wide screens. */
-export const CARD_SIZES = '(min-width: 1280px) 33vw, (min-width: 640px) 50vw, 100vw';
-export const CARD_SIZES_4_COL = '(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw';
+// Phones show two cards per row, so every card is about half the screen wide.
+export const CARD_SIZES = '(min-width: 1280px) 33vw, 50vw';
+export const CARD_SIZES_4_COL = '(min-width: 1024px) 25vw, 50vw';
 
 /**
  * Props for an <img>: src plus, when smaller copies exist, srcSet and sizes.

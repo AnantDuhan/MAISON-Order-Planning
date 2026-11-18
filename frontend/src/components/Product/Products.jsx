@@ -9,6 +9,7 @@ import MetaData from '../layout/MetaData';
 import Pager from '../layout/Pager/Pager';
 import { useCategories } from '../../utils/useCategories';
 import FilterPanel, { PRICE_RANGES } from './FilterPanel';
+import NoResults from './NoResults';
 
 const SORT_OPTIONS = [
     { value: 'newest', label: 'Newest' },
@@ -212,29 +213,27 @@ const Products = () => {
                         {/* Grid */}
                         <div className='mt-8'>
                             {firstLoad || (loading && products.length === 0) ? (
-                                <div className='grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 xl:grid-cols-3'>
+                                <div className='grid grid-cols-2 gap-x-3 gap-y-8 sm:gap-x-6 sm:gap-y-10 xl:grid-cols-3'>
                                     {Array.from({ length: 6 }, (_, i) => <SkeletonCard key={i} />)}
                                 </div>
                             ) : products.length > 0 ? (
                                 <div
                                     aria-busy={loading}
-                                    className={`grid grid-cols-1 gap-x-6 gap-y-10 transition-opacity duration-300 sm:grid-cols-2 xl:grid-cols-3 ${loading ? 'pointer-events-none opacity-40' : ''}`}
+                                    className={`grid grid-cols-2 gap-x-3 gap-y-8 sm:gap-x-6 sm:gap-y-10 transition-opacity duration-300 xl:grid-cols-3 ${loading ? 'pointer-events-none opacity-40' : ''}`}
                                 >
                                     {products.map((product, index) => <ProductCard key={product._id} product={product} priority={index < 2} />)}
                                 </div>
                             ) : (
-                                <div className='py-20 text-center'>
-                                    <p className='font-display text-2xl italic text-ink-faint'>
-                                        {isSearch && !activeCount
-                                            ? `Nothing matches “${keyword}”. Try a broader word.`
-                                            : activeName && !priceKey && !rating
-                                                ? `Nothing in ${activeName} just yet.`
-                                                : 'No pieces match these filters.'}
-                                    </p>
-                                    {activeCount > 0 && (
-                                        <button type='button' onClick={clearAll} className='btn-outline mt-6'>Clear filters</button>
-                                    )}
-                                </div>
+                                <NoResults
+                                    keyword={keyword}
+                                    filtersActive={activeCount > 0}
+                                    onClearFilters={clearAll}
+                                    message={isSearch && !activeCount
+                                        ? `Nothing matches “${keyword}”.`
+                                        : activeName && !priceKey && !rating
+                                            ? `Nothing in ${activeName} just yet.`
+                                            : 'No pieces match these filters.'}
+                                />
                             )}
                         </div>
 

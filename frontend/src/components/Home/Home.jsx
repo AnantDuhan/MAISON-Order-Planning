@@ -223,7 +223,7 @@ const Home = () => {
             {arrivals.length > 0 && (
                 <section className='editorial-shell mt-20 sm:mt-24'>
                     <SectionHead title='New arrivals' link='/products' linkLabel='Shop all' />
-                    <div className='mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4'>
+                    <div className='mt-8 grid grid-cols-2 gap-x-3 gap-y-8 sm:gap-6 lg:grid-cols-4'>
                         {arrivals.map(product => <ProductCard key={product._id} product={product} sizes={CARD_SIZES_4_COL} />)}
                     </div>
                 </section>

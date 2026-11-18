@@ -51,20 +51,20 @@ const WishlistProductCard = ({ product }) => {
                     <button
                         onClick={deleteWishlistProduct}
                         aria-label='Remove from wishlist'
-                        className='absolute right-3 top-3 grid h-9 w-9 place-items-center rounded-full bg-canvas/80 text-ink backdrop-blur transition-all duration-500 ease-luxe hover:text-danger'
+                        className='absolute right-2 top-2 grid h-9 w-9 sm:right-3 sm:top-3 place-items-center rounded-full bg-canvas/80 text-ink backdrop-blur transition-all duration-500 ease-luxe hover:text-danger'
                     >
                         <svg width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='1.5' strokeLinecap='round'>
                             <path d='M6 6l12 12M18 6L6 18' />
                         </svg>
                     </button>
                 </div>
-                <div className='px-5 py-5'>
-                    <h3 className='truncate font-display text-xl font-medium text-ink'>{product.name}</h3>
-                    <div className='mt-2 flex items-center gap-2'>
-                        <Rating {...options} />
+                <div className='px-3 py-3 sm:px-5 sm:py-5'>
+                    <h3 className='line-clamp-2 font-display text-[1.05rem] font-medium leading-snug text-ink sm:truncate sm:text-xl sm:leading-normal'>{product.name}</h3>
+                    <div className='mt-1.5 flex items-center gap-1.5 sm:mt-2 sm:gap-2'>
+                        <Rating {...options} sx={{ fontSize: { xs: '0.95rem', sm: '1.125rem' } }} />
                         <span className='font-sans text-[0.7rem] text-ink-faint'>({product.numOfReviews})</span>
                     </div>
-                    <p className='mt-3 font-sans text-sm tracking-wide text-ink-soft'>{priceLabel(product)}</p>
+                    <p className='mt-2 font-sans text-sm tracking-wide text-ink-soft sm:mt-3'>{priceLabel(product)}</p>
                 </div>
             </Link>
         </Fragment>

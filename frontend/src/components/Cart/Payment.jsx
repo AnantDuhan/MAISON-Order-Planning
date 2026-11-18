@@ -12,6 +12,7 @@ import { createOrder, clearErrors } from '../../actions/orderAction';
 import { formatINR } from '../../utils/priceLabel';
 import { CASHFREE_MODE, loadCashfree, preloadCashfree } from '../../utils/loadCashfree';
 import { clearGuestContact, getGuestContact, saveLastGuestOrder, useCheckoutAccess } from '../../utils/guestCheckout';
+import { saveReceipt } from '../../utils/orderReceipt';
 
 
 const Payment = () => {
@@ -113,12 +114,14 @@ const Payment = () => {
                     throw new Error('Payment succeeded, but the order could not be created. Please contact support.');
                 }
                 saveLastGuestOrder({ id: placed.order._id, token: placed.trackingToken, email: placed.email });
+                saveReceipt(placed.order);
                 clearGuestContact();
             } else {
                 const createdOrder = await dispatch(createOrder(orderBody));
                 if (!createdOrder?.success) {
                     throw new Error('Payment succeeded, but the order could not be created. Please contact support.');
                 }
+                saveReceipt(createdOrder.order);
             }
             toast.success('Payment processed successfully.');
             navigate('/success');
